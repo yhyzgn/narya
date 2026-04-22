@@ -1,0 +1,10 @@
+[package]
+name = "narya-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+config = { path = "../config" }
+anyhow = { workspace = true }
+libc = { workspace = true }
+tracing = { workspace = true }

@@ -1,0 +1,52 @@
+[package]
+name = "narya"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = [
+    "api",
+    "config",
+    "narya-core",
+    "daemon",
+    "platform",
+    "utils",
+]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+libc = "0.2"
+futures = "0.3"
+async-trait = "0.1"
+mimalloc = "0.1"
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+base64 = "0.22"
+sysinfo = "0.32"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = true
+opt-level = "s" # 针对体积进行优化
+
+[dependencies]
+api = { path = "api" }
+config = { path = "config" }
+narya-core = { path = "narya-core" }
+daemon = { path = "daemon" }
+platform = { path = "platform" }
+utils = { path = "utils" }
+mimalloc = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde_json = { workspace = true }
