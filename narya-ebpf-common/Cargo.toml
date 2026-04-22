@@ -1,0 +1,12 @@
+[package]
+name = "narya-ebpf-common"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+network-types = "0.0.5"
+aya = { version = "0.12", optional = true }
+
+[features]
+user = ["dep:aya"]

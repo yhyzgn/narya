@@ -47,7 +47,10 @@ impl ConfigDiff {
     }
 
     pub fn has_changes(&self) -> bool {
-        self.subscriptions_changed || !self.groups_changed.is_empty() || self.rules_changed || self.settings_changed
+        self.subscriptions_changed
+            || !self.groups_changed.is_empty()
+            || self.rules_changed
+            || self.settings_changed
     }
 }
 

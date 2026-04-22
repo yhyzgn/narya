@@ -11,6 +11,8 @@ members = [
     "daemon",
     "platform",
     "utils",
+    "narya-ebpf",
+    "narya-ebpf-common",
 ]
 
 [workspace.dependencies]

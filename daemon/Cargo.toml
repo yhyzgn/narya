@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+api = { path = "../api" }
 config = { path = "../config" }
 narya-core = { path = "../narya-core" }
 platform = { path = "../platform" }
@@ -12,3 +13,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
+async-trait = { workspace = true }
+aya = { version = "0.12", features = ["async_tokio"] }
+narya-ebpf-common = { path = "../narya-ebpf-common", features = ["user"] }

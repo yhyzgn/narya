@@ -1,8 +1,8 @@
+use crate::controller::NaryaDaemon;
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::net::{UnixListener, UnixStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use daemon::controller::NaryaDaemon;
+use tokio::net::{UnixListener, UnixStream};
 
 pub struct IpcServer {
     daemon: Arc<NaryaDaemon>,

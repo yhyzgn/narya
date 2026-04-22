@@ -1,7 +1,27 @@
+# Implement Rust FFI Bindings Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Implement real FFI bindings to sing-box in Rust and verify with tests.
+
+**Architecture:** Update `narya-core/src/singbox.rs` to use `extern "C"` declarations that link to the sing-box library built via Go. Implement the `SingBoxCore` trait using these FFI calls.
+
+**Tech Stack:** Rust, FFI, libc, anyhow, sing-box (Go)
+
+---
+
+### Task 1: Update narya-core/src/singbox.rs
+
+**Files:**
+- Modify: `narya-core/src/singbox.rs`
+
+- [ ] **Step 1: Replace content of narya-core/src/singbox.rs with the provided implementation**
+
+```rust
 use anyhow::{Result, bail};
 use config::diff::ConfigDiff;
-use libc::c_char;
 use std::ffi::CString;
+use libc::c_char;
 
 unsafe extern "C" {
     pub fn sing_box_start(config_json: *const c_char) -> i32;
@@ -21,7 +41,7 @@ impl SingBoxCore for SingBoxFfi {
         tracing::info!("Starting sing-box via real FFI");
         let c_config = CString::new(config_json)?;
         let result = unsafe { sing_box_start(c_config.as_ptr()) };
-
+        
         if result != 0 {
             bail!("Sing-box failed to start with code: {}", result);
         }
@@ -75,21 +95,11 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn test_singbox_ffi_lifecycle() {
         let sb = SingBoxFfi;
-        // 提供一个包含 inbound 的配置，某些版本的 sing-box 可能需要至少一个 inbound
-        let config = r#"{
-            "log": {"level": "info"},
-            "inbounds": [
-                {
-                    "type": "mixed",
-                    "listen": "127.0.0.1",
-                    "listen_port": 20086
-                }
-            ]
-        }"#;
-
+        // 提供一个极简的合法 JSON 配置
+        let config = r#"{"log": {"disabled": true}}"#;
+        
         let result = sb.start(config);
         assert!(result.is_ok());
 
@@ -97,3 +107,18 @@ mod tests {
         assert!(stop_result.is_ok());
     }
 }
+```
+
+### Task 2: Verify and Commit
+
+- [ ] **Step 1: Run tests for narya-core**
+
+Run: `cargo test -p narya-core -- --nocapture`
+Expected: PASS
+
+- [ ] **Step 2: Commit the changes**
+
+```bash
+git add narya-core/src/singbox.rs
+git commit -m "feat(narya-core): implement real FFI calls to sing-box"
+```

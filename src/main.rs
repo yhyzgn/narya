@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use daemon::controller::NaryaDaemon;
-use api::ipc::IpcServer;
+use daemon::ipc::IpcServer;
+use std::sync::Arc;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -11,7 +11,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Narya VPN is starting...");
 
     let daemon = Arc::new(NaryaDaemon::new());
-    
+
     // Start the daemon in the background
     let daemon_clone = daemon.clone();
     tokio::spawn(async move {
