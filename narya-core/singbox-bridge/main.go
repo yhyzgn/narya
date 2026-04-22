@@ -6,7 +6,9 @@ package main
 import "C"
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box"
 )
@@ -24,11 +26,13 @@ func sing_box_start(configJson *C.char) C.int {
 	jsonStr := C.GoString(configJson)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelFunc = cancel
+
 	var opts option.Options
-	if err := opts.UnmarshalJSON([]byte(jsonStr)); err != nil {
+	if err := json.Unmarshal([]byte(jsonStr), &opts); err != nil {
 		fmt.Printf("Failed to parse config: %v\n", err)
 		return -2
 	}
+
 	b, err := box.New(box.Options{
 		Context: ctx,
 		Options: opts,
