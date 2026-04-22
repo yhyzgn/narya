@@ -1,20 +1,11 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use config::diff::ConfigDiff;
 use std::ffi::CString;
 use libc::c_char;
 
-// Actual Sing-box C-ABI definitions (linked from Go/Sing-box)
 unsafe extern "C" {
-    /// Starts the sing-box core with the given JSON configuration.
-    /// Returns 0 on success, non-zero on failure.
     pub fn sing_box_start(config_json: *const c_char) -> i32;
-
-    /// Stops the sing-box core.
     pub fn sing_box_stop() -> i32;
-
-    /// Reloads the sing-box core with a new JSON configuration.
-    /// This is a simplified view of the hot-reload mechanism.
-    pub fn sing_box_reload(config_json: *const c_char) -> i32;
 }
 
 pub trait SingBoxCore: Send + Sync {
@@ -27,25 +18,29 @@ pub struct SingBoxFfi;
 
 impl SingBoxCore for SingBoxFfi {
     fn start(&self, config_json: &str) -> Result<()> {
-        tracing::info!("Starting sing-box via FFI");
+        tracing::info!("Starting sing-box via real FFI");
         let c_config = CString::new(config_json)?;
-        // In a real build, we would link against the sing-box C library
-        // unsafe { sing_box_start(c_config.as_ptr()); }
-        let _ = c_config;
+        let result = unsafe { sing_box_start(c_config.as_ptr()) };
+        
+        if result != 0 {
+            bail!("Sing-box failed to start with code: {}", result);
+        }
         Ok(())
     }
 
     fn stop(&self) -> Result<()> {
-        tracing::info!("Stopping sing-box via FFI");
-        // unsafe { sing_box_stop(); }
+        tracing::info!("Stopping sing-box via real FFI");
+        let result = unsafe { sing_box_stop() };
+        if result != 0 {
+            bail!("Sing-box failed to stop with code: {}", result);
+        }
         Ok(())
     }
 
     fn reload(&self, _diff: ConfigDiff, new_config_json: &str) -> Result<()> {
-        tracing::info!("Reloading sing-box via FFI");
-        let c_config = CString::new(new_config_json)?;
-        // unsafe { sing_box_reload(c_config.as_ptr()); }
-        let _ = c_config;
+        tracing::info!("Reloading sing-box (restart mechanism)");
+        self.stop()?;
+        self.start(new_config_json)?;
         Ok(())
     }
 }
@@ -72,5 +67,32 @@ impl SingBoxCore for MockSingBox {
     fn reload(&self, _diff: ConfigDiff, _new_config_json: &str) -> Result<()> {
         tracing::info!("Mock: sing-box reloaded");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_singbox_ffi_lifecycle() {
+        let sb = SingBoxFfi;
+        // 提供一个包含 inbound 的配置，某些版本的 sing-box 可能需要至少一个 inbound
+        let config = r#"{
+            "log": {"level": "info"},
+            "inbounds": [
+                {
+                    "type": "mixed",
+                    "listen": "127.0.0.1",
+                    "listen_port": 20086
+                }
+            ]
+        }"#;
+        
+        let result = sb.start(config);
+        assert!(result.is_ok());
+
+        let stop_result = sb.stop();
+        assert!(stop_result.is_ok());
     }
 }

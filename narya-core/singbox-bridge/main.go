@@ -9,8 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/option"
+	_ "github.com/sagernet/sing-box/include"
 )
 
 var (
@@ -24,6 +25,7 @@ func sing_box_start(configJson *C.char) C.int {
 		return -1
 	}
 	jsonStr := C.GoString(configJson)
+	
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelFunc = cancel
 
@@ -38,6 +40,8 @@ func sing_box_start(configJson *C.char) C.int {
 		Options: opts,
 	})
 	if err != nil {
+		// 即使报错，我们也返回错误码，让 Rust 知道。
+		// 如果是因为 registry 缺失，报错信息会打印在 stdout。
 		fmt.Printf("Failed to create box: %v\n", err)
 		return -3
 	}
