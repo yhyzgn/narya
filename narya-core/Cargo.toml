@@ -2,6 +2,7 @@
 name = "narya-core"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
 
 [dependencies]
 config = { path = "../config" }
