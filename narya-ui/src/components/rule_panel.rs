@@ -18,7 +18,6 @@ impl RulePanel {
         let entity_id = cx.entity_id();
         let q = store_read.search_query.clone();
 
-        // 计算闪烁状态 (500ms 翻转一次)
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -48,7 +47,6 @@ impl RulePanel {
             .gap_4()
             .size_full()
             .child(
-                // 彻底修复：输入框 UI 与光标逻辑
                 div()
                     .flex()
                     .justify_between()
@@ -74,7 +72,6 @@ impl RulePanel {
                                     .flex()
                                     .items_center()
                                     .relative()
-                                    // 修正：光标始终处于文字或占位符的最前端/末端
                                     .child(if q.is_empty() {
                                         div()
                                             .text_sm()
@@ -85,7 +82,6 @@ impl RulePanel {
                                     })
                                     .child(if cursor_visible {
                                         if q.is_empty() {
-                                            // 空白时，光标悬浮在 Placeholder 起始处
                                             div()
                                                 .absolute()
                                                 .left_0()
@@ -93,7 +89,6 @@ impl RulePanel {
                                                 .h_4()
                                                 .bg(rgb(0x1677ff))
                                         } else {
-                                            // 有文字时，光标紧跟其后
                                             div().ml_0p5().w_0p5().h_4().bg(rgb(0x1677ff))
                                         }
                                     } else {
@@ -234,7 +229,7 @@ impl RulePanel {
                                                 name: app_name.clone(),
                                             },
                                             |drag, _, _, cx| {
-                                                // 修复不跟手：使用最简化的渲染，强制移除所有外部偏移
+                                                // 核心修正：返回一个带负边距的 View 以对齐光标
                                                 cx.new(|_| AppDragView {
                                                     name: drag.name.clone(),
                                                 })
@@ -281,15 +276,23 @@ struct AppDragView {
 
 impl Render for AppDragView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        // 极致对齐修复：使用 absolute 居中或者是极简布局
-        // 在 GPUI 中，最好的“跟手”方式是创建一个不带内外边距的根节点
+        // 极致对齐方案：
+        // 1. 设置固定宽度 140px，高度 30px
+        // 2. 使用负边距 (ml_-70, mt_-15) 强制让指针落在矩形正中心
         div()
-            .px_2()
-            .py_1()
+            .w(px(140.0))
+            .h(px(30.0))
+            .ml(px(-70.0))
+            .mt(px(-15.0))
+            .flex()
+            .items_center()
+            .justify_center()
             .bg(rgb(0x1677ff))
-            .rounded_md()
+            .rounded_full()
+            .shadow_lg() // 增加阴影增强浮动感
             .text_color(rgb(0xffffff))
             .text_xs()
+            .overflow_hidden()
             .child(self.name.clone())
     }
 }
