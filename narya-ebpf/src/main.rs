@@ -6,7 +6,6 @@ use aya_ebpf::{
     maps::HashMap,
     programs::SkBuffContext,
 };
-use aya_log_ebpf::info;
 use narya_ebpf_common::TrafficStats;
 
 #[map(name = "TRAFFIC_STATS")]
@@ -15,18 +14,26 @@ static mut TRAFFIC_STATS: HashMap<u32, TrafficStats> =
 
 #[cgroup_skb(name = "narya_egress")]
 pub fn narya_egress(ctx: SkBuffContext) -> i32 {
-    match try_narya_egress(ctx) {
-        Ok(ret) => ret,
-        Err(_) => 1,
+    #[cfg(target_arch = "bpf")]
+    {
+        match try_narya_egress(ctx) {
+            Ok(ret) => ret,
+            Err(_) => 1,
+        }
+    }
+    #[cfg(not(target_arch = "bpf"))]
+    {
+        let _ = ctx;
+        1
     }
 }
 
+#[cfg(target_arch = "bpf")]
 fn try_narya_egress(ctx: SkBuffContext) -> Result<i32, u32> {
     let skb = ctx.skb;
     let len = unsafe { (*skb).len as u64 };
 
-    // 获取当前进程的 cgroup id 或 pid (在 cgroup_skb 中通常通过 ctx 获取)
-    // 简化版：使用 0 作为全局统计，实际开发中会根据 cgroup 划分
+    // 获取当前进程的 cgroup id 或 pid
     let key = 0u32;
 
     unsafe {
@@ -42,7 +49,7 @@ fn try_narya_egress(ctx: SkBuffContext) -> Result<i32, u32> {
         }
     }
 
-    Ok(1) // 1 表示放行 (Pass)
+    Ok(1)
 }
 
 #[panic_handler]
