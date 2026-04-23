@@ -113,7 +113,7 @@ impl Workspace {
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
 
-        tokio::spawn(async move {
+        utils::TOKIO_RUNTIME.spawn(async move {
             tracing::info!("Subscription task running in background...");
             let result = SubscriptionParser::fetch_and_parse(&url).await;
 

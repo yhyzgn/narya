@@ -133,10 +133,6 @@ impl NaryaDaemon {
 
         Ok(())
     }
-
-    pub fn get_tracker(&self) -> Arc<dyn ProcessTracker> {
-        self.tracker.clone()
-    }
 }
 
 #[cfg(test)]
