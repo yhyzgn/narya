@@ -16,12 +16,13 @@ fn main() -> anyhow::Result<()> {
     // we use the GPUI execution context if possible, or a separate thread.
     let daemon_clone = daemon.clone();
     std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
+        let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
 
         runtime.block_on(async {
+
             // Start the daemon
             let d_clone = daemon_clone.clone();
             tokio::spawn(async move {
