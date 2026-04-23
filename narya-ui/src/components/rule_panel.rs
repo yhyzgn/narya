@@ -2,6 +2,7 @@ use crate::ipc_client;
 use crate::models::rule::{AppInfo, SharedRuleStore};
 use gpui::prelude::*;
 use gpui::*;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct RulePanel;
 
@@ -16,6 +17,13 @@ impl RulePanel {
         let store_read = store.read();
         let entity_id = cx.entity_id();
         let q = store_read.search_query.clone();
+
+        // 计算闪烁状态 (500ms 翻转一次)
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        let cursor_visible = (now / 500) % 2 == 0;
 
         let filter = |apps: &[AppInfo]| {
             let q_lower = q.to_lowercase();
@@ -40,7 +48,7 @@ impl RulePanel {
             .gap_4()
             .size_full()
             .child(
-                // 打磨后的搜索输入框
+                // 彻底修复：输入框 UI 与光标逻辑
                 div()
                     .flex()
                     .justify_between()
@@ -60,31 +68,44 @@ impl RulePanel {
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(
-                                // 搜索图标模拟
-                                div().text_color(rgb(0x888888)).text_sm().child(""), // 使用图标字符或文字
-                            )
+                            .child(div().text_color(rgb(0x888888)).text_sm().child(""))
                             .child(
                                 div()
                                     .flex()
                                     .items_center()
+                                    .relative()
+                                    // 修正：光标始终处于文字或占位符的最前端/末端
                                     .child(if q.is_empty() {
                                         div()
                                             .text_sm()
                                             .text_color(rgb(0x555555))
-                                            .child("Search for an application...")
+                                            .child("Search applications...")
                                     } else {
                                         div().text_sm().text_color(rgb(0xffffff)).child(q.clone())
                                     })
-                                    // 模拟光标
-                                    .child(div().ml_0p5().w_0p5().h_4().bg(rgb(0x1677ff))),
+                                    .child(if cursor_visible {
+                                        if q.is_empty() {
+                                            // 空白时，光标悬浮在 Placeholder 起始处
+                                            div()
+                                                .absolute()
+                                                .left_0()
+                                                .w_0p5()
+                                                .h_4()
+                                                .bg(rgb(0x1677ff))
+                                        } else {
+                                            // 有文字时，光标紧跟其后
+                                            div().ml_0p5().w_0p5().h_4().bg(rgb(0x1677ff))
+                                        }
+                                    } else {
+                                        div()
+                                    }),
                             ),
                     )
                     .child(
                         div()
                             .text_xs()
                             .text_color(rgb(0x555555))
-                            .child(format!("{} apps detected", total_count)),
+                            .child(format!("{} apps", total_count)),
                     ),
             )
             .child(
@@ -95,7 +116,7 @@ impl RulePanel {
                     .min_h_0()
                     .overflow_hidden()
                     .child(div().w_1_3().h_full().child(Self::render_column(
-                        "Available Applications",
+                        "Available",
                         unassigned,
                         "pool",
                         store,
@@ -108,19 +129,12 @@ impl RulePanel {
                             .flex_col()
                             .gap_6()
                             .h_full()
+                            .min_h_0()
                             .child(Self::render_column(
-                                "Direct (Whitelist)",
-                                direct,
-                                "direct",
-                                store,
-                                entity_id,
+                                "Direct", direct, "direct", store, entity_id,
                             ))
                             .child(Self::render_column(
-                                "Overseas (Proxy)",
-                                proxy,
-                                "proxy",
-                                store,
-                                entity_id,
+                                "Proxy", proxy, "proxy", store, entity_id,
                             )),
                     ),
             )
@@ -220,7 +234,7 @@ impl RulePanel {
                                                 name: app_name.clone(),
                                             },
                                             |drag, _, _, cx| {
-                                                // 极致“跟手”：拖拽时仅保留纯色胶囊，去掉所有定位偏移
+                                                // 修复不跟手：使用最简化的渲染，强制移除所有外部偏移
                                                 cx.new(|_| AppDragView {
                                                     name: drag.name.clone(),
                                                 })
@@ -254,12 +268,6 @@ impl RulePanel {
                                                         .child(app.name),
                                                 ),
                                         )
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(rgb(0x444444))
-                                                .child(app.id.to_string()),
-                                        )
                                 })),
                         ),
                 ),
@@ -273,12 +281,13 @@ struct AppDragView {
 
 impl Render for AppDragView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        // 极致简化的 DragView：去掉边距和阴影，确保中心对齐
+        // 极致对齐修复：使用 absolute 居中或者是极简布局
+        // 在 GPUI 中，最好的“跟手”方式是创建一个不带内外边距的根节点
         div()
-            .px_3()
-            .py_1_5()
-            .bg(rgb(0x1677ff)) // 拖拽时变为实色，提升对比度
-            .rounded_full() // 胶囊形状
+            .px_2()
+            .py_1()
+            .bg(rgb(0x1677ff))
+            .rounded_md()
             .text_color(rgb(0xffffff))
             .text_xs()
             .child(self.name.clone())

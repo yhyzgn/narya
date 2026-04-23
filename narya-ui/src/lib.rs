@@ -123,32 +123,10 @@ impl Workspace {
                             });
                         }
                     }
-                    if nodes.is_empty() {
-                        nodes.push(ProxyNode {
-                            name: "HK-IEPL-1".to_string(),
-                            protocol: "Vmess".to_string(),
-                            delay: Some(32),
-                        });
-                        nodes.push(ProxyNode {
-                            name: "SG-Standard-1".to_string(),
-                            protocol: "Shadowsocks".to_string(),
-                            delay: Some(58),
-                        });
-                        nodes.push(ProxyNode {
-                            name: "US-GIA-Premium".to_string(),
-                            protocol: "Trojan".to_string(),
-                            delay: Some(145),
-                        });
-                    }
                     p_store.nodes = nodes;
                 }
                 Err(e) => {
                     p_store.last_error = Some(e.to_string());
-                    p_store.nodes = vec![ProxyNode {
-                        name: "DEBUG: HK-Node".to_string(),
-                        protocol: "Vmess".to_string(),
-                        delay: Some(999),
-                    }];
                 }
             }
         });
@@ -192,9 +170,10 @@ impl Render for Workspace {
         let entity = cx.entity().clone();
         let selected_tab = self.selected_tab;
 
-        // 当切换到 Rules 标签页时，强制聚焦
         if selected_tab == 3 {
             _window.focus(&self.focus_handle, cx);
+            // 仅在 Rules 页面开启重绘以驱动光标闪烁
+            cx.on_next_frame(_window, |_, _, cx| cx.notify());
         }
 
         div()
@@ -205,8 +184,6 @@ impl Render for Workspace {
             .on_key_down(move |event, _, cx| {
                 if selected_tab == 3 {
                     let key: &str = event.keystroke.key.as_ref();
-                    tracing::info!("Keyboard input: {}", key);
-
                     entity.update(cx, |workspace, cx| {
                         let mut store = workspace.rule_store.write();
                         if key.len() == 1 {
