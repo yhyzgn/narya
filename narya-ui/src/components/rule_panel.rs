@@ -17,11 +17,10 @@ impl RulePanel {
         let entity_id = cx.entity_id();
         let q = store_read.search_query.to_lowercase();
 
-        // 预过滤数据，减少渲染时的逻辑负担
         let filter = |apps: &[AppInfo]| {
             apps.iter()
                 .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
-                .take(150) // 严格限制数量以保证 Hover 的 0 延迟感
+                .take(150)
                 .cloned()
                 .collect::<Vec<_>>()
         };
@@ -38,8 +37,9 @@ impl RulePanel {
             .flex()
             .flex_col()
             .gap_4()
-            .size_full()
+            .size_full() // 占据 Workspace 分配的全部空间
             .child(
+                // 顶部状态栏 (固定高度)
                 div()
                     .flex()
                     .justify_between()
@@ -72,27 +72,30 @@ impl RulePanel {
                     ),
             )
             .child(
+                // 主内容区：必须 flex_1() 撑开剩余高度
                 div()
                     .flex()
                     .gap_6()
                     .flex_1()
                     .min_h_0()
-                    .overflow_hidden()
-                    .child(div().w_1_3().h_full().child(Self::render_column(
-                        "Available",
-                        unassigned,
-                        "pool",
-                        store,
-                        entity_id,
-                    )))
                     .child(
+                        // 左侧单列：h_full()
+                        div().w_1_3().h_full().child(Self::render_column(
+                            "Available",
+                            unassigned,
+                            "pool",
+                            store,
+                            entity_id,
+                        )),
+                    )
+                    .child(
+                        // 右侧两列组合：flex_1() 且 h_full()
                         div()
                             .flex_1()
                             .flex()
                             .flex_col()
                             .gap_6()
                             .h_full()
-                            .min_h_0()
                             .child(Self::render_column(
                                 "Direct", direct, "direct", store, entity_id,
                             ))
@@ -114,15 +117,15 @@ impl RulePanel {
         let count = apps.len();
 
         div()
-            .flex_1()
+            .flex_1() // 在父 flex 容器中撑开
             .flex()
             .flex_col()
+            .h_full() // 强制占满可用高度
             .bg(rgb(0x141414))
             .rounded_xl()
             .border_1()
             .border_color(rgb(0x303030))
             .p_4()
-            .min_h_0()
             .id(zone_id)
             .hover(|s| s.border_color(rgb(0x1677ff)))
             .on_drop(move |drag: &AppDrag, _, cx| {
@@ -160,6 +163,7 @@ impl RulePanel {
                 cx.notify(entity_id);
             })
             .child(
+                // 标题行
                 div()
                     .flex()
                     .justify_between()
@@ -174,6 +178,7 @@ impl RulePanel {
                     ),
             )
             .child(
+                // 滚动区：relative + absolute 是为了让 inset_0 生效，从而让 content 跟随父级高度
                 div().flex_1().min_h_0().relative().child(
                     div()
                         .id(format!("{}-scroll", zone_id))
