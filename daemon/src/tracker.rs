@@ -3,7 +3,7 @@ use api::tracker::{AppIdentity, BypassRules, ConnectionMeta};
 use async_trait::async_trait;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {

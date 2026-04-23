@@ -57,7 +57,7 @@ impl DomainSuffixMatcher {
 }
 
 impl Matcher for DomainSuffixMatcher {
-    fn matches(&self, meta: &ConnectionMeta) -> bool {
+    fn matches(&self, _meta: &ConnectionMeta) -> bool {
         // 在实际应用中，meta 需要携带域名信息（通过 FakeIP 还原或 DNS 解析）
         // 这里暂时通过 ConnectionMeta 的扩展字段或 DNS 缓存获取
         false
