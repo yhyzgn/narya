@@ -61,6 +61,11 @@ impl IpcServer {
                     },
                     Err(e) => format!("invalid json: {}\n", e),
                 }
+            } else if request_trimmed.starts_with("select_proxy ") {
+                let proxy_name = &request_trimmed["select_proxy ".len()..];
+                tracing::info!("Switching active proxy to: {}", proxy_name);
+                // 这里将来会调用 daemon 切换 Sing-box 节点
+                "ok\n".to_string()
             } else if request_trimmed == "start" {
                 daemon.start().await?;
                 "started\n".to_string()

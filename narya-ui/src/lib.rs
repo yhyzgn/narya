@@ -63,6 +63,50 @@ impl Workspace {
         cx.notify();
     }
 
+    pub fn sync_proxy_selection(&self, name: &str) {
+        let cmd = format!("select_proxy {}", name);
+        utils::TOKIO_RUNTIME.spawn(async move {
+            let _ = ipc_client::send_command(&cmd).await;
+        });
+    }
+
+    fn test_all_latencies(&self, _cx: &mut Context<Self>) {
+        let profile_store = self.profile_store.clone();
+
+        utils::TOKIO_RUNTIME.spawn(async move {
+            tracing::info!("Starting concurrent latency test...");
+            let mut handles = vec![];
+
+            let nodes: Vec<String> = {
+                profile_store
+                    .read()
+                    .nodes
+                    .iter()
+                    .map(|n| n.name.clone())
+                    .collect()
+            };
+
+            for node_name in nodes {
+                let p_store = profile_store.clone();
+                handles.push(tokio::spawn(async move {
+                    // 模拟测速延迟
+                    let delay = (rand::random::<u64>() % 200) + 20;
+                    tokio::time::sleep(Duration::from_millis(delay)).await;
+
+                    let mut store = p_store.write();
+                    if let Some(node) = store.nodes.iter_mut().find(|n| n.name == node_name) {
+                        node.delay = Some(delay);
+                    }
+                }));
+            }
+
+            for h in handles {
+                let _ = h.await;
+            }
+            tracing::info!("Latency test complete");
+        });
+    }
+
     fn refresh_apps(&self, _cx: &mut Context<Self>) {
         let rule_store = self.rule_store.clone();
         utils::TOKIO_RUNTIME.spawn(async move {
@@ -340,16 +384,40 @@ impl Workspace {
     }
 
     fn render_proxies(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let entity = cx.entity().clone();
+
         div()
             .flex()
             .flex_col()
             .size_full()
             .child(
                 div()
-                    .text_2xl()
-                    .text_color(rgb(0xffffff))
+                    .flex()
+                    .justify_between()
+                    .items_center()
                     .mb_6()
-                    .child("Proxy Nodes"),
+                    .child(
+                        div()
+                            .text_2xl()
+                            .text_color(rgb(0xffffff))
+                            .child("Proxy Nodes"),
+                    )
+                    .child(
+                        div()
+                            .id("test-all-btn")
+                            .px_4()
+                            .py_1()
+                            .bg(rgb(0x1677ff))
+                            .rounded_md()
+                            .text_xs()
+                            .cursor_pointer()
+                            .on_click(move |_, _, cx| {
+                                entity.update(cx, |workspace, cx| {
+                                    workspace.test_all_latencies(cx);
+                                });
+                            })
+                            .child("Test All"),
+                    ),
             )
             .child(
                 div()

@@ -6,9 +6,11 @@ pub struct ProxyList;
 impl ProxyList {
     pub fn render(
         store: &SharedProfileStore,
-        _cx: &mut Context<crate::Workspace>,
+        cx: &mut Context<crate::Workspace>,
     ) -> impl IntoElement {
+        let store_handle = store.clone();
         let store = store.read();
+        let entity = cx.entity().clone();
 
         let mut list_container = div().flex().flex_col().gap_2().w_full();
 
@@ -16,49 +18,27 @@ impl ProxyList {
             if store.is_loading {
                 return div()
                     .text_color(rgb(0x888888))
-                    .child("Loading nodes from subscription...")
-                    .into_any_element();
-            } else if let Some(ref err) = store.last_error {
-                return div()
-                    .flex()
-                    .flex_col()
-                    .gap_4()
-                    .child(
-                        div()
-                            .text_color(rgb(0xff4d4f))
-                            .child(format!("Error: {}", err)),
-                    )
-                    .child(
-                        div()
-                            .text_color(rgb(0x888888))
-                            .child("Go to 'Profiles' to check your URL."),
-                    )
+                    .child("Loading nodes...")
                     .into_any_element();
             } else {
                 return div()
-                    .flex()
-                    .flex_col()
-                    .gap_4()
-                    .child(
-                        div()
-                            .text_color(rgb(0x888888))
-                            .child("No nodes found. Did you refresh the profile?"),
-                    )
+                    .text_color(rgb(0x888888))
+                    .child("No nodes available.")
                     .into_any_element();
             }
         }
 
         for (i, node) in store.nodes.iter().enumerate() {
-            let delay_color = match node.delay {
-                Some(d) if d < 100 => rgb(0x52c41a), // Green
-                Some(d) if d < 300 => rgb(0xfaad14), // Orange
-                Some(_) => rgb(0xff4d4f),            // Red
-                None => rgb(0x888888),               // Gray
-            };
+            let name = node.name.clone();
+            let is_active = store.active_node.as_ref() == Some(&name);
+            let store_handle = store_handle.clone();
+            let entity = entity.clone();
 
-            let delay_text = match node.delay {
-                Some(d) => format!("{}ms", d),
-                None => "timeout".to_string(),
+            let delay_color = match node.delay {
+                Some(d) if d < 100 => rgb(0x52c41a),
+                Some(d) if d < 300 => rgb(0xfaad14),
+                Some(_) => rgb(0xff4d4f),
+                None => rgb(0x888888),
             };
 
             list_container = list_container.child(
@@ -68,15 +48,46 @@ impl ProxyList {
                     .justify_between()
                     .items_center()
                     .p_3()
-                    .bg(rgb(0x2d2d2d))
-                    .rounded_md()
+                    .bg(if is_active {
+                        rgba(0x1677ff1a)
+                    } else {
+                        rgb(0x2d2d2d)
+                    })
+                    .border_1()
+                    .border_color(if is_active {
+                        rgb(0x1677ff)
+                    } else {
+                        rgba(0x00000000)
+                    })
+                    .rounded_lg()
                     .hover(|style| style.bg(rgb(0x353535)))
+                    .cursor_pointer()
+                    .on_click(move |_, _, cx| {
+                        let name_clone = name.clone();
+                        let store_handle = store_handle.clone();
+                        entity.update(cx, |workspace, cx| {
+                            {
+                                let mut s = store_handle.write();
+                                s.set_active(&name_clone);
+                            }
+                            workspace.sync_proxy_selection(&name_clone);
+                            cx.notify();
+                        });
+                    })
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .gap_1()
-                            .child(div().text_color(rgb(0xffffff)).child(node.name.clone()))
+                            .child(
+                                div()
+                                    .text_color(if is_active {
+                                        rgb(0x1677ff)
+                                    } else {
+                                        rgb(0xffffff)
+                                    })
+                                    .child(node.name.clone()),
+                            )
                             .child(
                                 div()
                                     .text_color(rgb(0x888888))
@@ -84,7 +95,15 @@ impl ProxyList {
                                     .child(node.protocol.clone()),
                             ),
                     )
-                    .child(div().text_color(delay_color).text_sm().child(delay_text)),
+                    .child(
+                        div()
+                            .text_color(delay_color)
+                            .text_sm()
+                            .child(match node.delay {
+                                Some(d) => format!("{}ms", d),
+                                None => "- ms".to_string(),
+                            }),
+                    ),
             );
         }
 

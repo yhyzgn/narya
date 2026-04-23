@@ -12,6 +12,7 @@ pub struct ProxyNode {
 pub struct ProfileStore {
     pub url: String,
     pub nodes: Vec<ProxyNode>,
+    pub active_node: Option<String>,
     pub is_loading: bool,
     pub last_error: Option<String>,
 }
@@ -21,9 +22,14 @@ impl ProfileStore {
         Self {
             url,
             nodes: Vec::new(),
+            active_node: None,
             is_loading: false,
             last_error: None,
         }
+    }
+
+    pub fn set_active(&mut self, name: &str) {
+        self.active_node = Some(name.to_string());
     }
 }
 
