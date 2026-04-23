@@ -1,3 +1,4 @@
+use crate::ipc_client;
 use crate::models::rule::{AppInfo, SharedRuleStore};
 use gpui::*;
 
@@ -67,12 +68,41 @@ impl RulePanel {
             .p_4()
             .id(zone_id)
             .on_drop(move |drag: &AppDrag, _, cx| {
-                let mut store_write = store.write();
-                match zone_id {
-                    "direct" => store_write.assign_to_direct(&drag.app_id),
-                    "proxy" => store_write.assign_to_proxy(&drag.app_id),
-                    _ => store_write.unassign(&drag.app_id),
+                let mut rules_changed = false;
+                {
+                    let mut store_write = store.write();
+                    match zone_id {
+                        "direct" => {
+                            store_write.assign_to_direct(&drag.app_id);
+                            rules_changed = true;
+                        }
+                        "proxy" => {
+                            store_write.assign_to_proxy(&drag.app_id);
+                            rules_changed = true;
+                        }
+                        _ => {
+                            store_write.unassign(&drag.app_id);
+                            rules_changed = true;
+                        }
+                    }
                 }
+
+                if rules_changed {
+                    // 同步到后端
+                    let store_read = store.read();
+                    let bypass_rules = api::tracker::BypassRules {
+                        whitelist: store_read.direct.iter().map(|a| a.id.clone()).collect(),
+                        blacklist: store_read.proxy.iter().map(|a| a.id.clone()).collect(),
+                    };
+
+                    if let Ok(json) = serde_json::to_string(&bypass_rules) {
+                        let cmd = format!("update_rules {}", json);
+                        utils::TOKIO_RUNTIME.spawn(async move {
+                            let _ = ipc_client::send_command(&cmd).await;
+                        });
+                    }
+                }
+
                 cx.notify(entity_id);
             })
             .child(div().text_lg().mb_4().child(title))
@@ -102,7 +132,7 @@ impl RulePanel {
                             .bg(rgb(0x3d3d3d))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|s| s.bg(rgb(0x4d4d4d)))
+                            .hover(|style| style.bg(rgb(0x4d4d4d)))
                             .child(app.name)
                     })),
             )

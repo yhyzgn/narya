@@ -41,6 +41,10 @@ impl NaryaDaemon {
         }
     }
 
+    pub fn get_tracker(&self) -> Arc<dyn ProcessTracker> {
+        self.tracker.clone()
+    }
+
     pub async fn start(&self) -> Result<()> {
         let config = self.config.read().await;
 

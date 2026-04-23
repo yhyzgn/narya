@@ -154,7 +154,9 @@ impl ProcessTracker for EbpfProcessTracker {
         self.system.list_network_apps().await
     }
 
-    async fn update_bypass_rules(&self, _rules: &BypassRules) -> Result<()> {
+    async fn update_bypass_rules(&self, rules: &BypassRules) -> Result<()> {
+        tracing::info!("Backend received bypass rules update: {:?}", rules);
+        // 在这里，将来会把规则同步到 eBPF Maps
         Ok(())
     }
 

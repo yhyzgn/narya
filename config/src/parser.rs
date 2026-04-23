@@ -87,11 +87,17 @@ impl SubscriptionParser {
                 let name = if let Some(hash_pos) = line.find('#') {
                     let raw_name = &line[hash_pos + 1..];
                     // 处理 URL 编码
-                    percent_encoding::percent_decode_str(raw_name).decode_utf8_lossy().into_owned()
+                    percent_encoding::percent_decode_str(raw_name)
+                        .decode_utf8_lossy()
+                        .into_owned()
                 } else {
-                    format!("{}-{}", line.split("://").next().unwrap_or("node"), nodes.len() + 1)
+                    format!(
+                        "{}-{}",
+                        line.split("://").next().unwrap_or("node"),
+                        nodes.len() + 1
+                    )
                 };
-                
+
                 nodes.push(name);
             }
         }
@@ -104,7 +110,7 @@ impl SubscriptionParser {
                 proxies: nodes,
             });
         }
-        
+
         Ok(config)
     }
 }

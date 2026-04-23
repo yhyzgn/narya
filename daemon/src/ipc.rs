@@ -34,7 +34,7 @@ impl IpcServer {
     }
 
     async fn handle_client(mut stream: UnixStream, daemon: Arc<NaryaDaemon>) -> Result<()> {
-        let mut buffer = [0; 1024];
+        let mut buffer = [0; 4096]; // 调大缓冲区以接收 JSON 规则
         loop {
             let n = stream.read(&mut buffer).await?;
             if n == 0 {
@@ -42,19 +42,33 @@ impl IpcServer {
             }
 
             let request = String::from_utf8_lossy(&buffer[..n]);
-            tracing::info!("IPC Request: {}", request);
+            let request_trimmed = request.trim();
+            tracing::info!("IPC Request: {}", request_trimmed);
 
-            let response = match request.trim() {
-                "status" => "running\n".to_string(),
-                "start" => {
-                    daemon.start().await?;
-                    "started\n".to_string()
+            let response = if request_trimmed == "status" {
+                "running\n".to_string()
+            } else if request_trimmed == "get_apps" {
+                match daemon.get_tracker().list_network_apps().await {
+                    Ok(apps) => serde_json::to_string(&apps)? + "\n",
+                    Err(e) => format!("error: {}\n", e),
                 }
-                "stop" => {
-                    daemon.stop().await?;
-                    "stopped\n".to_string()
+            } else if request_trimmed.starts_with("update_rules ") {
+                let json_part = &request_trimmed["update_rules ".len()..];
+                match serde_json::from_str::<api::tracker::BypassRules>(json_part) {
+                    Ok(rules) => match daemon.get_tracker().update_bypass_rules(&rules).await {
+                        Ok(_) => "ok\n".to_string(),
+                        Err(e) => format!("error: {}\n", e),
+                    },
+                    Err(e) => format!("invalid json: {}\n", e),
                 }
-                _ => "unknown command\n".to_string(),
+            } else if request_trimmed == "start" {
+                daemon.start().await?;
+                "started\n".to_string()
+            } else if request_trimmed == "stop" {
+                daemon.stop().await?;
+                "stopped\n".to_string()
+            } else {
+                "unknown command\n".to_string()
             };
 
             stream.write_all(response.as_bytes()).await?;
