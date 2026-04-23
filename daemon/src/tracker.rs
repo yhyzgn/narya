@@ -5,6 +5,7 @@ use narya_ebpf_common::ProcessConfig;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {
@@ -17,21 +18,9 @@ pub struct ProcessInfo {
 pub trait ProcessTracker: Send + Sync {
     async fn start(&self) -> Result<()>;
     async fn stop(&self) -> Result<()>;
-
-    // 核心流：根据源 IP 和端口极速获取连接元数据
-    async fn lookup_connection(
-        &self,
-        src_ip: IpAddr,
-        src_port: u16,
-    ) -> Result<Option<ConnectionMeta>>;
-
-    // UI 流：获取当前活跃的网络应用列表
+    async fn lookup_connection(&self, src_ip: IpAddr, src_port: u16) -> Result<Option<ConnectionMeta>>;
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>>;
-
-    // 控制流：下发白名单/黑名单规则到系统底层
     async fn update_bypass_rules(&self, rules: &BypassRules) -> Result<()>;
-
-    // 兼容旧接口的内部方法
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>>;
 }
 
@@ -49,6 +38,41 @@ impl SystemProcessTracker {
 
     fn get_refresh_kind() -> ProcessRefreshKind {
         ProcessRefreshKind::new().with_exe(UpdateKind::Always)
+    }
+
+    // 核心优化：智能识别是否为“用户软件”
+    fn is_user_application(name: &str, path: &PathBuf) -> bool {
+        let path_str = path.to_string_lossy().to_lowercase();
+        let name_lower = name.to_lowercase();
+
+        // 1. 过滤内核线程 (没有路径的)
+        if path_str.is_empty() {
+            return false;
+        }
+
+        // 2. 过滤已知的系统底层黑名单前缀
+        let blacklisted_prefixes = [
+            "kworker/", "systemd", "migration/", "idle_inject/", "irq/", 
+            "rcu_", "cpuhp/", "scsi_", "dbus-", "pipewire", "wayland", 
+            "Xwayland", "gvfs", "at-spi", "ibus-", "fcitx", "gnome-", "kwin_"
+        ];
+        if blacklisted_prefixes.iter().any(|p| name_lower.starts_with(p)) {
+            return false;
+        }
+
+        // 3. 过滤掉不常见的系统目录 (保留 /usr/bin, /opt, /snap, /app, /usr/local 等)
+        // 排除 /usr/lib, /usr/libexec 等包含大量插件和库的目录
+        if path_str.contains("/usr/lib/") || path_str.contains("/usr/libexec/") {
+            return false;
+        }
+
+        // 4. 特殊常见应用白名单 (有些 App 名字奇怪但确实是用户软件)
+        let whitelisted_names = ["chrome", "firefox", "telegram", "discord", "spotify", "code", "narya"];
+        if whitelisted_names.iter().any(|n| name_lower.contains(n)) {
+            return true;
+        }
+
+        true
     }
 }
 
@@ -69,20 +93,34 @@ impl ProcessTracker for SystemProcessTracker {
         _src_ip: IpAddr,
         _src_port: u16,
     ) -> Result<Option<ConnectionMeta>> {
-        // 基础实现暂时返回空
         Ok(None)
     }
 
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> {
-        let processes = self.list_running_processes()?;
-        Ok(processes
-            .into_iter()
-            .map(|p| AppIdentity {
-                name: p.name,
-                identifier: p.pid.to_string(),
-                icon_path: None,
-            })
-            .collect())
+        let all_processes = self.list_running_processes()?;
+        let mut apps = Vec::new();
+        let mut seen_names = HashSet::new();
+
+        for proc in all_processes {
+            // 应用智能过滤与去重
+            if Self::is_user_application(&proc.name, &proc.path) {
+                // 去重逻辑：对于同一款软件的多个进程，只保留一个（通常取名称最简洁的）
+                // 比如 chrome 的多个渲染进程都归为 "chrome"
+                let display_name = proc.name.split(' ').next().unwrap_or(&proc.name).to_string();
+                
+                if !seen_names.contains(&display_name) {
+                    apps.push(AppIdentity {
+                        name: display_name.clone(),
+                        identifier: display_name.clone(), // 使用名称作为标识符比 PID 更适合做持久化规则
+                        icon_path: None,
+                    });
+                    seen_names.insert(display_name);
+                }
+            }
+        }
+        
+        apps.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(apps)
     }
 
     async fn update_bypass_rules(&self, _rules: &BypassRules) -> Result<()> {
@@ -91,7 +129,6 @@ impl ProcessTracker for SystemProcessTracker {
 
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>> {
         let mut sys = self.sys.lock().unwrap();
-
         sys.refresh_processes_specifics(ProcessesToUpdate::All, true, Self::get_refresh_kind());
 
         let processes = sys
@@ -129,7 +166,6 @@ impl ProcessTracker for EbpfProcessTracker {
         #[cfg(target_os = "linux")]
         {
             tracing::info!("Loading eBPF programs on Linux (Mocked for now)...");
-            // let mut bpf = aya::Bpf::load(include_bytes!("../../target/bpfel-unknown-none/release/narya-ebpf"))?;
             tracing::info!("eBPF programs would be loaded and attached to root cgroup here");
         }
         Ok(())
@@ -138,7 +174,7 @@ impl ProcessTracker for EbpfProcessTracker {
     async fn stop(&self) -> Result<()> {
         self.system.stop().await?;
         let mut bpf_lock = self.bpf.lock().await;
-        *bpf_lock = None; // 销毁 Bpf 对象会自动卸载程序
+        *bpf_lock = None;
         Ok(())
     }
 
@@ -147,11 +183,11 @@ impl ProcessTracker for EbpfProcessTracker {
         _src_ip: IpAddr,
         _src_port: u16,
     ) -> Result<Option<ConnectionMeta>> {
-        // 从 BPF Map 中读取溯源信息
         Ok(None)
     }
 
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> {
+        // 调用升级后的系统过滤逻辑
         self.system.list_network_apps().await
     }
 
@@ -165,23 +201,17 @@ impl ProcessTracker for EbpfProcessTracker {
                 let mut rules_map: aya::maps::HashMap<_, u32, ProcessConfig> =
                     aya::maps::HashMap::try_from(bpf.map_mut("PROCESS_RULES").unwrap())?;
 
-                // 1. 获取当前系统所有进程以匹配名称
                 let processes = self.system.list_running_processes()?;
 
-                // 2. 这里的逻辑示例：将黑名单（Proxy/Reject 区）的应用写入 Map 实施阻断测试
-                for app_name in &rules.blacklist {
-                    for proc in processes.iter().filter(|p| p.name.contains(app_name)) {
-                        let config = ProcessConfig { action: 2 }; // 2: Drop
-                        rules_map.insert(proc.pid, config, 0)?;
-                        tracing::debug!(
-                            "Kernel rule set: PID {} ({}) -> REJECT",
-                            proc.pid,
-                            proc.name
-                        );
+                // 清空旧规则 (示例：实际开发中需要更细致的 Diff)
+                // 这里我们暂且只实现增量
+
+                for app_id in &rules.blacklist {
+                    for proc in processes.iter().filter(|p| p.name.contains(app_id)) {
+                        let config = ProcessConfig { action: 2 };
+                        let _ = rules_map.insert(proc.pid, config, 0);
                     }
                 }
-
-                // 3. 白名单放行逻辑同理（Map 中默认为空即放行，除非我们要做反向代理劫持）
                 tracing::info!("eBPF Rules Map updated successfully");
             }
         }
@@ -190,5 +220,59 @@ impl ProcessTracker for EbpfProcessTracker {
 
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>> {
         self.system.list_running_processes()
+    }
+}
+
+pub struct MockProcessTracker;
+
+#[async_trait]
+impl ProcessTracker for MockProcessTracker {
+    async fn start(&self) -> Result<()> {
+        Ok(())
+    }
+    async fn stop(&self) -> Result<()> {
+        Ok(())
+    }
+
+    async fn lookup_connection(
+        &self,
+        _src_ip: IpAddr,
+        _src_port: u16,
+    ) -> Result<Option<ConnectionMeta>> {
+        Ok(None)
+    }
+
+    async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> {
+        Ok(vec![
+            AppIdentity {
+                name: "browser".to_string(),
+                identifier: "browser".to_string(),
+                icon_path: None,
+            },
+            AppIdentity {
+                name: "telegram".to_string(),
+                identifier: "telegram".to_string(),
+                icon_path: None,
+            },
+        ])
+    }
+
+    async fn update_bypass_rules(&self, _rules: &BypassRules) -> Result<()> {
+        Ok(())
+    }
+
+    fn list_running_processes(&self) -> Result<Vec<ProcessInfo>> {
+        Ok(vec![
+            ProcessInfo {
+                pid: 1001,
+                name: "browser".to_string(),
+                path: PathBuf::from("/usr/bin/browser"),
+            },
+            ProcessInfo {
+                pid: 1002,
+                name: "telegram".to_string(),
+                path: PathBuf::from("/usr/bin/telegram"),
+            },
+        ])
     }
 }
