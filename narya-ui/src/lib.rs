@@ -23,10 +23,11 @@ pub struct Workspace {
     profile_store: SharedProfileStore,
     rule_store: SharedRuleStore,
     start_time: std::time::Instant,
+    focus_handle: FocusHandle,
 }
 
 impl Workspace {
-    pub fn new(_cx: &mut Context<Self>) -> Self {
+    pub fn new(cx: &mut Context<Self>) -> Self {
         let store = Arc::new(RwLock::new(TrafficStore::new(60)));
         let store_clone = store.clone();
 
@@ -54,6 +55,7 @@ impl Workspace {
             profile_store,
             rule_store,
             start_time: std::time::Instant::now(),
+            focus_handle: cx.focus_handle(),
         }
     }
 
@@ -103,15 +105,12 @@ impl Workspace {
             store.is_loading = true;
             store.last_error = None;
         }
-
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
-
-        utils::TOKIO_RUNTIME.spawn(async move {
+        tokio::spawn(async move {
             let result = SubscriptionParser::fetch_and_parse(&url).await;
             let mut p_store = profile_store.write();
             p_store.is_loading = false;
-
             match result {
                 Ok(conf) => {
                     let mut nodes = Vec::new();
@@ -193,17 +192,23 @@ impl Render for Workspace {
         let entity = cx.entity().clone();
         let selected_tab = self.selected_tab;
 
+        // 当切换到 Rules 标签页时，强制聚焦
+        if selected_tab == 3 {
+            _window.focus(&self.focus_handle, cx);
+        }
+
         div()
             .size_full()
             .flex()
             .bg(rgb(0x141414))
+            .track_focus(&self.focus_handle)
             .on_key_down(move |event, _, cx| {
                 if selected_tab == 3 {
-                    // 处理键盘模拟搜索
+                    let key: &str = event.keystroke.key.as_ref();
+                    tracing::info!("Keyboard input: {}", key);
+
                     entity.update(cx, |workspace, cx| {
                         let mut store = workspace.rule_store.write();
-                        let key = &event.keystroke.key;
-
                         if key.len() == 1 {
                             store.search_query.push_str(&key.to_lowercase());
                             cx.notify();
@@ -327,11 +332,9 @@ impl Workspace {
 
     fn render_dashboard(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         cx.on_next_frame(window, |_, _, cx| cx.notify());
-
         let store = self.traffic_store.read();
         let current_speed = store.last();
         let uptime = self.start_time.elapsed().as_secs();
-
         div()
             .flex()
             .flex_col()
@@ -455,7 +458,6 @@ impl Workspace {
         let store = self.profile_store.read();
         let is_loading = store.is_loading;
         let url = store.url.clone();
-
         div()
             .flex()
             .flex_col()
