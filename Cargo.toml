@@ -2,6 +2,7 @@
 name = "narya"
 version = "0.1.0"
 edition = "2024"
+resolver = "2"
 
 [workspace]
 members = [
@@ -12,7 +13,7 @@ members = [
     "platform",
     "utils",
     "narya-ebpf",
-    "narya-ebpf-common",
+    "narya-ebpf-common", "narya-ui",
 ]
 
 [workspace.dependencies]
@@ -45,6 +46,7 @@ config = { path = "config" }
 narya-core = { path = "narya-core" }
 daemon = { path = "daemon" }
 platform = { path = "platform" }
+narya-ui = { path = "narya-ui" }
 utils = { path = "utils" }
 mimalloc = { workspace = true }
 tokio = { workspace = true }
@@ -52,3 +54,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 serde_json = { workspace = true }
+
+[patch.crates-io]
+core-foundation = { git = "https://github.com/servo/core-foundation-rs" }
+core-foundation-sys = { git = "https://github.com/servo/core-foundation-rs" }

@@ -1,0 +1,13 @@
+[package]
+name = "narya-ui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed", features = ["x11", "wayland"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["x11", "wayland"] }
+gpui_linux = { git = "https://github.com/zed-industries/zed", features = ["x11", "wayland"] }
+api = { path = "../api" }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
