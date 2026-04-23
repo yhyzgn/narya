@@ -23,7 +23,7 @@ impl TrafficChart {
 
                 let width: f32 = bounds.size.width.into();
                 let height: f32 = bounds.size.height.into();
-                let padding = 12.0;
+                let padding = 10.0;
                 let chart_height = height - padding * 2.0;
 
                 let mut max_val: f32 = 100.0;
@@ -37,94 +37,76 @@ impl TrafficChart {
                 }
                 max_val *= 1.25;
 
-                // 20倍超采样，确保极致曲线平滑
-                let sub_segments = 20;
-                let total_render_points = (60 - 1) * sub_segments;
-                let sub_x_step = width / (total_render_points as f32);
-
-                let scale_y = |val: f32| {
-                    bounds.top() + px(chart_height + padding) - px((val / max_val) * chart_height)
-                };
-
-                // 1. 绘制科技感背景网格
-                for i in 1..=4 {
-                    let y = bounds.top() + px(padding + (i as f32 * chart_height / 4.0));
-                    let mut path = Path::new(point(bounds.left(), y));
-                    path.line_to(point(bounds.right(), y));
-                    window.paint_path(path, rgba(0xffffff05));
-                }
-
-                // 2. 液体霓虹波形渲染器 (分段原子绘制，彻底杜绝三角形伪影)
-                let render_wave = |data_slice: Vec<f32>, color: Rgba, window: &mut Window| {
+                // 算法：像素切片。弃用 Path 系统，使用 PaintQuad 模拟曲线。
+                let render_pixel_liquid = |data_slice: &[f32], color: Rgba, window: &mut Window| {
                     if data_slice.len() < 2 {
                         return;
                     }
 
-                    let bottom_y = bounds.bottom() - px(padding);
+                    // X 轴分辨率设定为 width，即每像素一根垂直条
+                    let step_count = (width as usize).max(100);
+                    let px_step = width / step_count as f32;
+                    let samples_per_point = step_count as f32 / 59.0;
 
-                    // A. 预计算平滑轨迹
-                    let mut points = Vec::with_capacity(total_render_points + 1);
-                    for i in 0..data_slice.len() - 1 {
-                        let y_start = data_slice[i];
-                        let y_end = data_slice[i + 1];
-                        let base_x = bounds.left() + px(i as f32 * (width / 59.0));
+                    for i in 0..step_count {
+                        let sample_idx_float = i as f32 / samples_per_point;
+                        let idx = sample_idx_float.floor() as usize;
+                        let next_idx = (idx + 1).min(data_slice.len() - 1);
+                        let mu = sample_idx_float.fract();
 
-                        for s in 0..sub_segments {
-                            let mu = s as f32 / sub_segments as f32;
-                            let f = |m: f32| (1.0 - (m * PI).cos()) / 2.0;
-                            let py = scale_y(y_start * (1.0 - f(mu)) + y_end * f(mu));
-                            let px = base_x + px(s as f32 * sub_x_step);
-                            points.push(point(px, py));
+                        // 余弦插值
+                        let f = (1.0 - (mu * PI).cos()) / 2.0;
+                        let y_val = data_slice[idx] * (1.0 - f) + data_slice[next_idx] * f;
+
+                        let x = bounds.left() + px(i as f32 * px_step);
+                        let top_y = bounds.top() + px(chart_height + padding)
+                            - px((y_val / max_val) * chart_height);
+                        let bar_height = (bounds.bottom() - px(padding)) - top_y;
+
+                        // 仅当高度大于 0 时渲染
+                        if bar_height > px(0.0) {
+                            // 1. 区域填充块 (15% 透明度)
+                            window.paint_quad(PaintQuad {
+                                bounds: Bounds {
+                                    origin: point(x, top_y),
+                                    size: size(px(px_step + 0.3), bar_height),
+                                },
+                                background: Rgba {
+                                    r: color.r,
+                                    g: color.g,
+                                    b: color.b,
+                                    a: 0.15,
+                                }
+                                .into(),
+                                corner_radii: Default::default(),
+                                border_widths: Default::default(),
+                                border_color: Default::default(),
+                                border_style: Default::default(),
+                            });
+
+                            // 2. 顶部亮线块 (2px 高度)
+                            window.paint_quad(PaintQuad {
+                                bounds: Bounds {
+                                    origin: point(x, top_y),
+                                    size: size(px(px_step + 0.3), px(1.8)),
+                                },
+                                background: color.into(),
+                                corner_radii: Default::default(),
+                                border_widths: Default::default(),
+                                border_color: Default::default(),
+                                border_style: Default::default(),
+                            });
                         }
-                    }
-                    points.push(point(bounds.right(), scale_y(*data_slice.last().unwrap())));
-
-                    // B. 绘制单路径填充区域 (只要不画线，填充长路径是安全的)
-                    let bl = point(bounds.left(), bottom_y);
-                    let br = point(bounds.right(), bottom_y);
-                    let mut fill_path = Path::new(bl);
-                    for &p in &points {
-                        fill_path.line_to(p);
-                    }
-                    fill_path.line_to(br);
-                    fill_path.line_to(bl);
-                    window.paint_path(
-                        fill_path,
-                        Rgba {
-                            r: color.r,
-                            g: color.g,
-                            b: color.b,
-                            a: 0.15,
-                        },
-                    );
-
-                    // C. 绘制原子级“粗线” (分段绘制，每段都是独立的封闭平行四边形)
-                    // 这是解决虚线感和三角形伪影的唯一完美方案
-                    let thickness = px(2.0);
-                    for i in 0..points.len() - 1 {
-                        let p1 = points[i];
-                        let p2 = points[i + 1];
-
-                        // 增加 0.5px 的重叠以消除虚线感
-                        let next_x = p2.x + px(0.5);
-
-                        let mut segment = Path::new(p1);
-                        segment.line_to(point(next_x, p2.y));
-                        segment.line_to(point(next_x, p2.y + thickness));
-                        segment.line_to(point(p1.x, p1.y + thickness));
-                        segment.line_to(p1);
-
-                        window.paint_path(segment, color);
                     }
                 };
 
                 let up_data: Vec<f32> = data.iter().map(|d| d.up).collect();
                 let down_data: Vec<f32> = data.iter().map(|d| d.down).collect();
 
-                // 下载：COSMIC 电光青
-                render_wave(down_data, rgb(0x00d2ff), window);
-                // 上传：COSMIC 荧光绿
-                render_wave(up_data, rgb(0x2ec27e), window);
+                // 渲染下载 (电光青)
+                render_pixel_liquid(&down_data, rgb(0x00d2ff), window);
+                // 渲染上传 (荧光绿)
+                render_pixel_liquid(&up_data, rgb(0x00ffaa), window);
             },
         )
         .size_full()
