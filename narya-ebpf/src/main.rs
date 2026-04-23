@@ -1,30 +1,26 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(target_arch = "bpf", no_std)]
+#![cfg_attr(target_arch = "bpf", no_main)]
 
+#[cfg(target_arch = "bpf")]
 use aya_ebpf::{
     macros::{cgroup_skb, map},
     maps::HashMap,
     programs::SkBuffContext,
 };
+#[cfg(target_arch = "bpf")]
 use narya_ebpf_common::TrafficStats;
 
+#[cfg(target_arch = "bpf")]
 #[map(name = "TRAFFIC_STATS")]
 static mut TRAFFIC_STATS: HashMap<u32, TrafficStats> =
     HashMap::<u32, TrafficStats>::with_max_entries(1024, 0);
 
+#[cfg(target_arch = "bpf")]
 #[cgroup_skb(name = "narya_egress")]
 pub fn narya_egress(ctx: SkBuffContext) -> i32 {
-    #[cfg(target_arch = "bpf")]
-    {
-        match try_narya_egress(ctx) {
-            Ok(ret) => ret,
-            Err(_) => 1,
-        }
-    }
-    #[cfg(not(target_arch = "bpf"))]
-    {
-        let _ = ctx;
-        1
+    match try_narya_egress(ctx) {
+        Ok(ret) => ret,
+        Err(_) => 1,
     }
 }
 
@@ -32,8 +28,6 @@ pub fn narya_egress(ctx: SkBuffContext) -> i32 {
 fn try_narya_egress(ctx: SkBuffContext) -> Result<i32, u32> {
     let skb = ctx.skb;
     let len = unsafe { (*skb).len as u64 };
-
-    // 获取当前进程的 cgroup id 或 pid
     let key = 0u32;
 
     unsafe {
@@ -52,7 +46,13 @@ fn try_narya_egress(ctx: SkBuffContext) -> Result<i32, u32> {
     Ok(1)
 }
 
+#[cfg(target_arch = "bpf")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     unsafe { core::hint::unreachable_unchecked() }
+}
+
+#[cfg(not(target_arch = "bpf"))]
+fn main() {
+    // 宿主机环境下变成一个什么都不做的普通程序，防止编译报错
 }
