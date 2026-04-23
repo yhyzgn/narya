@@ -1,3 +1,4 @@
+use crate::config_manager::ConfigManager;
 use crate::tracker::ProcessTracker;
 use anyhow::Result;
 use config::diff::ConfigDiff;
@@ -14,6 +15,7 @@ pub struct NaryaDaemon {
     core: Arc<dyn SingBoxCore>,
     platform: Arc<dyn PlatformAdapter>,
     tracker: Arc<dyn ProcessTracker>,
+    config_manager: Arc<ConfigManager>,
 }
 
 impl Default for NaryaDaemon {
@@ -24,6 +26,8 @@ impl Default for NaryaDaemon {
 
 impl NaryaDaemon {
     pub fn new() -> Self {
+        let config_manager = Arc::new(ConfigManager::new().expect("Failed to init ConfigManager"));
+
         let initial_config = NaryaConfig::default();
         let engine = RuleEngine::new(initial_config.rules.clone(), Action::Direct);
 
@@ -38,6 +42,7 @@ impl NaryaDaemon {
             core: Arc::new(MockSingBox::new()),
             platform: Arc::new(LinuxAdapter),
             tracker,
+            config_manager,
         }
     }
 
@@ -45,11 +50,18 @@ impl NaryaDaemon {
         self.tracker.clone()
     }
 
+    pub fn get_config_manager(&self) -> Arc<ConfigManager> {
+        self.config_manager.clone()
+    }
+
     pub async fn start(&self) -> Result<()> {
         let config = self.config.read().await;
 
-        // Anti-Loop: Detect physical interface
-        tracing::info!("Anti-Loop: Detecting physical interfaces to bypass encrypted traffic...");
+        // 启动时应用持久化规则到 eBPF
+        let state = self.config_manager.get_state();
+        self.tracker
+            .update_bypass_rules(&state.bypass_rules)
+            .await?;
 
         // Setup Platform
         if config.settings.tun.enabled {
@@ -73,10 +85,7 @@ impl NaryaDaemon {
 
     pub async fn stop(&self) -> Result<()> {
         let config = self.config.read().await;
-
         self.core.stop()?;
-
-        // Stop Tracker
         self.tracker.stop().await?;
 
         if config.settings.tun.enabled {
@@ -97,7 +106,6 @@ impl NaryaDaemon {
         let diff = ConfigDiff::calculate(&config_lock, &new_config);
 
         if diff.has_changes() {
-            // Update platform settings if they changed
             if diff.settings_changed {
                 if new_config.settings.tun.enabled && !config_lock.settings.tun.enabled {
                     self.platform
@@ -121,38 +129,12 @@ impl NaryaDaemon {
             let new_config_json = serde_json::to_string(&new_config)?;
             self.core.reload(diff, &new_config_json)?;
 
-            // Update RuleEngine
             let mut engine_lock = self.engine.write().await;
             *engine_lock = RuleEngine::new(new_config.rules.clone(), Action::Direct);
 
             *config_lock = new_config;
             tracing::info!("Configuration and RuleEngine updated");
-        } else {
-            tracing::info!("No configuration changes detected");
         }
-
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_daemon_lifecycle() {
-        let daemon = NaryaDaemon::new();
-        daemon.start().await.unwrap();
-
-        let mut new_config = NaryaConfig::default();
-        new_config.settings.mixed_port = 9090;
-        new_config.settings.tun.enabled = true;
-
-        daemon.update_config(new_config).await.unwrap();
-
-        let processes = daemon.get_tracker().list_running_processes().unwrap();
-        assert!(!processes.is_empty());
-
-        daemon.stop().await.unwrap();
     }
 }

@@ -34,7 +34,7 @@ impl IpcServer {
     }
 
     async fn handle_client(mut stream: UnixStream, daemon: Arc<NaryaDaemon>) -> Result<()> {
-        let mut buffer = [0; 4096]; // 调大缓冲区以接收 JSON 规则
+        let mut buffer = [0; 8192]; // 进一步调大缓冲区以接收海量 App 规则
         loop {
             let n = stream.read(&mut buffer).await?;
             if n == 0 {
@@ -49,7 +49,11 @@ impl IpcServer {
                 "running\n".to_string()
             } else if request_trimmed == "get_apps" {
                 match daemon.get_tracker().list_network_apps().await {
-                    Ok(apps) => serde_json::to_string(&apps)? + "\n",
+                    Ok(apps) => {
+                        serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&apps)?)?
+                            .to_string()
+                            + "\n"
+                    }
                     Err(e) => format!("error: {}\n", e),
                 }
             } else if request_trimmed == "get_connections" {
@@ -60,16 +64,24 @@ impl IpcServer {
             } else if request_trimmed.starts_with("update_rules ") {
                 let json_part = &request_trimmed["update_rules ".len()..];
                 match serde_json::from_str::<api::tracker::BypassRules>(json_part) {
-                    Ok(rules) => match daemon.get_tracker().update_bypass_rules(&rules).await {
-                        Ok(_) => "ok\n".to_string(),
-                        Err(e) => format!("error: {}\n", e),
-                    },
+                    Ok(rules) => {
+                        // 1. 持久化保存
+                        let _ = daemon.get_config_manager().update_rules(rules.clone());
+                        // 2. 应用到 eBPF
+                        match daemon.get_tracker().update_bypass_rules(&rules).await {
+                            Ok(_) => "ok\n".to_string(),
+                            Err(e) => format!("error: {}\n", e),
+                        }
+                    }
                     Err(e) => format!("invalid json: {}\n", e),
                 }
             } else if request_trimmed.starts_with("select_proxy ") {
                 let proxy_name = &request_trimmed["select_proxy ".len()..];
                 tracing::info!("Switching active proxy to: {}", proxy_name);
-                // 这里将来会调用 daemon 切换 Sing-box 节点
+                // 1. 持久化选中的节点
+                let _ = daemon
+                    .get_config_manager()
+                    .update_active_node(proxy_name.to_string());
                 "ok\n".to_string()
             } else if request_trimmed == "start" {
                 daemon.start().await?;
@@ -102,7 +114,6 @@ mod tests {
             server.start().await.unwrap();
         });
 
-        // Give the server a moment to start
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         let mut stream = UnixStream::connect(socket_path).await.unwrap();
