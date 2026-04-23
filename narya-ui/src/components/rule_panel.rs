@@ -1,5 +1,6 @@
 use crate::ipc_client;
 use crate::models::rule::{AppInfo, SharedRuleStore};
+use gpui::prelude::*;
 use gpui::*;
 
 pub struct RulePanel;
@@ -13,28 +14,20 @@ pub struct AppDrag {
 impl RulePanel {
     pub fn render(store: &SharedRuleStore, cx: &mut Context<crate::Workspace>) -> impl IntoElement {
         let store_read = store.read();
-        let unassigned = store_read.unassigned.clone();
-        let direct = store_read.direct.clone();
-        let proxy = store_read.proxy.clone();
         let entity_id = cx.entity_id();
-        drop(store_read);
 
         div()
             .flex()
             .gap_6()
             .size_full()
+            .child(div().w_1_3().h_full().child(Self::render_column(
+                "Available Apps",
+                &store_read.unassigned,
+                "pool",
+                store,
+                entity_id,
+            )))
             .child(
-                // 左侧：待分配应用池 (30% 宽度)
-                div().w_1_3().h_full().child(Self::render_column(
-                    "Available Apps",
-                    unassigned,
-                    "pool",
-                    store,
-                    entity_id,
-                )),
-            )
-            .child(
-                // 右侧：决策区 (70% 宽度)
                 div()
                     .flex_1()
                     .flex()
@@ -42,14 +35,14 @@ impl RulePanel {
                     .gap_6()
                     .child(Self::render_column(
                         "Direct Connection (No Proxy)",
-                        direct,
+                        &store_read.direct,
                         "direct",
                         store,
                         entity_id,
                     ))
                     .child(Self::render_column(
                         "Global Proxy (Tunneled)",
-                        proxy,
+                        &store_read.proxy,
                         "proxy",
                         store,
                         entity_id,
@@ -59,7 +52,7 @@ impl RulePanel {
 
     fn render_column(
         title: &'static str,
-        apps: Vec<AppInfo>,
+        apps: &[AppInfo],
         zone_id: &'static str,
         store: &SharedRuleStore,
         entity_id: EntityId,
@@ -70,13 +63,12 @@ impl RulePanel {
             .flex_1()
             .flex()
             .flex_col()
-            .bg(rgb(0x141414)) // 内部背景稍微深一点
+            .bg(rgb(0x141414))
             .rounded_xl()
             .border_1()
             .border_color(rgb(0x303030))
             .p_4()
             .id(zone_id)
-            // 增强 Drop 视觉：悬停时边框变亮
             .hover(|s| s.border_color(rgb(0x1677ff)))
             .on_drop(move |drag: &AppDrag, _, cx| {
                 let mut rules_changed = false;
@@ -120,60 +112,67 @@ impl RulePanel {
                     .items_center()
                     .gap_2()
                     .mb_4()
-                    .child(
-                        // 区域标识小图标 (模拟)
-                        div().w_2().h_2().rounded_full().bg(match zone_id {
-                            "direct" => rgb(0x52c41a),
-                            "proxy" => rgb(0xfaad14),
-                            _ => rgb(0x1677ff),
-                        }),
-                    )
+                    .child(div().w_2().h_2().rounded_full().bg(match zone_id {
+                        "direct" => rgb(0x52c41a),
+                        "proxy" => rgb(0xfaad14),
+                        _ => rgb(0x1677ff),
+                    }))
                     .child(div().text_sm().text_color(rgb(0x888888)).child(title)),
             )
             .child(
                 div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_2()
-                    .children(apps.into_iter().map(|app| {
-                        let app_id = app.id.clone();
-                        let app_name = app.name.clone();
-
+                    .id(format!("{}-scroll", zone_id))
+                    .flex_1()
+                    .overflow_y_scroll()
+                    .child(
                         div()
-                            .id(app.id.clone())
-                            .on_drag(
-                                AppDrag {
-                                    app_id: app_id.clone(),
-                                    name: app_name.clone(),
-                                },
-                                |drag, _, _, cx| {
-                                    cx.new(|_| AppDragView {
-                                        name: drag.name.clone(),
-                                    })
-                                },
-                            )
-                            .px_3()
-                            .py_2()
-                            .bg(rgb(0x2d2d2d))
-                            .rounded_md()
-                            .border_1()
-                            .border_color(rgb(0x383838))
-                            .cursor_pointer()
-                            .hover(|s| s.bg(rgb(0x353535)).border_color(rgb(0x555555)))
-                            .child(
+                            .flex()
+                            .flex_wrap()
+                            .gap_2()
+                            .children(apps.iter().cloned().map(|app| {
+                                let app_id = app.id.clone();
+                                let app_name = app.name.clone();
+
                                 div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(
-                                        // 应用小图标占位符
-                                        div().w_4().h_4().bg(rgba(0xffffff1a)).rounded_sm(),
+                                    .id(app.id.clone())
+                                    .on_drag(
+                                        AppDrag {
+                                            app_id: app_id.clone(),
+                                            name: app_name.clone(),
+                                        },
+                                        |drag, _, _, cx| {
+                                            cx.new(|_| AppDragView {
+                                                name: drag.name.clone(),
+                                            })
+                                        },
                                     )
+                                    .px_3()
+                                    .py_2()
+                                    .bg(rgb(0x2d2d2d))
+                                    .rounded_md()
+                                    .border_1()
+                                    .border_color(rgb(0x383838))
+                                    .cursor_pointer()
+                                    .hover(|style| {
+                                        style.bg(rgb(0x353535)).border_color(rgb(0x555555))
+                                    })
                                     .child(
-                                        div().text_xs().text_color(rgb(0xcccccc)).child(app.name),
-                                    ),
-                            )
-                    })),
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(
+                                                div().w_4().h_4().bg(rgba(0xffffff1a)).rounded_sm(),
+                                            )
+                                            .child(
+                                                div()
+                                                    .text_xs()
+                                                    .text_color(rgb(0xcccccc))
+                                                    .child(app.name),
+                                            ),
+                                    )
+                            })),
+                    ),
             )
     }
 }
@@ -187,7 +186,7 @@ impl Render for AppDragView {
         div()
             .px_3()
             .py_2()
-            .bg(rgba(0x1677ffcc)) // 拖拽时呈现品牌色
+            .bg(rgba(0x1677ffcc))
             .rounded_md()
             .shadow_lg()
             .text_color(rgb(0xffffff))

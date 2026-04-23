@@ -200,8 +200,6 @@ impl Workspace {
 
 impl Render for Workspace {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<'_, Self>) -> impl IntoElement {
-        cx.on_next_frame(_window, |_, _, cx| cx.notify());
-
         let entity = cx.entity().clone();
 
         div()
@@ -245,7 +243,7 @@ impl Render for Workspace {
                         .p_6()
                         .overflow_hidden()
                         .child(match self.selected_tab {
-                            0 => self.render_dashboard(cx).into_any_element(),
+                            0 => self.render_dashboard(_window, cx).into_any_element(),
                             1 => self.render_proxies(cx).into_any_element(),
                             2 => self.render_profiles(cx).into_any_element(),
                             3 => RulePanel::render(&self.rule_store, cx).into_any_element(),
@@ -316,7 +314,10 @@ impl Workspace {
             )
     }
 
-    fn render_dashboard(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_dashboard(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // 仅在 Dashboard 页面开启 60FPS 刷新以保证动画流畅
+        cx.on_next_frame(window, |_, _, cx| cx.notify());
+
         let store = self.traffic_store.read();
         let current_speed = store.last();
 
