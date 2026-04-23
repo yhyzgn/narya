@@ -15,11 +15,12 @@ impl RulePanel {
     pub fn render(store: &SharedRuleStore, cx: &mut Context<crate::Workspace>) -> impl IntoElement {
         let store_read = store.read();
         let entity_id = cx.entity_id();
-        let q = store_read.search_query.to_lowercase();
+        let q = store_read.search_query.clone();
 
         let filter = |apps: &[AppInfo]| {
+            let q_lower = q.to_lowercase();
             apps.iter()
-                .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
+                .filter(|a| q_lower.is_empty() || a.name.to_lowercase().contains(&q_lower))
                 .take(150)
                 .cloned()
                 .collect::<Vec<_>>()
@@ -37,59 +38,70 @@ impl RulePanel {
             .flex()
             .flex_col()
             .gap_4()
-            .size_full() // 占据 Workspace 分配的全部空间
+            .size_full()
             .child(
-                // 顶部状态栏 (固定高度)
+                // 打磨后的搜索输入框
                 div()
                     .flex()
                     .justify_between()
                     .items_center()
-                    .bg(rgb(0x141414))
-                    .border_1()
-                    .border_color(rgb(0x303030))
-                    .rounded_lg()
                     .px_4()
                     .py_2()
+                    .bg(rgb(0x141414))
+                    .border_1()
+                    .border_color(if q.is_empty() {
+                        rgb(0x303030)
+                    } else {
+                        rgb(0x1677ff)
+                    })
+                    .rounded_lg()
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(div().text_sm().text_color(rgb(0x888888)).child("Filter:"))
-                            .child(div().text_sm().text_color(rgb(0x1677ff)).child(
-                                if q.is_empty() {
-                                    "Search applications...".to_string()
-                                } else {
-                                    q.clone()
-                                },
-                            )),
+                            .child(
+                                // 搜索图标模拟
+                                div().text_color(rgb(0x888888)).text_sm().child(""), // 使用图标字符或文字
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .child(if q.is_empty() {
+                                        div()
+                                            .text_sm()
+                                            .text_color(rgb(0x555555))
+                                            .child("Search for an application...")
+                                    } else {
+                                        div().text_sm().text_color(rgb(0xffffff)).child(q.clone())
+                                    })
+                                    // 模拟光标
+                                    .child(div().ml_0p5().w_0p5().h_4().bg(rgb(0x1677ff))),
+                            ),
                     )
                     .child(
                         div()
                             .text_xs()
                             .text_color(rgb(0x555555))
-                            .child(format!("Total: {} apps", total_count)),
+                            .child(format!("{} apps detected", total_count)),
                     ),
             )
             .child(
-                // 主内容区：必须 flex_1() 撑开剩余高度
                 div()
                     .flex()
                     .gap_6()
                     .flex_1()
                     .min_h_0()
+                    .overflow_hidden()
+                    .child(div().w_1_3().h_full().child(Self::render_column(
+                        "Available Applications",
+                        unassigned,
+                        "pool",
+                        store,
+                        entity_id,
+                    )))
                     .child(
-                        // 左侧单列：h_full()
-                        div().w_1_3().h_full().child(Self::render_column(
-                            "Available",
-                            unassigned,
-                            "pool",
-                            store,
-                            entity_id,
-                        )),
-                    )
-                    .child(
-                        // 右侧两列组合：flex_1() 且 h_full()
                         div()
                             .flex_1()
                             .flex()
@@ -97,10 +109,18 @@ impl RulePanel {
                             .gap_6()
                             .h_full()
                             .child(Self::render_column(
-                                "Direct", direct, "direct", store, entity_id,
+                                "Direct (Whitelist)",
+                                direct,
+                                "direct",
+                                store,
+                                entity_id,
                             ))
                             .child(Self::render_column(
-                                "Proxy", proxy, "proxy", store, entity_id,
+                                "Overseas (Proxy)",
+                                proxy,
+                                "proxy",
+                                store,
+                                entity_id,
                             )),
                     ),
             )
@@ -117,10 +137,10 @@ impl RulePanel {
         let count = apps.len();
 
         div()
-            .flex_1() // 在父 flex 容器中撑开
+            .flex_1()
             .flex()
             .flex_col()
-            .h_full() // 强制占满可用高度
+            .h_full()
             .bg(rgb(0x141414))
             .rounded_xl()
             .border_1()
@@ -163,7 +183,6 @@ impl RulePanel {
                 cx.notify(entity_id);
             })
             .child(
-                // 标题行
                 div()
                     .flex()
                     .justify_between()
@@ -178,7 +197,6 @@ impl RulePanel {
                     ),
             )
             .child(
-                // 滚动区：relative + absolute 是为了让 inset_0 生效，从而让 content 跟随父级高度
                 div().flex_1().min_h_0().relative().child(
                     div()
                         .id(format!("{}-scroll", zone_id))
@@ -202,6 +220,7 @@ impl RulePanel {
                                                 name: app_name.clone(),
                                             },
                                             |drag, _, _, cx| {
+                                                // 极致“跟手”：拖拽时仅保留纯色胶囊，去掉所有定位偏移
                                                 cx.new(|_| AppDragView {
                                                     name: drag.name.clone(),
                                                 })
@@ -254,12 +273,12 @@ struct AppDragView {
 
 impl Render for AppDragView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        // 极致简化的 DragView：去掉边距和阴影，确保中心对齐
         div()
             .px_3()
-            .py_2()
-            .bg(rgba(0x1677ffcc))
-            .rounded_md()
-            .shadow_lg()
+            .py_1_5()
+            .bg(rgb(0x1677ff)) // 拖拽时变为实色，提升对比度
+            .rounded_full() // 胶囊形状
             .text_color(rgb(0xffffff))
             .text_xs()
             .child(self.name.clone())
