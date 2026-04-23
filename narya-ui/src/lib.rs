@@ -22,6 +22,7 @@ pub struct Workspace {
     traffic_store: SharedTrafficStore,
     profile_store: SharedProfileStore,
     rule_store: SharedRuleStore,
+    start_time: std::time::Instant,
 }
 
 impl Workspace {
@@ -52,6 +53,7 @@ impl Workspace {
             traffic_store: store,
             profile_store,
             rule_store,
+            start_time: std::time::Instant::now(),
         }
     }
 
@@ -105,7 +107,7 @@ impl Workspace {
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
 
-        tokio::spawn(async move {
+        utils::TOKIO_RUNTIME.spawn(async move {
             let result = SubscriptionParser::fetch_and_parse(&url).await;
             let mut p_store = profile_store.write();
             p_store.is_loading = false;
@@ -189,11 +191,32 @@ impl Workspace {
 impl Render for Workspace {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<'_, Self>) -> impl IntoElement {
         let entity = cx.entity().clone();
+        let selected_tab = self.selected_tab;
 
         div()
             .size_full()
             .flex()
             .bg(rgb(0x141414))
+            .on_key_down(move |event, _, cx| {
+                if selected_tab == 3 {
+                    // 处理键盘模拟搜索
+                    entity.update(cx, |workspace, cx| {
+                        let mut store = workspace.rule_store.write();
+                        let key = &event.keystroke.key;
+
+                        if key.len() == 1 {
+                            store.search_query.push_str(&key.to_lowercase());
+                            cx.notify();
+                        } else if key == "backspace" {
+                            store.search_query.pop();
+                            cx.notify();
+                        } else if key == "escape" {
+                            store.search_query.clear();
+                            cx.notify();
+                        }
+                    });
+                }
+            })
             .child(
                 // 侧边栏
                 div()
@@ -213,11 +236,11 @@ impl Render for Workspace {
                             .text_color(rgb(0x1677ff))
                             .child("NARYA"),
                     )
-                    .child(self.render_tab(0, "Dashboard", &entity, cx))
-                    .child(self.render_tab(1, "Proxies", &entity, cx))
-                    .child(self.render_tab(2, "Profiles", &entity, cx))
-                    .child(self.render_tab(3, "Rules", &entity, cx))
-                    .child(self.render_tab(4, "Settings", &entity, cx)),
+                    .child(self.render_tab(0, "Dashboard", &cx.entity().clone(), cx))
+                    .child(self.render_tab(1, "Proxies", &cx.entity().clone(), cx))
+                    .child(self.render_tab(2, "Profiles", &cx.entity().clone(), cx))
+                    .child(self.render_tab(3, "Rules", &cx.entity().clone(), cx))
+                    .child(self.render_tab(4, "Settings", &cx.entity().clone(), cx)),
             )
             .child(
                 // 主内容区
@@ -307,6 +330,7 @@ impl Workspace {
 
         let store = self.traffic_store.read();
         let current_speed = store.last();
+        let uptime = self.start_time.elapsed().as_secs();
 
         div()
             .flex()
@@ -318,7 +342,18 @@ impl Workspace {
                     .justify_between()
                     .items_center()
                     .mb_6()
-                    .child(div().text_2xl().text_color(rgb(0xffffff)).child("Overview"))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(div().text_2xl().text_color(rgb(0xffffff)).child("Overview"))
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(0x555555))
+                                    .child(format!("Uptime: {}s", uptime)),
+                            ),
+                    )
                     .child(
                         div()
                             .flex()
