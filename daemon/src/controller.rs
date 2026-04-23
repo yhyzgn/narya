@@ -16,13 +16,19 @@ pub struct NaryaDaemon {
     tracker: Arc<dyn ProcessTracker>,
 }
 
+impl Default for NaryaDaemon {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NaryaDaemon {
     pub fn new() -> Self {
         let initial_config = NaryaConfig::default();
         let engine = RuleEngine::new(initial_config.rules.clone(), Action::Direct);
 
         #[cfg(target_os = "linux")]
-        let tracker = std::sync::Arc::new(crate::tracker::EbpfProcessTracker::new());
+        let tracker = Arc::new(crate::tracker::EbpfProcessTracker::new());
         #[cfg(not(target_os = "linux"))]
         let tracker = std::sync::Arc::new(crate::tracker::SystemProcessTracker::new());
 
@@ -84,7 +90,7 @@ impl NaryaDaemon {
 
     pub async fn update_config(&self, new_config: NaryaConfig) -> Result<()> {
         let mut config_lock = self.config.write().await;
-        let diff = ConfigDiff::calculate(&*config_lock, &new_config);
+        let diff = ConfigDiff::calculate(&config_lock, &new_config);
 
         if diff.has_changes() {
             // Update platform settings if they changed
