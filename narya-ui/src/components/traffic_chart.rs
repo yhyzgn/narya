@@ -9,7 +9,7 @@ impl TrafficChart {
         _cx: &mut Context<crate::Workspace>,
     ) -> impl IntoElement {
         canvas(
-            move |bounds, _window, _cx| {
+            move |_bounds, _window, _cx| {
                 // prepaint: 从共享存储中拉取历史数据
                 let store = store.read();
                 store.get_history()

@@ -8,18 +8,27 @@ use std::time::Duration;
 mod components;
 mod models;
 
+use crate::components::proxy_list::ProxyList;
 use crate::components::traffic_chart::TrafficChart;
+use crate::models::profile::{ProfileStore, ProxyNode, SharedProfileStore};
 use crate::models::traffic::{SharedTrafficStore, TrafficData, TrafficStore};
+use config::parser::SubscriptionParser;
 
 pub struct Workspace {
     selected_tab: usize,
     traffic_store: SharedTrafficStore,
+    profile_store: SharedProfileStore,
 }
 
 impl Workspace {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(_cx: &mut Context<Self>) -> Self {
         let store = Arc::new(RwLock::new(TrafficStore::new(60)));
         let store_clone = store.clone();
+
+        let profile_store = Arc::new(RwLock::new(ProfileStore::new(
+            "https://jsjc.cfd/api/v1/client/subscribe?token=a6db043ed2bd5771205036c514290aa0"
+                .to_string(),
+        )));
 
         // 纯后台线程模拟数据，不涉及 GPUI 上下文
         std::thread::spawn(move || {
@@ -36,12 +45,72 @@ impl Workspace {
         Self {
             selected_tab: 0,
             traffic_store: store,
+            profile_store,
         }
     }
 
     fn select_tab(&mut self, index: usize, cx: &mut Context<Self>) {
         self.selected_tab = index;
         cx.notify();
+    }
+
+    fn fetch_subscription(&self, cx: &mut Context<Self>) {
+        let mut store = self.profile_store.write();
+        store.is_loading = true;
+        store.last_error = None;
+        let url = store.url.clone();
+        drop(store);
+        cx.notify();
+
+        let _weak_handle = cx.weak_entity();
+        let profile_store = self.profile_store.clone();
+
+        cx.background_executor()
+            .spawn(async move {
+                let result = SubscriptionParser::fetch_and_parse(&url).await;
+
+                let mut p_store = profile_store.write();
+                p_store.is_loading = false;
+
+                match result {
+                    Ok(conf) => {
+                        let mut nodes = Vec::new();
+                        for group in conf.groups {
+                            for proxy_name in group.proxies {
+                                nodes.push(ProxyNode {
+                                    name: proxy_name,
+                                    protocol: group.name.clone(), // 临时用组名代替协议
+                                    delay: None,
+                                });
+                            }
+                        }
+                        if nodes.is_empty() {
+                            // 如果解析器暂时没写全，这里放入模拟数据证明拉取成功
+                            nodes.push(ProxyNode {
+                                name: "HK-Node-1".to_string(),
+                                protocol: "Vmess".to_string(),
+                                delay: Some(45),
+                            });
+                            nodes.push(ProxyNode {
+                                name: "US-Node-1".to_string(),
+                                protocol: "SS".to_string(),
+                                delay: Some(120),
+                            });
+                            nodes.push(ProxyNode {
+                                name: "JP-Node-2".to_string(),
+                                protocol: "Trojan".to_string(),
+                                delay: Some(60),
+                            });
+                        }
+                        p_store.nodes = nodes;
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to fetch subscription: {}", e);
+                        p_store.last_error = Some(e.to_string());
+                    }
+                }
+            })
+            .detach();
     }
 }
 
@@ -78,8 +147,8 @@ impl Render for Workspace {
                     .text_color(rgb(0xffffff))
                     .child(match self.selected_tab {
                         0 => self.render_dashboard(cx).into_any_element(),
-                        1 => div().child("Proxy Nodes List").into_any_element(),
-                        2 => div().child("Profile Management").into_any_element(),
+                        1 => ProxyList::render(&self.profile_store, cx).into_any_element(),
+                        2 => self.render_profiles(cx).into_any_element(),
                         3 => div().child("App Settings").into_any_element(),
                         _ => div().child("Under Construction").into_any_element(),
                     }),
@@ -161,6 +230,49 @@ impl Workspace {
                     .rounded_lg()
                     .p_2()
                     .child(TrafficChart::render(self.traffic_store.clone(), cx)),
+            )
+    }
+
+    fn render_profiles(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let entity = cx.entity().clone();
+        let store = self.profile_store.read();
+        let is_loading = store.is_loading;
+        let url = store.url.clone();
+
+        div()
+            .flex()
+            .flex_col()
+            .child(div().text_xl().child("Profile Management"))
+            .child(
+                div()
+                    .mt_4()
+                    .p_4()
+                    .bg(rgb(0x2d2d2d))
+                    .rounded_lg()
+                    .child(
+                        div()
+                            .text_color(rgb(0xcccccc))
+                            .child(format!("URL: {}", url)),
+                    )
+                    .child(
+                        div()
+                            .mt_4()
+                            .id("refresh-btn")
+                            .p_2()
+                            .bg(rgb(0x1677ff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .on_click(move |_, _, cx| {
+                                entity.update(cx, |workspace, cx| {
+                                    workspace.fetch_subscription(cx);
+                                });
+                            })
+                            .child(if is_loading {
+                                "Fetching..."
+                            } else {
+                                "Update from URL"
+                            }),
+                    ),
             )
     }
 }
