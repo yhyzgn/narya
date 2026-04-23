@@ -17,9 +17,11 @@ impl RulePanel {
         let entity_id = cx.entity_id();
         let q = store_read.search_query.to_lowercase();
 
+        // 预过滤数据，减少渲染时的逻辑负担
         let filter = |apps: &[AppInfo]| {
             apps.iter()
                 .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
+                .take(150) // 严格限制数量以保证 Hover 的 0 延迟感
                 .cloned()
                 .collect::<Vec<_>>()
         };
@@ -28,13 +30,16 @@ impl RulePanel {
         let direct = filter(&store_read.direct);
         let proxy = filter(&store_read.proxy);
 
+        let total_count =
+            store_read.unassigned.len() + store_read.direct.len() + store_read.proxy.len();
+        drop(store_read);
+
         div()
             .flex()
             .flex_col()
             .gap_4()
             .size_full()
             .child(
-                // 顶部状态栏
                 div()
                     .flex()
                     .justify_between()
@@ -59,12 +64,12 @@ impl RulePanel {
                                 },
                             )),
                     )
-                    .child(div().text_xs().text_color(rgb(0x555555)).child(format!(
-                        "Total: {} apps detected",
-                        store_read.unassigned.len()
-                            + store_read.direct.len()
-                            + store_read.proxy.len()
-                    ))),
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(0x555555))
+                            .child(format!("Total: {} apps", total_count)),
+                    ),
             )
             .child(
                 div()
@@ -87,6 +92,7 @@ impl RulePanel {
                             .flex_col()
                             .gap_6()
                             .h_full()
+                            .min_h_0()
                             .child(Self::render_column(
                                 "Direct", direct, "direct", store, entity_id,
                             ))
@@ -138,14 +144,12 @@ impl RulePanel {
                         }
                     }
                 }
-
                 if rules_changed {
                     let store_read = store.read();
                     let bypass_rules = api::tracker::BypassRules {
                         whitelist: store_read.direct.iter().map(|a| a.id.clone()).collect(),
                         blacklist: store_read.proxy.iter().map(|a| a.id.clone()).collect(),
                     };
-
                     if let Ok(json) = serde_json::to_string(&bypass_rules) {
                         let cmd = format!("update_rules {}", json);
                         utils::TOKIO_RUNTIME.spawn(async move {
@@ -161,18 +165,7 @@ impl RulePanel {
                     .justify_between()
                     .items_center()
                     .mb_4()
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().w_2().h_2().rounded_full().bg(match zone_id {
-                                "direct" => rgb(0x52c41a),
-                                "proxy" => rgb(0xfaad14),
-                                _ => rgb(0x1677ff),
-                            }))
-                            .child(div().text_sm().text_color(rgb(0x888888)).child(title)),
-                    )
+                    .child(div().text_sm().text_color(rgb(0xcccccc)).child(title))
                     .child(
                         div()
                             .text_xs()
@@ -181,66 +174,71 @@ impl RulePanel {
                     ),
             )
             .child(
-                // 滚动区优化：垂直列表模式
-                div()
-                    .id(format!("{}-scroll", zone_id))
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .children(apps.into_iter().map(|app| {
-                                let app_id = app.id.clone();
-                                let app_name = app.name.clone();
+                div().flex_1().min_h_0().relative().child(
+                    div()
+                        .id(format!("{}-scroll", zone_id))
+                        .absolute()
+                        .inset_0()
+                        .overflow_y_scroll()
+                        .child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .children(apps.into_iter().map(|app| {
+                                    let app_id = app.id.clone();
+                                    let app_name = app.name.clone();
 
-                                div()
-                                    .id(app.id.clone())
-                                    .on_drag(
-                                        AppDrag {
-                                            app_id: app_id.clone(),
-                                            name: app_name.clone(),
-                                        },
-                                        |drag, _, _, cx| {
-                                            cx.new(|_| AppDragView {
-                                                name: drag.name.clone(),
-                                            })
-                                        },
-                                    )
-                                    .px_3()
-                                    .py_2()
-                                    .bg(rgb(0x232323))
-                                    .rounded_md()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .cursor_pointer()
-                                    .hover(|style| style.bg(rgb(0x2d2d2d)))
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_3()
-                                            .child(
-                                                div().w_5().h_5().bg(rgba(0xffffff0d)).rounded_sm(),
-                                            )
-                                            .child(
-                                                div()
-                                                    .text_xs()
-                                                    .text_color(rgb(0xcccccc))
-                                                    .child(app.name),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_xs()
-                                            .text_color(rgb(0x444444))
-                                            .child(app.id.to_string()),
-                                    )
-                            })),
-                    ),
+                                    div()
+                                        .id(app.id.clone())
+                                        .on_drag(
+                                            AppDrag {
+                                                app_id: app_id.clone(),
+                                                name: app_name.clone(),
+                                            },
+                                            |drag, _, _, cx| {
+                                                cx.new(|_| AppDragView {
+                                                    name: drag.name.clone(),
+                                                })
+                                            },
+                                        )
+                                        .px_3()
+                                        .py_2()
+                                        .bg(rgb(0x232323))
+                                        .rounded_md()
+                                        .flex()
+                                        .items_center()
+                                        .justify_between()
+                                        .cursor_pointer()
+                                        .hover(|style| style.bg(rgb(0x2d2d2d)))
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap_3()
+                                                .child(
+                                                    div()
+                                                        .w_5()
+                                                        .h_5()
+                                                        .bg(rgba(0xffffff0d))
+                                                        .rounded_sm(),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(rgb(0xcccccc))
+                                                        .child(app.name),
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(rgb(0x444444))
+                                                .child(app.id.to_string()),
+                                        )
+                                })),
+                        ),
+                ),
             )
     }
 }
