@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use daemon::controller::NaryaDaemon;
 use daemon::ipc::IpcServer;
+use std::sync::Arc;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
     let daemon = Arc::new(NaryaDaemon::new());
 
     // Start the daemon and IPC in a background thread or tokio runtime
-    // Since GPUI also uses tokio internally (optionally), 
+    // Since GPUI also uses tokio internally (optionally),
     // we use the GPUI execution context if possible, or a separate thread.
     let daemon_clone = daemon.clone();
     std::thread::spawn(move || {
@@ -43,4 +43,3 @@ fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-

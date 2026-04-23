@@ -3771,10 +3771,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "api",
+ "config",
  "gpui",
  "gpui_linux",
  "gpui_platform",
+ "parking_lot",
+ "rand 0.8.6",
  "serde",
+ "tokio",
  "tracing",
 ]
 
