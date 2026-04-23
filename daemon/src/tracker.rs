@@ -1,6 +1,7 @@
 use anyhow::Result;
 use api::tracker::{AppIdentity, BypassRules, ConnectionMeta};
 use async_trait::async_trait;
+use narya_ebpf_common::ProcessConfig;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
@@ -156,7 +157,34 @@ impl ProcessTracker for EbpfProcessTracker {
 
     async fn update_bypass_rules(&self, rules: &BypassRules) -> Result<()> {
         tracing::info!("Backend received bypass rules update: {:?}", rules);
-        // 在这里，将来会把规则同步到 eBPF Maps
+
+        #[cfg(target_os = "linux")]
+        {
+            let mut bpf_lock = self.bpf.lock().await;
+            if let Some(ref mut bpf) = *bpf_lock {
+                let mut rules_map: aya::maps::HashMap<_, u32, ProcessConfig> =
+                    aya::maps::HashMap::try_from(bpf.map_mut("PROCESS_RULES").unwrap())?;
+
+                // 1. 获取当前系统所有进程以匹配名称
+                let processes = self.system.list_running_processes()?;
+
+                // 2. 这里的逻辑示例：将黑名单（Proxy/Reject 区）的应用写入 Map 实施阻断测试
+                for app_name in &rules.blacklist {
+                    for proc in processes.iter().filter(|p| p.name.contains(app_name)) {
+                        let config = ProcessConfig { action: 2 }; // 2: Drop
+                        rules_map.insert(proc.pid, config, 0)?;
+                        tracing::debug!(
+                            "Kernel rule set: PID {} ({}) -> REJECT",
+                            proc.pid,
+                            proc.name
+                        );
+                    }
+                }
+
+                // 3. 白名单放行逻辑同理（Map 中默认为空即放行，除非我们要做反向代理劫持）
+                tracing::info!("eBPF Rules Map updated successfully");
+            }
+        }
         Ok(())
     }
 

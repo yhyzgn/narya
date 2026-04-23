@@ -22,7 +22,6 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
 
         runtime.block_on(async {
-
             // Start the daemon
             let d_clone = daemon_clone.clone();
             tokio::spawn(async move {

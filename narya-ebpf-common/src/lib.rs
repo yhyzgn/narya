@@ -8,9 +8,9 @@ pub struct TrafficStats {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ProcessConfig {
-    pub action: u32, // 0: Direct, 1: Proxy, 2: Reject
+    pub action: u32, // 0: Pass/Direct, 1: Proxy/Redirect, 2: Drop/Reject
 }
 
 #[cfg(feature = "user")]
