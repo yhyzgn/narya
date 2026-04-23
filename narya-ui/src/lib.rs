@@ -63,50 +63,6 @@ impl Workspace {
         cx.notify();
     }
 
-    pub fn sync_proxy_selection(&self, name: &str) {
-        let cmd = format!("select_proxy {}", name);
-        utils::TOKIO_RUNTIME.spawn(async move {
-            let _ = ipc_client::send_command(&cmd).await;
-        });
-    }
-
-    fn test_all_latencies(&self, _cx: &mut Context<Self>) {
-        let profile_store = self.profile_store.clone();
-
-        utils::TOKIO_RUNTIME.spawn(async move {
-            tracing::info!("Starting concurrent latency test...");
-            let mut handles = vec![];
-
-            let nodes: Vec<String> = {
-                profile_store
-                    .read()
-                    .nodes
-                    .iter()
-                    .map(|n| n.name.clone())
-                    .collect()
-            };
-
-            for node_name in nodes {
-                let p_store = profile_store.clone();
-                handles.push(tokio::spawn(async move {
-                    // 模拟测速延迟
-                    let delay = (rand::random::<u64>() % 200) + 20;
-                    tokio::time::sleep(Duration::from_millis(delay)).await;
-
-                    let mut store = p_store.write();
-                    if let Some(node) = store.nodes.iter_mut().find(|n| n.name == node_name) {
-                        node.delay = Some(delay);
-                    }
-                }));
-            }
-
-            for h in handles {
-                let _ = h.await;
-            }
-            tracing::info!("Latency test complete");
-        });
-    }
-
     fn refresh_apps(&self, _cx: &mut Context<Self>) {
         let rule_store = self.rule_store.clone();
         utils::TOKIO_RUNTIME.spawn(async move {
@@ -149,7 +105,7 @@ impl Workspace {
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
 
-        utils::TOKIO_RUNTIME.spawn(async move {
+        tokio::spawn(async move {
             let result = SubscriptionParser::fetch_and_parse(&url).await;
             let mut p_store = profile_store.write();
             p_store.is_loading = false;
@@ -193,6 +149,38 @@ impl Workspace {
                         delay: Some(999),
                     }];
                 }
+            }
+        });
+    }
+
+    pub fn sync_proxy_selection(&self, name: &str) {
+        let cmd = format!("select_proxy {}", name);
+        utils::TOKIO_RUNTIME.spawn(async move {
+            let _ = ipc_client::send_command(&cmd).await;
+        });
+    }
+
+    fn test_all_latencies(&self, _cx: &mut Context<Self>) {
+        let profile_store = self.profile_store.clone();
+        utils::TOKIO_RUNTIME.spawn(async move {
+            let nodes: Vec<String> = {
+                profile_store
+                    .read()
+                    .nodes
+                    .iter()
+                    .map(|n| n.name.clone())
+                    .collect()
+            };
+            for node_name in nodes {
+                let p_store = profile_store.clone();
+                tokio::spawn(async move {
+                    let delay = (rand::random::<u64>() % 200) + 20;
+                    tokio::time::sleep(Duration::from_millis(delay)).await;
+                    let mut store = p_store.write();
+                    if let Some(node) = store.nodes.iter_mut().find(|n| n.name == node_name) {
+                        node.delay = Some(delay);
+                    }
+                });
             }
         });
     }
@@ -315,7 +303,6 @@ impl Workspace {
     }
 
     fn render_dashboard(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 仅在 Dashboard 页面开启 60FPS 刷新以保证动画流畅
         cx.on_next_frame(window, |_, _, cx| cx.notify());
 
         let store = self.traffic_store.read();
@@ -386,7 +373,6 @@ impl Workspace {
 
     fn render_proxies(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let entity = cx.entity().clone();
-
         div()
             .flex()
             .flex_col()

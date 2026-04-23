@@ -15,36 +15,7 @@ impl RulePanel {
     pub fn render(store: &SharedRuleStore, cx: &mut Context<crate::Workspace>) -> impl IntoElement {
         let store_read = store.read();
         let entity_id = cx.entity_id();
-        let search_query = store_read.search_query.clone();
-
-        let q = search_query.to_lowercase();
-
-        // 过滤数据并限制数量
-        let unassigned: Vec<AppInfo> = store_read
-            .unassigned
-            .iter()
-            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
-            .take(150)
-            .cloned()
-            .collect();
-
-        let direct: Vec<AppInfo> = store_read
-            .direct
-            .iter()
-            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
-            .take(150)
-            .cloned()
-            .collect();
-
-        let proxy: Vec<AppInfo> = store_read
-            .proxy
-            .iter()
-            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
-            .take(150)
-            .cloned()
-            .collect();
-
-        drop(store_read);
+        let q = store_read.search_query.to_lowercase();
 
         div()
             .flex()
@@ -73,7 +44,7 @@ impl RulePanel {
                                 if q.is_empty() {
                                     "All Apps".to_string()
                                 } else {
-                                    q
+                                    q.clone()
                                 },
                             )),
                     )
@@ -81,7 +52,7 @@ impl RulePanel {
                         div()
                             .text_xs()
                             .text_color(rgb(0x555555))
-                            .child("Limited to 150 items per column for performance"),
+                            .child("Optimized List Rendering (200 Limit)"),
                     ),
             )
             .child(
@@ -92,7 +63,8 @@ impl RulePanel {
                     .overflow_hidden()
                     .child(div().w_1_3().h_full().child(Self::render_column(
                         "Available Apps",
-                        unassigned,
+                        &store_read.unassigned,
+                        &q,
                         "pool",
                         store,
                         entity_id,
@@ -105,14 +77,16 @@ impl RulePanel {
                             .gap_6()
                             .child(Self::render_column(
                                 "Direct Connection",
-                                direct,
+                                &store_read.direct,
+                                &q,
                                 "direct",
                                 store,
                                 entity_id,
                             ))
                             .child(Self::render_column(
                                 "Overseas Proxy",
-                                proxy,
+                                &store_read.proxy,
+                                &q,
                                 "proxy",
                                 store,
                                 entity_id,
@@ -123,7 +97,8 @@ impl RulePanel {
 
     fn render_column(
         title: &'static str,
-        apps: Vec<AppInfo>,
+        apps: &[AppInfo],
+        query: &str,
         zone_id: &'static str,
         store: &SharedRuleStore,
         entity_id: EntityId,
@@ -200,49 +175,61 @@ impl RulePanel {
                             .flex()
                             .flex_wrap()
                             .gap_2()
-                            .children(apps.into_iter().map(|app| {
-                                let app_id = app.id.clone();
-                                let app_name = app.name.clone();
-
-                                div()
-                                    .id(app.id.clone())
-                                    .on_drag(
-                                        AppDrag {
-                                            app_id: app_id.clone(),
-                                            name: app_name.clone(),
-                                        },
-                                        |drag, _, _, cx| {
-                                            cx.new(|_| AppDragView {
-                                                name: drag.name.clone(),
-                                            })
-                                        },
-                                    )
-                                    .px_3()
-                                    .py_2()
-                                    .bg(rgb(0x2d2d2d))
-                                    .rounded_md()
-                                    .border_1()
-                                    .border_color(rgb(0x383838))
-                                    .cursor_pointer()
-                                    .hover(|style| {
-                                        style.bg(rgb(0x353535)).border_color(rgb(0x555555))
+                            // 性能优化：直接使用引用迭代，避免 collect()，减少中间 Vec 分配
+                            .children(
+                                apps.iter()
+                                    .filter(|a| {
+                                        query.is_empty() || a.name.to_lowercase().contains(query)
                                     })
-                                    .child(
+                                    .take(200)
+                                    .map(|app| {
+                                        let app_id = app.id.clone();
+                                        let app_name = app.name.clone();
+
                                         div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(
-                                                div().w_4().h_4().bg(rgba(0xffffff1a)).rounded_sm(),
+                                            .id(app.id.clone())
+                                            .on_drag(
+                                                AppDrag {
+                                                    app_id: app_id.clone(),
+                                                    name: app_name.clone(),
+                                                },
+                                                |drag, _, _, cx| {
+                                                    cx.new(|_| AppDragView {
+                                                        name: drag.name.clone(),
+                                                    })
+                                                },
                                             )
+                                            .px_3()
+                                            .py_2()
+                                            .bg(rgb(0x2d2d2d))
+                                            .rounded_md()
+                                            .border_1()
+                                            .border_color(rgb(0x383838))
+                                            .cursor_pointer()
+                                            .hover(|style| {
+                                                style.bg(rgb(0x353535)).border_color(rgb(0x555555))
+                                            })
                                             .child(
                                                 div()
-                                                    .text_xs()
-                                                    .text_color(rgb(0xcccccc))
-                                                    .child(app.name),
-                                            ),
-                                    )
-                            })),
+                                                    .flex()
+                                                    .items_center()
+                                                    .gap_2()
+                                                    .child(
+                                                        div()
+                                                            .w_4()
+                                                            .h_4()
+                                                            .bg(rgba(0xffffff1a))
+                                                            .rounded_sm(),
+                                                    )
+                                                    .child(
+                                                        div()
+                                                            .text_xs()
+                                                            .text_color(rgb(0xcccccc))
+                                                            .child(app.name.clone()),
+                                                    ),
+                                            )
+                                    }),
+                            ),
                     ),
             )
     }
