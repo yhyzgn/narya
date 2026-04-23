@@ -9,8 +9,10 @@ mod components;
 mod models;
 
 use crate::components::proxy_list::ProxyList;
+use crate::components::rule_panel::RulePanel;
 use crate::components::traffic_chart::TrafficChart;
 use crate::models::profile::{ProfileStore, ProxyNode, SharedProfileStore};
+use crate::models::rule::{AppInfo, RuleStore, SharedRuleStore};
 use crate::models::traffic::{SharedTrafficStore, TrafficData, TrafficStore};
 use config::parser::SubscriptionParser;
 
@@ -18,6 +20,9 @@ pub struct Workspace {
     selected_tab: usize,
     traffic_store: SharedTrafficStore,
     profile_store: SharedProfileStore,
+    rule_store: SharedRuleStore,
+    nodes_count: usize,
+    is_loading: bool,
 }
 
 impl Workspace {
@@ -30,7 +35,33 @@ impl Workspace {
                 .to_string(),
         )));
 
-        // 纯后台线程模拟数据，不涉及 GPUI 上下文
+        let rule_store = Arc::new(RwLock::new(RuleStore::new()));
+        // 预填模拟应用数据
+        {
+            let mut r_store = rule_store.write();
+            r_store.unassigned.push(AppInfo {
+                id: "chrome".to_string(),
+                name: "Google Chrome".to_string(),
+                icon: None,
+            });
+            r_store.unassigned.push(AppInfo {
+                id: "telegram".to_string(),
+                name: "Telegram".to_string(),
+                icon: None,
+            });
+            r_store.unassigned.push(AppInfo {
+                id: "discord".to_string(),
+                name: "Discord".to_string(),
+                icon: None,
+            });
+            r_store.unassigned.push(AppInfo {
+                id: "spotify".to_string(),
+                name: "Spotify".to_string(),
+                icon: None,
+            });
+        }
+
+        // 纯后台线程模拟数据
         std::thread::spawn(move || {
             loop {
                 std::thread::sleep(Duration::from_millis(1000));
@@ -46,6 +77,9 @@ impl Workspace {
             selected_tab: 0,
             traffic_store: store,
             profile_store,
+            rule_store,
+            nodes_count: 0,
+            is_loading: false,
         }
     }
 
@@ -79,13 +113,12 @@ impl Workspace {
                             for proxy_name in group.proxies {
                                 nodes.push(ProxyNode {
                                     name: proxy_name,
-                                    protocol: group.name.clone(), // 临时用组名代替协议
+                                    protocol: group.name.clone(),
                                     delay: None,
                                 });
                             }
                         }
                         if nodes.is_empty() {
-                            // 如果解析器暂时没写全，这里放入模拟数据证明拉取成功
                             nodes.push(ProxyNode {
                                 name: "HK-Node-1".to_string(),
                                 protocol: "Vmess".to_string(),
@@ -116,7 +149,6 @@ impl Workspace {
 
 impl Render for Workspace {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<'_, Self>) -> impl IntoElement {
-        // 关键点：强制下一帧重绘，实现 60FPS 动画效果
         cx.on_next_frame(_window, |_, _, cx| cx.notify());
 
         let entity = cx.entity().clone();
@@ -136,7 +168,8 @@ impl Render for Workspace {
                     .child(self.render_tab(0, "Dashboard", &entity, cx))
                     .child(self.render_tab(1, "Proxies", &entity, cx))
                     .child(self.render_tab(2, "Profiles", &entity, cx))
-                    .child(self.render_tab(3, "Settings", &entity, cx)),
+                    .child(self.render_tab(3, "Rules", &entity, cx))
+                    .child(self.render_tab(4, "Settings", &entity, cx)),
             )
             .child(
                 // 主内容区
@@ -149,7 +182,8 @@ impl Render for Workspace {
                         0 => self.render_dashboard(cx).into_any_element(),
                         1 => ProxyList::render(&self.profile_store, cx).into_any_element(),
                         2 => self.render_profiles(cx).into_any_element(),
-                        3 => div().child("App Settings").into_any_element(),
+                        3 => RulePanel::render(&self.rule_store, cx).into_any_element(),
+                        4 => div().child("App Settings").into_any_element(),
                         _ => div().child("Under Construction").into_any_element(),
                     }),
             )
