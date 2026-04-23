@@ -57,27 +57,21 @@ impl Workspace {
 
     fn select_tab(&mut self, index: usize, cx: &mut Context<Self>) {
         self.selected_tab = index;
-
-        // 当切换到 Rules 标签页 (index 3) 时，拉取真实应用列表
         if index == 3 {
             self.refresh_apps(cx);
         }
-
         cx.notify();
     }
 
     fn refresh_apps(&self, _cx: &mut Context<Self>) {
         let rule_store = self.rule_store.clone();
-
         utils::TOKIO_RUNTIME.spawn(async move {
-            tracing::info!("Pulling real system apps via IPC...");
             match ipc_client::send_command("get_apps").await {
                 Ok(response) => {
                     if let Ok(apps) =
                         serde_json::from_str::<Vec<api::tracker::AppIdentity>>(&response)
                     {
                         let mut store = rule_store.write();
-                        // 过滤掉已经在直连或代理列表中的应用
                         let current_assigned: std::collections::HashSet<String> = store
                             .direct
                             .iter()
@@ -94,7 +88,6 @@ impl Workspace {
                                 icon: app.icon_path,
                             })
                             .collect();
-                        tracing::info!("Synced {} system apps", store.unassigned.len());
                     }
                 }
                 Err(e) => tracing::error!("Failed to get apps via IPC: {}", e),
@@ -103,7 +96,6 @@ impl Workspace {
     }
 
     fn fetch_subscription(&self, _cx: &mut Context<Self>) {
-        tracing::info!("Starting to fetch subscription...");
         {
             let mut store = self.profile_store.write();
             store.is_loading = true;
@@ -113,10 +105,8 @@ impl Workspace {
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
 
-        utils::TOKIO_RUNTIME.spawn(async move {
-            tracing::info!("Subscription task running in background...");
+        tokio::spawn(async move {
             let result = SubscriptionParser::fetch_and_parse(&url).await;
-
             let mut p_store = profile_store.write();
             p_store.is_loading = false;
 
@@ -132,9 +122,7 @@ impl Workspace {
                             });
                         }
                     }
-
                     if nodes.is_empty() {
-                        tracing::warn!("Parsed nodes are empty, using fallback mock nodes");
                         nodes.push(ProxyNode {
                             name: "HK-IEPL-1".to_string(),
                             protocol: "Vmess".to_string(),
@@ -151,12 +139,9 @@ impl Workspace {
                             delay: Some(145),
                         });
                     }
-
-                    tracing::info!("Fetched {} nodes successfully", nodes.len());
                     p_store.nodes = nodes;
                 }
                 Err(e) => {
-                    tracing::error!("Subscription fetch error: {}", e);
                     p_store.last_error = Some(e.to_string());
                     p_store.nodes = vec![ProxyNode {
                         name: "DEBUG: HK-Node".to_string(),
@@ -178,15 +163,26 @@ impl Render for Workspace {
         div()
             .size_full()
             .flex()
-            .bg(rgb(0x1e1e1e))
+            .bg(rgb(0x141414))
             .child(
                 // 侧边栏
                 div()
-                    .w_64()
+                    .w_56()
                     .h_full()
-                    .bg(rgb(0x252526))
+                    .bg(rgb(0x1d1d1d))
+                    .border_r_1()
+                    .border_color(rgb(0x303030))
                     .flex()
                     .flex_col()
+                    .p_2()
+                    .child(
+                        div()
+                            .p_4()
+                            .mb_4()
+                            .text_xl()
+                            .text_color(rgb(0x1677ff))
+                            .child("NARYA"),
+                    )
                     .child(self.render_tab(0, "Dashboard", &entity, cx))
                     .child(self.render_tab(1, "Proxies", &entity, cx))
                     .child(self.render_tab(2, "Profiles", &entity, cx))
@@ -195,19 +191,27 @@ impl Render for Workspace {
             )
             .child(
                 // 主内容区
-                div()
-                    .flex_1()
-                    .h_full()
-                    .p_4()
-                    .text_color(rgb(0xffffff))
-                    .child(match self.selected_tab {
-                        0 => self.render_dashboard(cx).into_any_element(),
-                        1 => self.render_proxies(cx).into_any_element(),
-                        2 => self.render_profiles(cx).into_any_element(),
-                        3 => RulePanel::render(&self.rule_store, cx).into_any_element(),
-                        4 => div().child("App Settings").into_any_element(),
-                        _ => div().child("Under Construction").into_any_element(),
-                    }),
+                div().flex_1().h_full().bg(rgb(0x141414)).p_6().child(
+                    div()
+                        .size_full()
+                        .bg(rgb(0x1d1d1d))
+                        .rounded_xl()
+                        .border_1()
+                        .border_color(rgb(0x303030))
+                        .p_6()
+                        .overflow_hidden()
+                        .child(match self.selected_tab {
+                            0 => self.render_dashboard(cx).into_any_element(),
+                            1 => self.render_proxies(cx).into_any_element(),
+                            2 => self.render_profiles(cx).into_any_element(),
+                            3 => RulePanel::render(&self.rule_store, cx).into_any_element(),
+                            4 => div()
+                                .text_color(rgb(0x888888))
+                                .child("App Settings")
+                                .into_any_element(),
+                            _ => div().child("Under Construction").into_any_element(),
+                        }),
+                ),
             )
     }
 }
@@ -225,27 +229,47 @@ impl Workspace {
 
         div()
             .id(index)
-            .p_2()
-            .m_1()
-            .rounded_md()
+            .relative()
+            .px_4()
+            .py_3()
+            .mb_1()
+            .rounded_lg()
+            .flex()
+            .items_center()
             .bg(if is_selected {
-                rgba(0x37373dff)
+                rgba(0x1677ff1a)
             } else {
                 rgba(0x00000000)
             })
-            .hover(|style| style.bg(rgb(0x2a2d2e)))
+            .hover(|style| style.bg(rgba(0xffffff0d)))
             .cursor_pointer()
             .on_click(move |_, _, cx| {
                 entity.update(cx, |workspace, cx| {
                     workspace.select_tab(index, cx);
                 });
             })
-            .text_color(if is_selected {
-                rgb(0xffffff)
+            .child(if is_selected {
+                div()
+                    .absolute()
+                    .left_0()
+                    .w_1()
+                    .h_4()
+                    .bg(rgb(0x1677ff))
+                    .rounded_full()
             } else {
-                rgb(0xcccccc)
+                div()
             })
-            .child(label)
+            .child(
+                div()
+                    .ml_2()
+                    .text_sm()
+                    .text_color(if is_selected {
+                        rgb(0x1677ff)
+                    } else {
+                        rgb(0xcccccc)
+                    })
+                    .child(label),
+            )
     }
 
     fn render_dashboard(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -255,37 +279,63 @@ impl Workspace {
         div()
             .flex()
             .flex_col()
+            .size_full()
             .child(
                 div()
                     .flex()
                     .justify_between()
                     .items_center()
-                    .child(div().text_xl().child("Narya Dashboard"))
+                    .mb_6()
+                    .child(div().text_2xl().text_color(rgb(0xffffff)).child("Overview"))
                     .child(
                         div()
                             .flex()
-                            .gap_4()
-                            .child(
-                                div()
-                                    .text_color(rgb(0x52c41a))
-                                    .child(format!("↑ {:.1} KB/s", current_speed.up)),
-                            )
-                            .child(
-                                div()
-                                    .text_color(rgb(0x1677ff))
-                                    .child(format!("↓ {:.1} KB/s", current_speed.down)),
-                            ),
+                            .gap_6()
+                            .child(self.render_stat_card(
+                                "Upload",
+                                format!("{:.1}", current_speed.up),
+                                "KB/s",
+                                rgb(0x52c41a),
+                            ))
+                            .child(self.render_stat_card(
+                                "Download",
+                                format!("{:.1}", current_speed.down),
+                                "KB/s",
+                                rgb(0x1677ff),
+                            )),
                     ),
             )
             .child(
                 div()
-                    .mt_4()
-                    .h_64()
-                    .w_full()
-                    .bg(rgb(0x2d2d2d))
-                    .rounded_lg()
-                    .p_2()
+                    .flex_1()
+                    .bg(rgb(0x141414))
+                    .rounded_xl()
+                    .border_1()
+                    .border_color(rgb(0x303030))
+                    .p_4()
                     .child(TrafficChart::render(self.traffic_store.clone(), cx)),
+            )
+    }
+
+    fn render_stat_card(
+        &self,
+        label: &'static str,
+        value: String,
+        unit: &'static str,
+        color: Rgba,
+    ) -> impl IntoElement {
+        div()
+            .flex()
+            .flex_col()
+            .items_end()
+            .child(div().text_xs().text_color(rgb(0x888888)).child(label))
+            .child(
+                div()
+                    .flex()
+                    .items_baseline()
+                    .gap_1()
+                    .child(div().text_xl().text_color(color).child(value))
+                    .child(div().text_xs().text_color(rgb(0x555555)).child(unit)),
             )
     }
 
@@ -294,7 +344,13 @@ impl Workspace {
             .flex()
             .flex_col()
             .size_full()
-            .child(div().text_xl().mb_4().child("Proxy Nodes"))
+            .child(
+                div()
+                    .text_2xl()
+                    .text_color(rgb(0xffffff))
+                    .mb_6()
+                    .child("Proxy Nodes"),
+            )
             .child(
                 div()
                     .id("proxies-scroll")
@@ -313,36 +369,66 @@ impl Workspace {
         div()
             .flex()
             .flex_col()
-            .child(div().text_xl().child("Profile Management"))
             .child(
                 div()
-                    .mt_4()
-                    .p_4()
-                    .bg(rgb(0x2d2d2d))
-                    .rounded_lg()
+                    .text_2xl()
+                    .text_color(rgb(0xffffff))
+                    .mb_6()
+                    .child("Subscriptions"),
+            )
+            .child(
+                div()
+                    .bg(rgb(0x141414))
+                    .rounded_xl()
+                    .border_1()
+                    .border_color(rgb(0x303030))
+                    .p_6()
                     .child(
                         div()
-                            .text_color(rgb(0xcccccc))
-                            .child(format!("URL: {}", url)),
+                            .text_sm()
+                            .text_color(rgb(0x888888))
+                            .mb_2()
+                            .child("Active Subscription URL"),
                     )
                     .child(
                         div()
-                            .mt_4()
-                            .id("refresh-btn")
-                            .p_2()
-                            .bg(rgb(0x1677ff))
+                            .p_3()
+                            .bg(rgb(0x000000))
                             .rounded_md()
-                            .cursor_pointer()
-                            .on_click(move |_, _, cx| {
-                                entity.update(cx, |workspace, cx| {
-                                    workspace.fetch_subscription(cx);
-                                });
-                            })
-                            .child(if is_loading {
-                                "Fetching..."
-                            } else {
-                                "Update from URL"
-                            }),
+                            .border_1()
+                            .border_color(rgb(0x303030))
+                            .text_xs()
+                            .text_color(rgb(0x52c41a))
+                            .child(url),
+                    )
+                    .child(
+                        div().mt_6().flex().justify_end().child(
+                            div()
+                                .id("refresh-btn")
+                                .px_6()
+                                .py_2()
+                                .bg(if is_loading {
+                                    rgb(0x303030)
+                                } else {
+                                    rgb(0x1677ff)
+                                })
+                                .rounded_lg()
+                                .text_color(rgb(0xffffff))
+                                .cursor_pointer()
+                                .hover(|s| if !is_loading { s.bg(rgb(0x4096ff)) } else { s })
+                                .on_click(move |_, _, cx| {
+                                    if !is_loading {
+                                        entity.update(cx, |workspace, cx| {
+                                            workspace.fetch_subscription(cx);
+                                        });
+                                    }
+                                })
+                                .child(if is_loading {
+                                    "Updating..."
+                                } else {
+                                    "Update Now"
+                                }),
+                        ),
                     ),
             )
     }
@@ -350,9 +436,22 @@ impl Workspace {
 
 pub fn run_app() {
     application().run(|cx: &mut App| {
-        cx.open_window(WindowOptions::default(), |_, cx| {
-            cx.new(|cx| Workspace::new(cx))
-        })
+        cx.open_window(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                    None,
+                    size(px(1024.), px(768.)),
+                    cx,
+                ))),
+                titlebar: Some(TitlebarOptions {
+                    title: Some("Narya Proxy Engine".into()),
+                    appears_transparent: true,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            |_, cx| cx.new(|cx| Workspace::new(cx)),
+        )
         .unwrap();
 
         cx.activate(true);

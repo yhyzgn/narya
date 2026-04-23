@@ -21,27 +21,34 @@ impl RulePanel {
 
         div()
             .flex()
-            .gap_4()
+            .gap_6()
             .size_full()
             .child(
-                // 左侧：应用池
-                Self::render_column("App Pool", unassigned, "pool", store, entity_id),
+                // 左侧：待分配应用池 (30% 宽度)
+                div().w_1_3().h_full().child(Self::render_column(
+                    "Available Apps",
+                    unassigned,
+                    "pool",
+                    store,
+                    entity_id,
+                )),
             )
             .child(
+                // 右侧：决策区 (70% 宽度)
                 div()
+                    .flex_1()
                     .flex()
                     .flex_col()
-                    .gap_4()
-                    .flex_1()
+                    .gap_6()
                     .child(Self::render_column(
-                        "Direct (Whitelist)",
+                        "Direct Connection (No Proxy)",
                         direct,
                         "direct",
                         store,
                         entity_id,
                     ))
                     .child(Self::render_column(
-                        "Proxy (Overseas)",
+                        "Global Proxy (Tunneled)",
                         proxy,
                         "proxy",
                         store,
@@ -63,10 +70,14 @@ impl RulePanel {
             .flex_1()
             .flex()
             .flex_col()
-            .bg(rgb(0x2d2d2d))
-            .rounded_lg()
+            .bg(rgb(0x141414)) // 内部背景稍微深一点
+            .rounded_xl()
+            .border_1()
+            .border_color(rgb(0x303030))
             .p_4()
             .id(zone_id)
+            // 增强 Drop 视觉：悬停时边框变亮
+            .hover(|s| s.border_color(rgb(0x1677ff)))
             .on_drop(move |drag: &AppDrag, _, cx| {
                 let mut rules_changed = false;
                 {
@@ -88,7 +99,6 @@ impl RulePanel {
                 }
 
                 if rules_changed {
-                    // 同步到后端
                     let store_read = store.read();
                     let bypass_rules = api::tracker::BypassRules {
                         whitelist: store_read.direct.iter().map(|a| a.id.clone()).collect(),
@@ -102,10 +112,24 @@ impl RulePanel {
                         });
                     }
                 }
-
                 cx.notify(entity_id);
             })
-            .child(div().text_lg().mb_4().child(title))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .mb_4()
+                    .child(
+                        // 区域标识小图标 (模拟)
+                        div().w_2().h_2().rounded_full().bg(match zone_id {
+                            "direct" => rgb(0x52c41a),
+                            "proxy" => rgb(0xfaad14),
+                            _ => rgb(0x1677ff),
+                        }),
+                    )
+                    .child(div().text_sm().text_color(rgb(0x888888)).child(title)),
+            )
             .child(
                 div()
                     .flex()
@@ -128,12 +152,27 @@ impl RulePanel {
                                     })
                                 },
                             )
-                            .p_3()
-                            .bg(rgb(0x3d3d3d))
+                            .px_3()
+                            .py_2()
+                            .bg(rgb(0x2d2d2d))
                             .rounded_md()
+                            .border_1()
+                            .border_color(rgb(0x383838))
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x4d4d4d)))
-                            .child(app.name)
+                            .hover(|s| s.bg(rgb(0x353535)).border_color(rgb(0x555555)))
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .child(
+                                        // 应用小图标占位符
+                                        div().w_4().h_4().bg(rgba(0xffffff1a)).rounded_sm(),
+                                    )
+                                    .child(
+                                        div().text_xs().text_color(rgb(0xcccccc)).child(app.name),
+                                    ),
+                            )
                     })),
             )
     }
@@ -146,10 +185,13 @@ struct AppDragView {
 impl Render for AppDragView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .p_2()
-            .bg(rgba(0x1677ffcc))
+            .px_3()
+            .py_2()
+            .bg(rgba(0x1677ffcc)) // 拖拽时呈现品牌色
             .rounded_md()
+            .shadow_lg()
             .text_color(rgb(0xffffff))
+            .text_xs()
             .child(self.name.clone())
     }
 }
