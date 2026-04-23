@@ -15,44 +15,115 @@ impl RulePanel {
     pub fn render(store: &SharedRuleStore, cx: &mut Context<crate::Workspace>) -> impl IntoElement {
         let store_read = store.read();
         let entity_id = cx.entity_id();
+        let search_query = store_read.search_query.clone();
+
+        let q = search_query.to_lowercase();
+
+        // 过滤数据并限制数量
+        let unassigned: Vec<AppInfo> = store_read
+            .unassigned
+            .iter()
+            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
+            .take(150)
+            .cloned()
+            .collect();
+
+        let direct: Vec<AppInfo> = store_read
+            .direct
+            .iter()
+            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
+            .take(150)
+            .cloned()
+            .collect();
+
+        let proxy: Vec<AppInfo> = store_read
+            .proxy
+            .iter()
+            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
+            .take(150)
+            .cloned()
+            .collect();
+
+        drop(store_read);
 
         div()
             .flex()
-            .gap_6()
+            .flex_col()
+            .gap_4()
             .size_full()
-            .child(div().w_1_3().h_full().child(Self::render_column(
-                "Available Apps",
-                &store_read.unassigned,
-                "pool",
-                store,
-                entity_id,
-            )))
+            .child(
+                // 搜索栏与状态
+                div()
+                    .flex()
+                    .justify_between()
+                    .items_center()
+                    .bg(rgb(0x141414))
+                    .border_1()
+                    .border_color(rgb(0x303030))
+                    .rounded_lg()
+                    .px_4()
+                    .py_2()
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_sm().text_color(rgb(0x888888)).child("Filter:"))
+                            .child(div().text_sm().text_color(rgb(0x1677ff)).child(
+                                if q.is_empty() {
+                                    "All Apps".to_string()
+                                } else {
+                                    q
+                                },
+                            )),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(0x555555))
+                            .child("Limited to 150 items per column for performance"),
+                    ),
+            )
             .child(
                 div()
-                    .flex_1()
                     .flex()
-                    .flex_col()
                     .gap_6()
-                    .child(Self::render_column(
-                        "Direct Connection (No Proxy)",
-                        &store_read.direct,
-                        "direct",
+                    .flex_1()
+                    .overflow_hidden()
+                    .child(div().w_1_3().h_full().child(Self::render_column(
+                        "Available Apps",
+                        unassigned,
+                        "pool",
                         store,
                         entity_id,
-                    ))
-                    .child(Self::render_column(
-                        "Global Proxy (Tunneled)",
-                        &store_read.proxy,
-                        "proxy",
-                        store,
-                        entity_id,
-                    )),
+                    )))
+                    .child(
+                        div()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap_6()
+                            .child(Self::render_column(
+                                "Direct Connection",
+                                direct,
+                                "direct",
+                                store,
+                                entity_id,
+                            ))
+                            .child(Self::render_column(
+                                "Overseas Proxy",
+                                proxy,
+                                "proxy",
+                                store,
+                                entity_id,
+                            )),
+                    ),
             )
     }
 
     fn render_column(
         title: &'static str,
-        apps: &[AppInfo],
+        apps: Vec<AppInfo>,
         zone_id: &'static str,
         store: &SharedRuleStore,
         entity_id: EntityId,
@@ -129,7 +200,7 @@ impl RulePanel {
                             .flex()
                             .flex_wrap()
                             .gap_2()
-                            .children(apps.iter().cloned().map(|app| {
+                            .children(apps.into_iter().map(|app| {
                                 let app_id = app.id.clone();
                                 let app_name = app.name.clone();
 

@@ -12,6 +12,7 @@ pub struct RuleStore {
     pub unassigned: Vec<AppInfo>,
     pub direct: Vec<AppInfo>,
     pub proxy: Vec<AppInfo>,
+    pub search_query: String, // 新增：搜索过滤
 }
 
 impl RuleStore {
@@ -20,7 +21,12 @@ impl RuleStore {
             unassigned: Vec::new(),
             direct: Vec::new(),
             proxy: Vec::new(),
+            search_query: String::new(),
         }
+    }
+
+    pub fn set_search(&mut self, query: &str) {
+        self.search_query = query.to_lowercase();
     }
 
     pub fn assign_to_direct(&mut self, app_id: &str) {
