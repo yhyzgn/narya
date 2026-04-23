@@ -127,7 +127,7 @@ impl Workspace {
         }
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
-        tokio::spawn(async move {
+        utils::TOKIO_RUNTIME.spawn(async move {
             let result = SubscriptionParser::fetch_and_parse(&url).await;
             let mut p_store = profile_store.write();
             p_store.is_loading = false;
@@ -187,7 +187,7 @@ impl Workspace {
             };
             for (node_name, server, port) in nodes {
                 let p_store = profile_store.clone();
-                tokio::spawn(async move {
+                utils::TOKIO_RUNTIME.spawn(async move {
                     let delay = Self::tcp_ping(server, port).await;
                     let mut store = p_store.write();
                     if let Some(node) = store.nodes.iter_mut().find(|n| n.name == node_name) {
