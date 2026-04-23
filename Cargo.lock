@@ -1112,6 +1112,7 @@ dependencies = [
  "anyhow",
  "api",
  "base64",
+ "percent-encoding",
  "reqwest",
  "serde",
  "serde_json",

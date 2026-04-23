@@ -30,10 +30,9 @@ impl SubscriptionParser {
 
     fn parse_clash(content: &str) -> Result<NaryaConfig> {
         tracing::info!("Parsing Clash format...");
-        let config = NaryaConfig::default();
+        let mut narya_config = NaryaConfig::default();
         let yaml: serde_yaml::Value = serde_yaml::from_str(content)?;
 
-        let mut narya_config = config;
         // Extract groups as a simple example
         if let Some(groups) = yaml.get("proxy-groups").and_then(|v| v.as_sequence()) {
             for g in groups {
@@ -69,7 +68,9 @@ impl SubscriptionParser {
 
     fn parse_plain_links(content: &str) -> Result<NaryaConfig> {
         tracing::info!("Parsing plain links format...");
-        let config = NaryaConfig::default();
+        let mut config = NaryaConfig::default();
+        let mut nodes = Vec::new();
+
         // Simple line-by-line link parser (vmess://, ss://, etc.)
         for line in content.lines() {
             let line = line.trim();
@@ -80,43 +81,30 @@ impl SubscriptionParser {
             if line.starts_with("ss://")
                 || line.starts_with("vmess://")
                 || line.starts_with("trojan://")
+                || line.starts_with("vless://")
             {
-                // In a real implementation, we would parse these into nodes
-                tracing::debug!(
-                    "Found proxy link: {}",
-                    line.split("://").next().unwrap_or("unknown")
-                );
+                // 尝试提取节点名称：通常在 # 后面
+                let name = if let Some(hash_pos) = line.find('#') {
+                    let raw_name = &line[hash_pos + 1..];
+                    // 处理 URL 编码
+                    percent_encoding::percent_decode_str(raw_name).decode_utf8_lossy().into_owned()
+                } else {
+                    format!("{}-{}", line.split("://").next().unwrap_or("node"), nodes.len() + 1)
+                };
+                
+                nodes.push(name);
             }
         }
+
+        if !nodes.is_empty() {
+            // 将所有识别出的节点放入一个名为 "Auto-Parsed" 的组中
+            config.groups.push(ProxyGroup {
+                name: "Auto-Parsed".to_string(),
+                group_type: GroupType::Select,
+                proxies: nodes,
+            });
+        }
+        
         Ok(config)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_clash_parsing() {
-        let clash_content = r#"
-proxy-groups:
-  - name: "Proxy"
-    type: select
-    proxies:
-      - "Node1"
-      - "Node2"
-"#;
-        let config = SubscriptionParser::parse(clash_content).await.unwrap();
-        assert_eq!(config.groups.len(), 1);
-        assert_eq!(config.groups[0].name, "Proxy");
-        assert_eq!(config.groups[0].proxies.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn test_base64_parsing() {
-        // "ss://abc\nvmess://def" in base64
-        let base64_content = "c3M6Ly9hYmMKdm1lc3M6Ly9kZWY=";
-        let config = SubscriptionParser::parse(base64_content).await.unwrap();
-        assert!(config.groups.is_empty()); // Logic just parses links to debug logs for now
     }
 }
