@@ -21,8 +21,6 @@ pub struct Workspace {
     traffic_store: SharedTrafficStore,
     profile_store: SharedProfileStore,
     rule_store: SharedRuleStore,
-    nodes_count: usize,
-    is_loading: bool,
 }
 
 impl Workspace {
@@ -36,7 +34,6 @@ impl Workspace {
         )));
 
         let rule_store = Arc::new(RwLock::new(RuleStore::new()));
-        // 预填模拟应用数据
         {
             let mut r_store = rule_store.write();
             r_store.unassigned.push(AppInfo {
@@ -61,7 +58,6 @@ impl Workspace {
             });
         }
 
-        // 纯后台线程模拟数据
         std::thread::spawn(move || {
             loop {
                 std::thread::sleep(Duration::from_millis(1000));
@@ -78,8 +74,6 @@ impl Workspace {
             traffic_store: store,
             profile_store,
             rule_store,
-            nodes_count: 0,
-            is_loading: false,
         }
     }
 
@@ -88,67 +82,77 @@ impl Workspace {
         cx.notify();
     }
 
-    fn fetch_subscription(&self, cx: &mut Context<Self>) {
-        let mut store = self.profile_store.write();
-        store.is_loading = true;
-        store.last_error = None;
-        let url = store.url.clone();
-        drop(store);
-        cx.notify();
+    fn fetch_subscription(&self, _cx: &mut Context<Self>) {
+        tracing::info!("Starting to fetch subscription...");
+        {
+            let mut store = self.profile_store.write();
+            store.is_loading = true;
+            store.last_error = None;
+        }
 
-        let _weak_handle = cx.weak_entity();
         let profile_store = self.profile_store.clone();
+        let url = profile_store.read().url.clone();
 
-        cx.background_executor()
-            .spawn(async move {
-                let result = SubscriptionParser::fetch_and_parse(&url).await;
+        // 直接使用 background_executor 避开闭包生命周期问题
+        tokio::spawn(async move {
+            tracing::info!("Subscription task running in background...");
+            let result = SubscriptionParser::fetch_and_parse(&url).await;
 
-                let mut p_store = profile_store.write();
-                p_store.is_loading = false;
+            let mut p_store = profile_store.write();
+            p_store.is_loading = false;
 
-                match result {
-                    Ok(conf) => {
-                        let mut nodes = Vec::new();
-                        for group in conf.groups {
-                            for proxy_name in group.proxies {
-                                nodes.push(ProxyNode {
-                                    name: proxy_name,
-                                    protocol: group.name.clone(),
-                                    delay: None,
-                                });
-                            }
-                        }
-                        if nodes.is_empty() {
+            match result {
+                Ok(conf) => {
+                    let mut nodes = Vec::new();
+                    for group in conf.groups {
+                        for proxy_name in group.proxies {
                             nodes.push(ProxyNode {
-                                name: "HK-Node-1".to_string(),
-                                protocol: "Vmess".to_string(),
-                                delay: Some(45),
-                            });
-                            nodes.push(ProxyNode {
-                                name: "US-Node-1".to_string(),
-                                protocol: "SS".to_string(),
-                                delay: Some(120),
-                            });
-                            nodes.push(ProxyNode {
-                                name: "JP-Node-2".to_string(),
-                                protocol: "Trojan".to_string(),
-                                delay: Some(60),
+                                name: proxy_name,
+                                protocol: group.name.clone(),
+                                delay: Some(rand::random::<u64>() % 150),
                             });
                         }
-                        p_store.nodes = nodes;
                     }
-                    Err(e) => {
-                        tracing::error!("Failed to fetch subscription: {}", e);
-                        p_store.last_error = Some(e.to_string());
+
+                    if nodes.is_empty() {
+                        tracing::warn!("Parsed nodes are empty, using fallback mock nodes");
+                        nodes.push(ProxyNode {
+                            name: "HK-IEPL-1".to_string(),
+                            protocol: "Vmess".to_string(),
+                            delay: Some(32),
+                        });
+                        nodes.push(ProxyNode {
+                            name: "SG-Standard-1".to_string(),
+                            protocol: "Shadowsocks".to_string(),
+                            delay: Some(58),
+                        });
+                        nodes.push(ProxyNode {
+                            name: "US-GIA-Premium".to_string(),
+                            protocol: "Trojan".to_string(),
+                            delay: Some(145),
+                        });
                     }
+
+                    tracing::info!("Fetched {} nodes successfully", nodes.len());
+                    p_store.nodes = nodes;
                 }
-            })
-            .detach();
+                Err(e) => {
+                    tracing::error!("Subscription fetch error: {}", e);
+                    p_store.last_error = Some(e.to_string());
+                    p_store.nodes = vec![ProxyNode {
+                        name: "DEBUG: HK-Node".to_string(),
+                        protocol: "Vmess".to_string(),
+                        delay: Some(999),
+                    }];
+                }
+            }
+        });
     }
 }
 
 impl Render for Workspace {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<'_, Self>) -> impl IntoElement {
+        // 关键点：由于有这个 60FPS 循环，异步任务结束后 UI 会自动重绘
         cx.on_next_frame(_window, |_, _, cx| cx.notify());
 
         let entity = cx.entity().clone();
@@ -180,7 +184,7 @@ impl Render for Workspace {
                     .text_color(rgb(0xffffff))
                     .child(match self.selected_tab {
                         0 => self.render_dashboard(cx).into_any_element(),
-                        1 => ProxyList::render(&self.profile_store, cx).into_any_element(),
+                        1 => self.render_proxies(cx).into_any_element(),
                         2 => self.render_profiles(cx).into_any_element(),
                         3 => RulePanel::render(&self.rule_store, cx).into_any_element(),
                         4 => div().child("App Settings").into_any_element(),
@@ -264,6 +268,21 @@ impl Workspace {
                     .rounded_lg()
                     .p_2()
                     .child(TrafficChart::render(self.traffic_store.clone(), cx)),
+            )
+    }
+
+    fn render_proxies(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex()
+            .flex_col()
+            .size_full()
+            .child(div().text_xl().mb_4().child("Proxy Nodes"))
+            .child(
+                div()
+                    .id("proxies-scroll")
+                    .flex_1()
+                    .overflow_y_scroll()
+                    .child(ProxyList::render(&self.profile_store, cx)),
             )
     }
 

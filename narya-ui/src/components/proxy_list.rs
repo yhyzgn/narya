@@ -16,22 +16,39 @@ impl ProxyList {
             if store.is_loading {
                 return div()
                     .text_color(rgb(0x888888))
-                    .child("Loading nodes...")
+                    .child("Loading nodes from subscription...")
                     .into_any_element();
             } else if let Some(ref err) = store.last_error {
                 return div()
-                    .text_color(rgb(0xff4d4f))
-                    .child(format!("Error: {}", err))
+                    .flex()
+                    .flex_col()
+                    .gap_4()
+                    .child(
+                        div()
+                            .text_color(rgb(0xff4d4f))
+                            .child(format!("Error: {}", err)),
+                    )
+                    .child(
+                        div()
+                            .text_color(rgb(0x888888))
+                            .child("Go to 'Profiles' to check your URL."),
+                    )
                     .into_any_element();
             } else {
                 return div()
-                    .text_color(rgb(0x888888))
-                    .child("No nodes available. Please update profile.")
+                    .flex()
+                    .flex_col()
+                    .gap_4()
+                    .child(
+                        div()
+                            .text_color(rgb(0x888888))
+                            .child("No nodes found. Did you refresh the profile?"),
+                    )
                     .into_any_element();
             }
         }
 
-        for node in &store.nodes {
+        for (i, node) in store.nodes.iter().enumerate() {
             let delay_color = match node.delay {
                 Some(d) if d < 100 => rgb(0x52c41a), // Green
                 Some(d) if d < 300 => rgb(0xfaad14), // Orange
@@ -41,11 +58,12 @@ impl ProxyList {
 
             let delay_text = match node.delay {
                 Some(d) => format!("{}ms", d),
-                None => "- ms".to_string(),
+                None => "timeout".to_string(),
             };
 
             list_container = list_container.child(
                 div()
+                    .id(i)
                     .flex()
                     .justify_between()
                     .items_center()
@@ -71,9 +89,8 @@ impl ProxyList {
         }
 
         div()
-            .id("proxy-list")
+            .id("proxy-list-container")
             .h_full()
-            .overflow_y_scroll()
             .child(list_container)
             .into_any_element()
     }
