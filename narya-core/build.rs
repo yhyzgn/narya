@@ -22,13 +22,17 @@ fn main() {
         .arg("-buildmode=c-archive")
         .arg("-o")
         .arg(&static_lib_path)
-        .status()
-        .expect("Failed to execute go build");
+        .status();
 
-    assert!(status.success(), "Go build failed");
-
-    println!("cargo:rustc-link-search=native={}", out_dir.display());
-    println!("cargo:rustc-link-lib=static={}", lib_name);
+    match status {
+        Ok(s) if s.success() => {
+            println!("cargo:rustc-link-search=native={}", out_dir.display());
+            println!("cargo:rustc-link-lib=static={}", lib_name);
+        }
+        _ => {
+            println!("cargo:warning=Failed to build Go bridge. SingBoxFfi will fail at runtime.");
+        }
+    }
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     if target_os == "macos" {
