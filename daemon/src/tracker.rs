@@ -12,7 +12,7 @@ pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,
     pub path: PathBuf,
-    pub user_id: Option<u32>, // 新增：用于根据 UID 过滤
+    pub user_id: Option<u32>,
 }
 
 #[async_trait]
@@ -38,7 +38,6 @@ impl SystemProcessTracker {
     }
 
     fn get_refresh_kind() -> ProcessRefreshKind {
-        // 增加 .with_user() 以获取 UID
         ProcessRefreshKind::new()
             .with_exe(UpdateKind::Always)
             .with_user(UpdateKind::Always)
@@ -48,49 +47,41 @@ impl SystemProcessTracker {
         let path_str = path.to_string_lossy().to_lowercase();
         let name_lower = name.to_lowercase();
 
-        // 1. 核心过滤：仅保留当前用户启动的进程 (UID >= 1000)
-        // 这将自动过滤掉绝大多数 root 权限的系统服务
+        // 1. UID 基础过滤
         if let Some(uid) = user_id {
-            if uid < 1000 && name_lower != "narya" {
-                return false;
-            }
-        } else {
-            // 没有 UID 的进程通常是内核线程，忽略
-            return false;
-        }
+            if uid < 1000 && name_lower != "narya" { return false; }
+        } else { return false; }
 
-        // 2. 过滤内核线程与无路径进程
-        if path_str.is_empty() {
-            return false;
-        }
-
-        // 3. 过滤 0x 开头的异常进程名
-        if name_lower.starts_with("0x") {
-            return false;
-        }
-
-        // 4. 严禁目录：系统二进制目录
-        let forbidden_dirs = ["/usr/sbin/", "/sbin/", "/usr/libexec/", "/usr/lib/systemd/", "/usr/lib/"];
-        if forbidden_dirs.iter().any(|dir| path_str.contains(dir)) {
-            // 特殊白名单：如果是用户手动安装在 /usr/lib 下的软件 (极少见)，可以通过白名单放行
-            let app_whitelist = ["chrome", "firefox", "telegram", "code", "rustrover"];
-            if !app_whitelist.iter().any(|n| name_lower.contains(n)) {
-                return false;
-            }
-        }
-
-        // 5. 过滤常见的桌面组件黑名单
-        let blacklisted_keywords = [
-            "kworker", "systemd", "migration", "idle_inject", "dbus", "pipewire", 
-            "wayland", "gvfs", "at-spi", "ibus", "fcitx", "gnome", "kwin",
-            "akonadi", "baloo", "polkit", "rtw89", "iwlwifi", "agent", "daemon", "service"
+        // 2. 路径基础过滤
+        if path_str.is_empty() { return false; }
+        
+        // 3. 语义化过滤：封杀辅助进程关键词
+        let noise_keywords = [
+            "thread", "worker", "pool", "helper", "handler", "broker", 
+            "crashpad", "sandbox", "utility", "extension", "plugin", 
+            "proxy", "agent", "daemon", "service", "executor", "task",
+            "at-spi", "ibus", "gvfs", "xdg", "portal", "dbus", "pipewire"
         ];
-        if blacklisted_keywords.iter().any(|k| name_lower.contains(k)) {
-             // 只有在白名单内的才放行
-             let app_whitelist = ["chrome", "firefox", "telegram", "code", "narya"];
-             if !app_whitelist.iter().any(|n| name_lower.contains(n)) {
+        if noise_keywords.iter().any(|&k| name_lower.contains(k)) {
+            // 特殊白名单：如果是知名应用名包含这些词，需放行 (暂时没有想到)
+            return false;
+        }
+
+        // 4. 特征过滤：封杀包含冒号、中括号或过多数字的名称
+        if name.contains(':') || name.starts_with('[') || name.ends_with(']') {
+            return false;
+        }
+        
+        // 5. 长度与结构过滤
+        if name.len() < 2 || name.len() > 32 { return false; }
+
+        // 6. 目录封锁
+        let system_dirs = ["/usr/sbin/", "/sbin/", "/usr/libexec/", "/usr/lib/"];
+        if system_dirs.iter().any(|dir| path_str.contains(dir)) {
+            let app_whitelist = ["chrome", "firefox", "telegram", "code", "narya", "rustrover"];
+            if !app_whitelist.iter().any(|&n| name_lower.contains(n)) {
                 return false;
-             }
+            }
         }
 
         true
@@ -110,13 +101,22 @@ impl ProcessTracker for SystemProcessTracker {
 
         for proc in all_processes {
             if Self::is_user_application(&proc.name, &proc.path, proc.user_id) {
-                let mut display_name = proc.name.split(' ').next().unwrap_or(&proc.name).to_string();
-                display_name = display_name.replace(".app", "").replace(".exe", "");
+                // 提取干净的显示名称
+                let mut display_name = proc.name.split(|c: char| !c.is_alphanumeric() && c != ' ')
+                    .next()
+                    .unwrap_or(&proc.name)
+                    .to_string();
                 
+                // 进一步首字母大写美化
+                if !display_name.is_empty() {
+                    let mut c = display_name.chars();
+                    display_name = c.next().unwrap().to_uppercase().collect::<String>() + c.as_str();
+                }
+
                 if !seen_names.contains(&display_name) {
                     apps.push(AppIdentity {
                         name: display_name.clone(),
-                        identifier: display_name.clone(),
+                        identifier: display_name.clone().to_lowercase(),
                         icon_path: None,
                     });
                     seen_names.insert(display_name);
@@ -132,7 +132,6 @@ impl ProcessTracker for SystemProcessTracker {
 
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>> {
         let mut sys = self.sys.lock().unwrap();
-        // 强制刷新用户 ID
         sys.refresh_processes_specifics(ProcessesToUpdate::All, true, Self::get_refresh_kind());
 
         let processes = sys
@@ -142,10 +141,7 @@ impl ProcessTracker for SystemProcessTracker {
                 pid: pid.as_u32(),
                 name: process.name().to_string_lossy().into_owned(),
                 path: process.exe().map(|p| p.to_path_buf()).unwrap_or_default(),
-                user_id: process.user_id().map(|u| {
-                    // 将 sysinfo 的 UserId 转换为 u32
-                    u.to_string().parse::<u32>().unwrap_or(0)
-                }),
+                user_id: process.user_id().map(|u| u.to_string().parse::<u32>().unwrap_or(0)),
             })
             .collect();
 
@@ -171,7 +167,7 @@ impl EbpfProcessTracker {
 impl ProcessTracker for EbpfProcessTracker {
     async fn start(&self) -> Result<()> { self.system.start().await }
     async fn stop(&self) -> Result<()> { self.system.stop().await }
-    async fn lookup_connection(&self, _src_ip: IpAddr, _src_port: u16) -> Result<Option<ConnectionMeta>> { Ok(None) }
+    async fn lookup_connection(&self, _i: IpAddr, _p: u16) -> Result<Option<ConnectionMeta>> { Ok(None) }
 
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> {
         self.system.list_network_apps().await
@@ -187,7 +183,7 @@ impl ProcessTracker for EbpfProcessTracker {
 
                 let processes = self.system.list_running_processes()?;
                 for app_id in &rules.blacklist {
-                    for proc in processes.iter().filter(|p| p.name.contains(app_id)) {
+                    for proc in processes.iter().filter(|p| p.name.to_lowercase().contains(app_id)) {
                         let config = ProcessConfig { action: 2 };
                         let _ = rules_map.insert(proc.pid, config, 0);
                     }
@@ -208,7 +204,7 @@ pub struct MockProcessTracker;
 impl ProcessTracker for MockProcessTracker {
     async fn start(&self) -> Result<()> { Ok(()) }
     async fn stop(&self) -> Result<()> { Ok(()) }
-    async fn lookup_connection(&self, _ip: IpAddr, _p: u16) -> Result<Option<ConnectionMeta>> { Ok(None) }
+    async fn lookup_connection(&self, _i: IpAddr, _p: u16) -> Result<Option<ConnectionMeta>> { Ok(None) }
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> { Ok(vec![]) }
     async fn update_bypass_rules(&self, _r: &BypassRules) -> Result<()> { Ok(()) }
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>> { Ok(vec![]) }
