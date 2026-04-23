@@ -23,7 +23,7 @@ impl TrafficChart {
 
                 let width: f32 = bounds.size.width.into();
                 let height: f32 = bounds.size.height.into();
-                let padding = 10.0;
+                let padding = 12.0;
                 let chart_height = height - padding * 2.0;
 
                 let mut max_val: f32 = 100.0;
@@ -37,45 +37,43 @@ impl TrafficChart {
                 }
                 max_val *= 1.25;
 
-                // 算法：像素切片。弃用 Path 系统，使用 PaintQuad 模拟曲线。
-                let render_pixel_liquid = |data_slice: &[f32], color: Rgba, window: &mut Window| {
+                // 极致平滑：每 0.5 像素绘制一个点，物理重叠消除虚线
+                let render_vibrant_wave = |data_slice: &[f32], color: Rgba, window: &mut Window| {
                     if data_slice.len() < 2 {
                         return;
                     }
 
-                    // X 轴分辨率设定为 width，即每像素一根垂直条
-                    let step_count = (width as usize).max(100);
-                    let px_step = width / step_count as f32;
-                    let samples_per_point = step_count as f32 / 59.0;
+                    let step_size = 0.5;
+                    let total_steps = (width / step_size) as usize;
+                    let samples_per_point = total_steps as f32 / 59.0;
+                    let bottom_y = bounds.bottom() - px(padding);
 
-                    for i in 0..step_count {
+                    for i in 0..total_steps {
                         let sample_idx_float = i as f32 / samples_per_point;
                         let idx = sample_idx_float.floor() as usize;
                         let next_idx = (idx + 1).min(data_slice.len() - 1);
                         let mu = sample_idx_float.fract();
 
-                        // 余弦插值
                         let f = (1.0 - (mu * PI).cos()) / 2.0;
                         let y_val = data_slice[idx] * (1.0 - f) + data_slice[next_idx] * f;
 
-                        let x = bounds.left() + px(i as f32 * px_step);
+                        let x = bounds.left() + px(i as f32 * step_size);
                         let top_y = bounds.top() + px(chart_height + padding)
                             - px((y_val / max_val) * chart_height);
-                        let bar_height = (bounds.bottom() - px(padding)) - top_y;
+                        let slice_w = px(step_size + 0.2);
 
-                        // 仅当高度大于 0 时渲染
-                        if bar_height > px(0.0) {
-                            // 1. 区域填充块 (15% 透明度)
+                        // 1. 区域填充 (10% 透明)
+                        if bottom_y > top_y {
                             window.paint_quad(PaintQuad {
                                 bounds: Bounds {
                                     origin: point(x, top_y),
-                                    size: size(px(px_step + 0.3), bar_height),
+                                    size: size(slice_w, bottom_y - top_y),
                                 },
                                 background: Rgba {
                                     r: color.r,
                                     g: color.g,
                                     b: color.b,
-                                    a: 0.15,
+                                    a: 0.1,
                                 }
                                 .into(),
                                 corner_radii: Default::default(),
@@ -83,30 +81,49 @@ impl TrafficChart {
                                 border_color: Default::default(),
                                 border_style: Default::default(),
                             });
-
-                            // 2. 顶部亮线块 (2px 高度)
-                            window.paint_quad(PaintQuad {
-                                bounds: Bounds {
-                                    origin: point(x, top_y),
-                                    size: size(px(px_step + 0.3), px(1.8)),
-                                },
-                                background: color.into(),
-                                corner_radii: Default::default(),
-                                border_widths: Default::default(),
-                                border_color: Default::default(),
-                                border_style: Default::default(),
-                            });
                         }
+
+                        // 2. 霓虹光晕层 (4.5px, 25% 透明)
+                        window.paint_quad(PaintQuad {
+                            bounds: Bounds {
+                                origin: point(x, top_y - px(1.0)),
+                                size: size(slice_w, px(4.5)),
+                            },
+                            background: Rgba {
+                                r: color.r,
+                                g: color.g,
+                                b: color.b,
+                                a: 0.25,
+                            }
+                            .into(),
+                            corner_radii: Default::default(),
+                            border_widths: Default::default(),
+                            border_color: Default::default(),
+                            border_style: Default::default(),
+                        });
+
+                        // 3. 核心亮线层 (2.0px, 100% 不透明)
+                        window.paint_quad(PaintQuad {
+                            bounds: Bounds {
+                                origin: point(x, top_y),
+                                size: size(slice_w, px(2.0)),
+                            },
+                            background: color.into(),
+                            corner_radii: Default::default(),
+                            border_widths: Default::default(),
+                            border_color: Default::default(),
+                            border_style: Default::default(),
+                        });
                     }
                 };
 
                 let up_data: Vec<f32> = data.iter().map(|d| d.up).collect();
                 let down_data: Vec<f32> = data.iter().map(|d| d.down).collect();
 
-                // 渲染下载 (电光青)
-                render_pixel_liquid(&down_data, rgb(0x00d2ff), window);
-                // 渲染上传 (荧光绿)
-                render_pixel_liquid(&up_data, rgb(0x00ffaa), window);
+                // 下载：鲜艳蓝 (#007AFF)
+                render_vibrant_wave(&down_data, rgb(0x007aff), window);
+                // 上传：鲜艳绿 (#30D158)
+                render_vibrant_wave(&up_data, rgb(0x30d158), window);
             },
         )
         .size_full()
