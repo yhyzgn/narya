@@ -23,7 +23,7 @@ impl RulePanel {
             .gap_4()
             .size_full()
             .child(
-                // 搜索栏与状态
+                // 搜索栏
                 div()
                     .flex()
                     .justify_between()
@@ -42,7 +42,7 @@ impl RulePanel {
                             .child(div().text_sm().text_color(rgb(0x888888)).child("Filter:"))
                             .child(div().text_sm().text_color(rgb(0x1677ff)).child(
                                 if q.is_empty() {
-                                    "All Apps".to_string()
+                                    "All Applications".to_string()
                                 } else {
                                     q.clone()
                                 },
@@ -52,17 +52,18 @@ impl RulePanel {
                         div()
                             .text_xs()
                             .text_color(rgb(0x555555))
-                            .child("Optimized List Rendering (200 Limit)"),
+                            .child("Type to search... (ESC to clear)"),
                     ),
             )
             .child(
+                // 核心修复：外层容器必须 overflow_hidden 且 flex_1，为子容器提供布局基准
                 div()
                     .flex()
                     .gap_6()
                     .flex_1()
                     .overflow_hidden()
                     .child(div().w_1_3().h_full().child(Self::render_column(
-                        "Available Apps",
+                        "Available",
                         &store_read.unassigned,
                         &q,
                         "pool",
@@ -75,8 +76,9 @@ impl RulePanel {
                             .flex()
                             .flex_col()
                             .gap_6()
+                            .h_full()
                             .child(Self::render_column(
-                                "Direct Connection",
+                                "Direct",
                                 &store_read.direct,
                                 &q,
                                 "direct",
@@ -84,7 +86,7 @@ impl RulePanel {
                                 entity_id,
                             ))
                             .child(Self::render_column(
-                                "Overseas Proxy",
+                                "Proxy",
                                 &store_read.proxy,
                                 &q,
                                 "proxy",
@@ -114,6 +116,8 @@ impl RulePanel {
             .border_1()
             .border_color(rgb(0x303030))
             .p_4()
+            // 限制容器不被内容撑开
+            .min_h_0()
             .id(zone_id)
             .hover(|s| s.border_color(rgb(0x1677ff)))
             .on_drop(move |drag: &AppDrag, _, cx| {
@@ -166,70 +170,67 @@ impl RulePanel {
                     .child(div().text_sm().text_color(rgb(0x888888)).child(title)),
             )
             .child(
+                // 滚动区：必须 flex_1 且 min_h_0 才能触发内部滚动
                 div()
                     .id(format!("{}-scroll", zone_id))
                     .flex_1()
+                    .min_h_0()
                     .overflow_y_scroll()
                     .child(
-                        div()
-                            .flex()
-                            .flex_wrap()
-                            .gap_2()
-                            // 性能优化：直接使用引用迭代，避免 collect()，减少中间 Vec 分配
-                            .children(
-                                apps.iter()
-                                    .filter(|a| {
-                                        query.is_empty() || a.name.to_lowercase().contains(query)
-                                    })
-                                    .take(200)
-                                    .map(|app| {
-                                        let app_id = app.id.clone();
-                                        let app_name = app.name.clone();
+                        div().flex().flex_wrap().gap_2().children(
+                            apps.iter()
+                                .filter(|a| {
+                                    query.is_empty() || a.name.to_lowercase().contains(query)
+                                })
+                                .take(200)
+                                .map(|app| {
+                                    let app_id = app.id.clone();
+                                    let app_name = app.name.clone();
 
-                                        div()
-                                            .id(app.id.clone())
-                                            .on_drag(
-                                                AppDrag {
-                                                    app_id: app_id.clone(),
-                                                    name: app_name.clone(),
-                                                },
-                                                |drag, _, _, cx| {
-                                                    cx.new(|_| AppDragView {
-                                                        name: drag.name.clone(),
-                                                    })
-                                                },
-                                            )
-                                            .px_3()
-                                            .py_2()
-                                            .bg(rgb(0x2d2d2d))
-                                            .rounded_md()
-                                            .border_1()
-                                            .border_color(rgb(0x383838))
-                                            .cursor_pointer()
-                                            .hover(|style| {
-                                                style.bg(rgb(0x353535)).border_color(rgb(0x555555))
-                                            })
-                                            .child(
-                                                div()
-                                                    .flex()
-                                                    .items_center()
-                                                    .gap_2()
-                                                    .child(
-                                                        div()
-                                                            .w_4()
-                                                            .h_4()
-                                                            .bg(rgba(0xffffff1a))
-                                                            .rounded_sm(),
-                                                    )
-                                                    .child(
-                                                        div()
-                                                            .text_xs()
-                                                            .text_color(rgb(0xcccccc))
-                                                            .child(app.name.clone()),
-                                                    ),
-                                            )
-                                    }),
-                            ),
+                                    div()
+                                        .id(app.id.clone())
+                                        .on_drag(
+                                            AppDrag {
+                                                app_id: app_id.clone(),
+                                                name: app_name.clone(),
+                                            },
+                                            |drag, _, _, cx| {
+                                                cx.new(|_| AppDragView {
+                                                    name: drag.name.clone(),
+                                                })
+                                            },
+                                        )
+                                        .px_3()
+                                        .py_2()
+                                        .bg(rgb(0x2d2d2d))
+                                        .rounded_md()
+                                        .border_1()
+                                        .border_color(rgb(0x383838))
+                                        .cursor_pointer()
+                                        .hover(|style| {
+                                            style.bg(rgb(0x353535)).border_color(rgb(0x555555))
+                                        })
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap_2()
+                                                .child(
+                                                    div()
+                                                        .w_4()
+                                                        .h_4()
+                                                        .bg(rgba(0xffffff1a))
+                                                        .rounded_sm(),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(rgb(0xcccccc))
+                                                        .child(app.name.clone()),
+                                                ),
+                                        )
+                                }),
+                        ),
                     ),
             )
     }
