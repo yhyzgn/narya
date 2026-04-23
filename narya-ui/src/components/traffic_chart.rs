@@ -1,5 +1,6 @@
 use crate::models::traffic::SharedTrafficStore;
 use gpui::*;
+use std::f32::consts::PI;
 
 pub struct TrafficChart;
 
@@ -34,81 +35,89 @@ impl TrafficChart {
                         max_val = d.down;
                     }
                 }
-                max_val *= 1.2;
+                max_val *= 1.15;
 
-                let x_step = width / (60.0 - 1.0);
+                let _x_step = width / (60.0 - 1.0);
                 let scale_y = |val: f32| {
                     bounds.top() + px(chart_height + padding) - px(val / max_val * chart_height)
                 };
 
-                // 1. 绘制极简背景网格 (GNOME Monitor 风格)
-                for i in 0..=2 {
-                    let y = bounds.top() + px(padding + (i as f32 * chart_height / 2.0));
+                // 1. 背景网格
+                for i in 1..=3 {
+                    let y = bounds.top() + px(padding + (i as f32 * chart_height / 4.0));
                     let mut path = Path::new(point(bounds.left(), y));
                     path.line_to(point(bounds.right(), y));
-                    window.paint_path(path, rgba(0xffffff0a)); // 极淡的白色参考线
+                    window.paint_path(path, rgba(0xffffff08));
                 }
 
-                // 2. 极致平滑绘制算法 (中点平滑法)
-                let draw_smooth_wave =
-                    |data_slice: Vec<f32>,
-                     stroke_color: Rgba,
-                     fill_color: Rgba,
-                     window: &mut Window| {
-                        if data_slice.len() < 3 {
-                            return;
+                // 2. 超采样平滑绘制逻辑
+                let draw_liquid_wave = |data_slice: Vec<f32>, color: Rgba, window: &mut Window| {
+                    if data_slice.len() < 2 {
+                        return;
+                    }
+
+                    let sub_segments = 12;
+                    let total_points = (data_slice.len() - 1) * sub_segments;
+                    let sub_x_step = width / (total_points as f32);
+
+                    let mut points = Vec::with_capacity(total_points + 1);
+                    for i in 0..data_slice.len() - 1 {
+                        let y1 = data_slice[i];
+                        let y2 = data_slice[i + 1];
+                        for s in 0..sub_segments {
+                            let mu = s as f32 / sub_segments as f32;
+                            // 余弦插值：确保波形在点之间是正弦平滑的
+                            let mu2 = (1.0 - (mu * PI).cos()) / 2.0;
+                            let y_interp = y1 * (1.0 - mu2) + y2 * mu2;
+
+                            let x = bounds.left() + px((i * sub_segments + s) as f32 * sub_x_step);
+                            points.push(point(x, scale_y(y_interp)));
                         }
+                    }
+                    points.push(point(bounds.right(), scale_y(*data_slice.last().unwrap())));
 
-                        let get_pt = |i: usize| {
-                            let x = bounds.left() + px(i as f32 * x_step);
-                            let y = scale_y(data_slice[i]);
-                            point(x, y)
-                        };
+                    let mut path = Path::new(points[0]);
+                    for p in points.iter().skip(1) {
+                        path.line_to(*p);
+                    }
 
-                        let mut path = Path::new(get_pt(0));
+                    // 绘制填充
+                    let mut fill_path = path.clone();
+                    fill_path.line_to(point(bounds.right(), bounds.bottom() - px(padding)));
+                    fill_path.line_to(point(bounds.left(), bounds.bottom() - px(padding)));
+                    window.paint_path(
+                        fill_path,
+                        Rgba {
+                            r: color.r,
+                            g: color.g,
+                            b: color.b,
+                            a: 0.15,
+                        },
+                    );
 
-                        // 算法：对于每两个点，找到它们的中点作为二次曲线的终点
-                        // 原始点作为控制点。这能产生非常圆润且无折角的波形。
-                        for i in 1..data_slice.len() - 1 {
-                            let p_curr = get_pt(i);
-                            let p_next = get_pt(i + 1);
-                            let mid =
-                                point((p_curr.x + p_next.x) / 2.0, (p_curr.y + p_next.y) / 2.0);
+                    // 绘制线条阴影层 (Glow)
+                    window.paint_path(
+                        path.clone(),
+                        Rgba {
+                            r: color.r,
+                            g: color.g,
+                            b: color.b,
+                            a: 0.4,
+                        },
+                    );
 
-                            path.curve_to(mid, p_curr);
-                        }
-
-                        // 闭合到最后一个点
-                        path.line_to(get_pt(data_slice.len() - 1));
-
-                        // 绘制填充阴影 (Area)
-                        let mut fill_path = path.clone();
-                        fill_path.line_to(point(bounds.right(), bounds.bottom() - px(padding)));
-                        fill_path.line_to(point(bounds.left(), bounds.bottom() - px(padding)));
-                        window.paint_path(fill_path, fill_color);
-
-                        // 绘制高亮描边 (COSMIC Style Stroke)
-                        window.paint_path(path, stroke_color);
-                    };
+                    // 绘制顶层实色线
+                    window.paint_path(path, color);
+                };
 
                 let up_data: Vec<f32> = data.iter().map(|d| d.up).collect();
                 let down_data: Vec<f32> = data.iter().map(|d| d.down).collect();
 
-                // 渲染下载：COSMIC 鲜蓝色
-                draw_smooth_wave(
-                    down_data,
-                    rgb(0x3584e4),    // GNOME/COSMIC Blue
-                    rgba(0x3584e422), // 底部阴影
-                    window,
-                );
+                // 下载：丝滑蓝
+                draw_liquid_wave(down_data, rgb(0x3584e4), window);
 
-                // 渲染上传：COSMIC 鲜绿色
-                draw_smooth_wave(
-                    up_data,
-                    rgb(0x2ec27e), // GNOME/COSMIC Green
-                    rgba(0x2ec27e22),
-                    window,
-                );
+                // 上传：丝滑绿
+                draw_liquid_wave(up_data, rgb(0x2ec27e), window);
             },
         )
         .size_full()
