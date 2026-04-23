@@ -1,9 +1,9 @@
 use anyhow::Result;
-use api::tracker::{AppIdentity, BypassRules, ConnectionMeta};
+use api::tracker::{AppIdentity, BypassRules, ConnectionMeta, Protocol};
 use async_trait::async_trait;
 use narya_ebpf_common::ProcessConfig;
 use std::collections::HashSet;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
@@ -25,6 +25,7 @@ pub trait ProcessTracker: Send + Sync {
         src_port: u16,
     ) -> Result<Option<ConnectionMeta>>;
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>>;
+    async fn get_active_connections(&self) -> Result<Vec<ConnectionMeta>>; // 新增
     async fn update_bypass_rules(&self, rules: &BypassRules) -> Result<()>;
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>>;
 }
@@ -51,7 +52,6 @@ impl SystemProcessTracker {
         let path_str = path.to_string_lossy().to_lowercase();
         let name_lower = name.to_lowercase();
 
-        // 1. UID 严格过滤 (UID < 1000 通常是系统账号)
         if let Some(uid) = user_id {
             if uid < 1000 && name_lower != "narya" {
                 return false;
@@ -60,7 +60,9 @@ impl SystemProcessTracker {
             return false;
         }
 
-        // 2. 彻底封杀内存地址和无效名称
+        if path_str.is_empty() {
+            return false;
+        }
         if name_lower.starts_with("0x") || name_lower.contains("0x") {
             return false;
         }
@@ -68,13 +70,10 @@ impl SystemProcessTracker {
             return false;
         }
 
-        // 3. 路径深度过滤：封杀所有系统私有组件目录
-        // 在 Linux 上，位于 /lib, /libexec, /lib64 下的几乎全是后台服务
         if path_str.contains("/lib/")
             || path_str.contains("/libexec/")
             || path_str.contains("/lib64/")
         {
-            // 除非是极个别被错误安装在这些目录下的主流 App
             let app_whitelist = [
                 "chrome",
                 "firefox",
@@ -88,7 +87,6 @@ impl SystemProcessTracker {
             }
         }
 
-        // 4. 严苛的“服务/组件”关键词黑名单
         let service_keywords = [
             "thread",
             "worker",
@@ -133,7 +131,6 @@ impl SystemProcessTracker {
             "mission-control",
         ];
         if service_keywords.iter().any(|&k| name_lower.contains(k)) {
-            // 白名单二次检查
             let app_whitelist = [
                 "chrome",
                 "firefox",
@@ -147,13 +144,11 @@ impl SystemProcessTracker {
             }
         }
 
-        // 5. 过滤掉解释器本身 (当它们没有携带具体的 App 名称时)
         let interpreters = ["python", "node", "java", "perl", "ruby", "bash", "sh"];
         if interpreters.iter().any(|&i| name_lower == i) {
             return false;
         }
 
-        // 6. 特征过滤：封杀包含冒号或中括号的底层任务
         if name.contains(':') || name.starts_with('[') {
             return false;
         }
@@ -174,6 +169,36 @@ impl ProcessTracker for SystemProcessTracker {
         Ok(None)
     }
 
+    async fn get_active_connections(&self) -> Result<Vec<ConnectionMeta>> {
+        // Mock 活跃连接数据
+        Ok(vec![
+            ConnectionMeta {
+                protocol: Protocol::Tcp,
+                src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                src_port: 54321,
+                dst_ip: IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)),
+                dst_port: 443,
+                pid: Some(1234),
+                process_name: Some("Google Chrome".to_string()),
+                process_path: None,
+                package_name: None,
+                bundle_id: None,
+            },
+            ConnectionMeta {
+                protocol: Protocol::Tcp,
+                src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                src_port: 54322,
+                dst_ip: IpAddr::V4(Ipv4Addr::new(142, 250, 190, 78)),
+                dst_port: 443,
+                pid: Some(5678),
+                process_name: Some("Telegram".to_string()),
+                process_path: None,
+                package_name: None,
+                bundle_id: None,
+            },
+        ])
+    }
+
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> {
         let all_processes = self.list_running_processes()?;
         let mut apps = Vec::new();
@@ -181,22 +206,18 @@ impl ProcessTracker for SystemProcessTracker {
 
         for proc in all_processes {
             if Self::is_user_application(&proc.name, &proc.path, proc.user_id) {
-                // 提取最简洁、可读的软件名称
                 let mut display_name = proc
                     .name
                     .split(|c: char| !c.is_alphanumeric() && c != ' ')
                     .next()
                     .unwrap_or(&proc.name)
                     .to_string();
-
-                // 去除 common 的开发后缀
                 display_name = display_name.replace("linux", "").replace("-bin", "");
 
                 if display_name.len() >= 3 && !seen_names.contains(&display_name) {
                     let mut c = display_name.chars();
                     let capitalized =
                         c.next().unwrap().to_uppercase().collect::<String>() + c.as_str();
-
                     apps.push(AppIdentity {
                         name: capitalized.clone(),
                         identifier: capitalized.to_lowercase(),
@@ -206,7 +227,6 @@ impl ProcessTracker for SystemProcessTracker {
                 }
             }
         }
-
         apps.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(apps)
     }
@@ -218,7 +238,6 @@ impl ProcessTracker for SystemProcessTracker {
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>> {
         let mut sys = self.sys.lock().unwrap();
         sys.refresh_processes_specifics(ProcessesToUpdate::All, true, Self::get_refresh_kind());
-
         let processes = sys
             .processes()
             .iter()
@@ -231,7 +250,6 @@ impl ProcessTracker for SystemProcessTracker {
                     .map(|u| u.to_string().parse::<u32>().unwrap_or(0)),
             })
             .collect();
-
         Ok(processes)
     }
 }
@@ -261,7 +279,9 @@ impl ProcessTracker for EbpfProcessTracker {
     async fn lookup_connection(&self, _i: IpAddr, _p: u16) -> Result<Option<ConnectionMeta>> {
         Ok(None)
     }
-
+    async fn get_active_connections(&self) -> Result<Vec<ConnectionMeta>> {
+        self.system.get_active_connections().await
+    }
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> {
         self.system.list_network_apps().await
     }
@@ -273,7 +293,6 @@ impl ProcessTracker for EbpfProcessTracker {
             if let Some(ref mut bpf) = *bpf_lock {
                 let mut rules_map: aya::maps::HashMap<_, u32, ProcessConfig> =
                     aya::maps::HashMap::try_from(bpf.map_mut("PROCESS_RULES").unwrap())?;
-
                 let processes = self.system.list_running_processes()?;
                 for app_id in &rules.blacklist {
                     for proc in processes
@@ -288,7 +307,6 @@ impl ProcessTracker for EbpfProcessTracker {
         }
         Ok(())
     }
-
     fn list_running_processes(&self) -> Result<Vec<ProcessInfo>> {
         self.system.list_running_processes()
     }
@@ -306,6 +324,9 @@ impl ProcessTracker for MockProcessTracker {
     }
     async fn lookup_connection(&self, _i: IpAddr, _p: u16) -> Result<Option<ConnectionMeta>> {
         Ok(None)
+    }
+    async fn get_active_connections(&self) -> Result<Vec<ConnectionMeta>> {
+        Ok(vec![])
     }
     async fn list_network_apps(&self) -> Result<Vec<AppIdentity>> {
         Ok(vec![])

@@ -6,6 +6,8 @@ pub struct ProxyNode {
     pub name: String,
     pub protocol: String,
     pub delay: Option<u64>,
+    pub server: String, // 新增
+    pub port: u16,      // 新增
 }
 
 #[derive(Clone, Default)]

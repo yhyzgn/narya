@@ -3,9 +3,18 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct NaryaConfig {
     pub subscriptions: Vec<Subscription>,
+    pub proxies: Vec<Proxy>, // 新增：存储具体代理服务器信息
     pub groups: Vec<ProxyGroup>,
     pub rules: Vec<Rule>,
     pub settings: Settings,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Proxy {
+    pub name: String,
+    pub proxy_type: String,
+    pub server: String,
+    pub port: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -81,6 +90,7 @@ impl Default for NaryaConfig {
     fn default() -> Self {
         Self {
             subscriptions: vec![],
+            proxies: vec![],
             groups: vec![],
             rules: vec![],
             settings: Settings {

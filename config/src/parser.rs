@@ -1,4 +1,4 @@
-use crate::model::{GroupType, NaryaConfig, ProxyGroup};
+use crate::model::{GroupType, NaryaConfig, Proxy, ProxyGroup};
 use anyhow::Result;
 use base64::{Engine as _, engine::general_purpose};
 
@@ -16,7 +16,6 @@ impl SubscriptionParser {
         if trimmed.starts_with("proxies:") || trimmed.contains("proxy-groups:") {
             Self::parse_clash(trimmed)
         } else {
-            // Try base64 decoding first
             if let Ok(decoded_bytes) =
                 general_purpose::STANDARD.decode(trimmed.replace("\n", "").replace("\r", ""))
             {
@@ -33,7 +32,26 @@ impl SubscriptionParser {
         let mut narya_config = NaryaConfig::default();
         let yaml: serde_yaml::Value = serde_yaml::from_str(content)?;
 
-        // Extract groups as a simple example
+        // 解析 proxies
+        if let Some(proxies) = yaml.get("proxies").and_then(|v| v.as_sequence()) {
+            for p in proxies {
+                if let (Some(name), Some(p_type), Some(server), Some(port)) = (
+                    p.get("name").and_then(|v| v.as_str()),
+                    p.get("type").and_then(|v| v.as_str()),
+                    p.get("server").and_then(|v| v.as_str()),
+                    p.get("port").and_then(|v| v.as_u64()),
+                ) {
+                    narya_config.proxies.push(Proxy {
+                        name: name.to_string(),
+                        proxy_type: p_type.to_string(),
+                        server: server.to_string(),
+                        port: port as u16,
+                    });
+                }
+            }
+        }
+
+        // 解析 groups
         if let Some(groups) = yaml.get("proxy-groups").and_then(|v| v.as_sequence()) {
             for g in groups {
                 if let (Some(name), Some(g_type)) = (
@@ -69,9 +87,7 @@ impl SubscriptionParser {
     fn parse_plain_links(content: &str) -> Result<NaryaConfig> {
         tracing::info!("Parsing plain links format...");
         let mut config = NaryaConfig::default();
-        let mut nodes = Vec::new();
 
-        // Simple line-by-line link parser (vmess://, ss://, etc.)
         for line in content.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -83,31 +99,53 @@ impl SubscriptionParser {
                 || line.starts_with("trojan://")
                 || line.starts_with("vless://")
             {
-                // 尝试提取节点名称：通常在 # 后面
                 let name = if let Some(hash_pos) = line.find('#') {
                     let raw_name = &line[hash_pos + 1..];
-                    // 处理 URL 编码
                     percent_encoding::percent_decode_str(raw_name)
                         .decode_utf8_lossy()
                         .into_owned()
                 } else {
-                    format!(
-                        "{}-{}",
-                        line.split("://").next().unwrap_or("node"),
-                        nodes.len() + 1
-                    )
+                    format!("{}-node", line.split("://").next().unwrap_or("node"))
                 };
 
-                nodes.push(name);
+                // 简单的正则或者 URL 解析来提取 server 和 port
+                // 这里我们先做一个极其简单的 Mock 解析，实际中应使用更严谨的 URL parser
+                let parts: Vec<&str> = line.split('@').collect();
+                let server_info = if parts.len() > 1 {
+                    parts[1].split('#').next().unwrap_or("")
+                } else {
+                    line.split("://")
+                        .nth(1)
+                        .unwrap_or("")
+                        .split('#')
+                        .next()
+                        .unwrap_or("")
+                };
+
+                let server_parts: Vec<&str> = server_info.split(':').collect();
+                let (server, port) = if server_parts.len() >= 2 {
+                    (
+                        server_parts[0].to_string(),
+                        server_parts[1].parse::<u16>().unwrap_or(443),
+                    )
+                } else {
+                    ("unknown".to_string(), 443)
+                };
+
+                config.proxies.push(Proxy {
+                    name: name.clone(),
+                    proxy_type: line.split("://").next().unwrap_or("unknown").to_string(),
+                    server,
+                    port,
+                });
             }
         }
 
-        if !nodes.is_empty() {
-            // 将所有识别出的节点放入一个名为 "Auto-Parsed" 的组中
+        if !config.proxies.is_empty() {
             config.groups.push(ProxyGroup {
                 name: "Auto-Parsed".to_string(),
                 group_type: GroupType::Select,
-                proxies: nodes,
+                proxies: config.proxies.iter().map(|p| p.name.clone()).collect(),
             });
         }
 

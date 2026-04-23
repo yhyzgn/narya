@@ -52,6 +52,11 @@ impl IpcServer {
                     Ok(apps) => serde_json::to_string(&apps)? + "\n",
                     Err(e) => format!("error: {}\n", e),
                 }
+            } else if request_trimmed == "get_connections" {
+                match daemon.get_tracker().get_active_connections().await {
+                    Ok(conns) => serde_json::to_string(&conns)? + "\n",
+                    Err(e) => format!("error: {}\n", e),
+                }
             } else if request_trimmed.starts_with("update_rules ") {
                 let json_part = &request_trimmed["update_rules ".len()..];
                 match serde_json::from_str::<api::tracker::BypassRules>(json_part) {

@@ -12,6 +12,7 @@ mod models;
 use crate::components::proxy_list::ProxyList;
 use crate::components::rule_panel::RulePanel;
 use crate::components::traffic_chart::TrafficChart;
+use crate::models::connection::{ConnectionStore, SharedConnectionStore};
 use crate::models::profile::{ProfileStore, ProxyNode, SharedProfileStore};
 use crate::models::rule::{AppInfo, RuleStore, SharedRuleStore};
 use crate::models::traffic::{SharedTrafficStore, TrafficData, TrafficStore};
@@ -22,6 +23,7 @@ pub struct Workspace {
     traffic_store: SharedTrafficStore,
     profile_store: SharedProfileStore,
     rule_store: SharedRuleStore,
+    connection_store: SharedConnectionStore,
     start_time: std::time::Instant,
     focus_handle: FocusHandle,
 }
@@ -37,7 +39,10 @@ impl Workspace {
         )));
 
         let rule_store = Arc::new(RwLock::new(RuleStore::new()));
+        let connection_store = Arc::new(RwLock::new(ConnectionStore::new()));
+        let conn_store_clone = connection_store.clone();
 
+        // 流量数据模拟轮询
         std::thread::spawn(move || {
             loop {
                 std::thread::sleep(Duration::from_millis(1000));
@@ -49,11 +54,26 @@ impl Workspace {
             }
         });
 
+        // 活跃连接轮询 (IPC)
+        utils::TOKIO_RUNTIME.spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(2000)).await;
+                if let Ok(response) = ipc_client::send_command("get_connections").await {
+                    if let Ok(conns) =
+                        serde_json::from_str::<Vec<api::tracker::ConnectionMeta>>(&response)
+                    {
+                        conn_store_clone.write().active_connections = conns;
+                    }
+                }
+            }
+        });
+
         Self {
             selected_tab: 0,
             traffic_store: store,
             profile_store,
             rule_store,
+            connection_store,
             start_time: std::time::Instant::now(),
             focus_handle: cx.focus_handle(),
         }
@@ -113,16 +133,17 @@ impl Workspace {
             p_store.is_loading = false;
             match result {
                 Ok(conf) => {
-                    let mut nodes = Vec::new();
-                    for group in conf.groups {
-                        for proxy_name in group.proxies {
-                            nodes.push(ProxyNode {
-                                name: proxy_name,
-                                protocol: group.name.clone(),
-                                delay: Some(rand::random::<u64>() % 150),
-                            });
-                        }
-                    }
+                    let nodes = conf
+                        .proxies
+                        .into_iter()
+                        .map(|p| ProxyNode {
+                            name: p.name,
+                            protocol: p.proxy_type,
+                            delay: None,
+                            server: p.server,
+                            port: p.port,
+                        })
+                        .collect();
                     p_store.nodes = nodes;
                 }
                 Err(e) => {
@@ -139,25 +160,38 @@ impl Workspace {
         });
     }
 
+    async fn tcp_ping(server: String, port: u16) -> Option<u64> {
+        let start = std::time::Instant::now();
+        let addr = format!("{}:{}", server, port);
+        match tokio::time::timeout(
+            Duration::from_secs(3),
+            tokio::net::TcpStream::connect(&addr),
+        )
+        .await
+        {
+            Ok(Ok(_)) => Some(start.elapsed().as_millis() as u64),
+            _ => None,
+        }
+    }
+
     fn test_all_latencies(&self, _cx: &mut Context<Self>) {
         let profile_store = self.profile_store.clone();
         utils::TOKIO_RUNTIME.spawn(async move {
-            let nodes: Vec<String> = {
+            let nodes: Vec<(String, String, u16)> = {
                 profile_store
                     .read()
                     .nodes
                     .iter()
-                    .map(|n| n.name.clone())
+                    .map(|n| (n.name.clone(), n.server.clone(), n.port))
                     .collect()
             };
-            for node_name in nodes {
+            for (node_name, server, port) in nodes {
                 let p_store = profile_store.clone();
                 tokio::spawn(async move {
-                    let delay = (rand::random::<u64>() % 200) + 20;
-                    tokio::time::sleep(Duration::from_millis(delay)).await;
+                    let delay = Self::tcp_ping(server, port).await;
                     let mut store = p_store.write();
                     if let Some(node) = store.nodes.iter_mut().find(|n| n.name == node_name) {
-                        node.delay = Some(delay);
+                        node.delay = delay;
                     }
                 });
             }
@@ -172,7 +206,6 @@ impl Render for Workspace {
 
         if selected_tab == 3 {
             _window.focus(&self.focus_handle, cx);
-            // 仅在 Rules 页面开启重绘以驱动光标闪烁
             cx.on_next_frame(_window, |_, _, cx| cx.notify());
         }
 
@@ -200,7 +233,6 @@ impl Render for Workspace {
                 }
             })
             .child(
-                // 侧边栏
                 div()
                     .w_56()
                     .h_full()
@@ -225,7 +257,6 @@ impl Render for Workspace {
                     .child(self.render_tab(4, "Settings", &cx.entity().clone(), cx)),
             )
             .child(
-                // 主内容区
                 div().flex_1().h_full().bg(rgb(0x141414)).p_6().child(
                     div()
                         .size_full()
@@ -312,6 +343,11 @@ impl Workspace {
         let store = self.traffic_store.read();
         let current_speed = store.last();
         let uptime = self.start_time.elapsed().as_secs();
+
+        let conn_store = self.connection_store.read();
+        let conns = conn_store.active_connections.clone();
+        drop(conn_store);
+
         div()
             .flex()
             .flex_col()
@@ -354,13 +390,90 @@ impl Workspace {
             )
             .child(
                 div()
+                    .h_48()
+                    .bg(rgb(0x141414))
+                    .rounded_xl()
+                    .border_1()
+                    .border_color(rgb(0x303030))
+                    .p_4()
+                    .mb_6()
+                    .child(TrafficChart::render(self.traffic_store.clone(), cx)),
+            )
+            .child(
+                div()
                     .flex_1()
                     .bg(rgb(0x141414))
                     .rounded_xl()
                     .border_1()
                     .border_color(rgb(0x303030))
                     .p_4()
-                    .child(TrafficChart::render(self.traffic_store.clone(), cx)),
+                    .overflow_hidden()
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .h_full()
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(rgb(0x888888))
+                                    .mb_4()
+                                    .child("Active Connections"),
+                            )
+                            .child(
+                                div().id("conn-list").flex_1().overflow_y_scroll().child(
+                                    div().flex().flex_col().gap_1().children(
+                                        conns.into_iter().map(|conn| {
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .justify_between()
+                                                .p_2()
+                                                .bg(rgb(0x232323))
+                                                .rounded_md()
+                                                .child(
+                                                    div()
+                                                        .flex()
+                                                        .items_center()
+                                                        .gap_3()
+                                                        .child(
+                                                            div()
+                                                                .w_4()
+                                                                .h_4()
+                                                                .bg(rgb(0x1677ff))
+                                                                .rounded_sm(),
+                                                        )
+                                                        .child(
+                                                            div()
+                                                                .text_xs()
+                                                                .text_color(rgb(0xcccccc))
+                                                                .child(
+                                                                    conn.process_name.unwrap_or(
+                                                                        "Unknown".to_string(),
+                                                                    ),
+                                                                ),
+                                                        ),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(rgb(0x666666))
+                                                        .child(format!(
+                                                            "{} → {}",
+                                                            conn.src_port, conn.dst_ip
+                                                        )),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(rgb(0x52c41a))
+                                                        .child("Direct"),
+                                                )
+                                        }),
+                                    ),
+                                ),
+                            ),
+                    ),
             )
     }
 
