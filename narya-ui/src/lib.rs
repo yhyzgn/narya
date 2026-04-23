@@ -78,9 +78,9 @@ impl Workspace {
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
 
-        // 核心修复：使用 GPUI 的 background_executor 而不是直接调用 tokio::spawn
-        cx.background_executor().spawn(async move {
-            tracing::info!("Subscription task running via GPUI executor...");
+        // 终极修复：使用全局独立的 Tokio Runtime 执行网络请求，避免 Reactor 缺失导致的 Panic
+        utils::TOKIO_RUNTIME.spawn(async move {
+            tracing::info!("Subscription task running in global Tokio reactor...");
             let result = SubscriptionParser::fetch_and_parse(&url).await;
             
             let mut p_store = profile_store.write();
@@ -117,7 +117,7 @@ impl Workspace {
                     ];
                 }
             }
-        }).detach();
+        });
     }
 }
 

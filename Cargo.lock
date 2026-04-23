@@ -3780,6 +3780,7 @@ dependencies = [
  "serde",
  "tokio",
  "tracing",
+ "utils",
 ]
 
 [[package]]
@@ -6621,6 +6622,10 @@ dependencies = [
 [[package]]
 name = "utils"
 version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "tokio",
+]
 
 [[package]]
 name = "uuid"
