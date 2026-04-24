@@ -1,6 +1,9 @@
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use std::process::Command;
+use ksni::{Tray, TrayService, MenuItem, menu};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 #[async_trait]
 pub trait PlatformAdapter: Send + Sync {
@@ -80,4 +83,61 @@ impl PlatformAdapter for LinuxAdapter {
         );
         Ok(())
     }
+}
+
+pub struct NaryaTray {
+    title: String,
+    status: Arc<Mutex<String>>,
+}
+
+impl NaryaTray {
+    pub fn new() -> Self {
+        Self {
+            title: "Narya Proxy".to_string(),
+            status: Arc::new(Mutex::new("Running".to_string())),
+        }
+    }
+}
+
+impl Tray for NaryaTray {
+    fn icon_name(&self) -> String {
+        "security-high".to_string()
+    }
+
+    fn title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn menu(&self) -> Vec<MenuItem<Self>> {
+        use menu::*;
+        vec![
+            StandardItem {
+                label: format!("Status: {}", self.status.lock()),
+                enabled: false,
+                ..Default::default()
+            }.into(),
+            MenuItem::Separator,
+            StandardItem {
+                label: "Show Window".to_string(),
+                activate: Box::new(|_| {
+                    // TODO: IPC to show window
+                    tracing::info!("Show window triggered from tray");
+                }),
+                ..Default::default()
+            }.into(),
+            StandardItem {
+                label: "Quit".to_string(),
+                activate: Box::new(|_| {
+                    std::process::exit(0);
+                }),
+                ..Default::default()
+            }.into(),
+        ]
+    }
+}
+
+pub fn start_tray() {
+    let tray = NaryaTray::new();
+    let service = TrayService::new(tray);
+    service.spawn();
 }

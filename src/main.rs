@@ -40,6 +40,7 @@ fn main() -> anyhow::Result<()> {
 
     // Start GPUI
     tracing::info!("Starting GPUI...");
+    platform::start_tray();
     narya_ui::run_app();
     tracing::info!("Narya App exited.");
 

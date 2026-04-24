@@ -40,9 +40,10 @@
 
 ## 未来规划
 
-### Stage 7: 系统托盘与全局交互 (Next Up)
-- [ ] 系统托盘 (System Tray) 图标与菜单
-- [ ] 应用窗口隐藏至后台
+### Stage 7: 系统托盘与全局交互 (In Progress)
+- [x] 添加 `ksni` 依赖支持 Linux 托盘 (SNI)
+- [x] 实现基础系统托盘图标、菜单与状态显示
+- [ ] 系统托盘与 GUI 窗口联动 (Show/Hide)
 - [ ] 全局快捷键支持
 
 ### Stage 8: 搜索与高级过滤 (Planned)
