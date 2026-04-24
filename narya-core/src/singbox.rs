@@ -6,12 +6,14 @@ use std::ffi::CString;
 unsafe extern "C" {
     pub fn sing_box_start(config_json: *const c_char) -> i32;
     pub fn sing_box_stop() -> i32;
+    pub fn sing_box_get_logs() -> *mut c_char;
 }
 
 pub trait SingBoxCore: Send + Sync {
     fn start(&self, config_json: &str) -> Result<()>;
     fn stop(&self) -> Result<()>;
     fn reload(&self, diff: ConfigDiff, new_config_json: &str) -> Result<()>;
+    fn get_logs(&self) -> String;
 }
 
 pub struct SingBoxFfi;
@@ -43,6 +45,19 @@ impl SingBoxCore for SingBoxFfi {
         self.start(new_config_json)?;
         Ok(())
     }
+
+    fn get_logs(&self) -> String {
+        unsafe {
+            let ptr = sing_box_get_logs();
+            if ptr.is_null() {
+                return String::new();
+            }
+            let c_str = std::ffi::CStr::from_ptr(ptr);
+            let logs = c_str.to_string_lossy().into_owned();
+            libc::free(ptr as *mut libc::c_void);
+            logs
+        }
+    }
 }
 
 pub struct MockSingBox;
@@ -67,6 +82,10 @@ impl SingBoxCore for MockSingBox {
     fn reload(&self, _diff: ConfigDiff, _new_config_json: &str) -> Result<()> {
         tracing::info!("Mock: sing-box reloaded");
         Ok(())
+    }
+
+    fn get_logs(&self) -> String {
+        "Mock logs: sing-box is running fine.".to_string()
     }
 }
 

@@ -52,9 +52,12 @@
 - [x] 搜索栏实时显示匹配结果计数
 - [ ] 代理节点关键词过滤
 
-### Stage 9: 日志查看器 (Planned)
-- [ ] 实时获取 Sing-box 运行日志
-- [ ] UI 侧日志流展示与级别过滤
+### Stage 9: 日志查看器 (In Progress)
+- [x] Go 桥接层实现 `PlatformLogWriter` 与日志缓冲区
+- [x] 增加 FFI 接口 `sing_box_get_logs` 导出日志
+- [x] Daemon IPC 增加 `get_logs` 指令支持
+- [x] UI 侧增加 `LogStore` 与日志轮询任务
+- [x] 实现 "Logs" 标签页实时展示内核日志
 
 ### Stage 10: eBPF 流量增强 (Planned)
 - [ ] 应用级流量统计 (Per-app usage)

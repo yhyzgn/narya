@@ -104,6 +104,8 @@ impl IpcServer {
             } else if request_trimmed == "stop" {
                 daemon.stop().await?;
                 "stopped\n".to_string()
+            } else if request_trimmed == "get_logs" {
+                daemon.get_logs() + "\n"
             } else {
                 "unknown command\n".to_string()
             };

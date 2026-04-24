@@ -14,6 +14,7 @@ use crate::components::rule_panel::RulePanel;
 use crate::components::traffic_chart::TrafficChart;
 use crate::models::connection::{ConnectionStore, SharedConnectionStore};
 use crate::models::profile::{ProfileStore, ProxyNode, SharedProfileStore};
+use crate::models::log::{LogStore, SharedLogStore};
 use crate::models::rule::{AppInfo, RuleStore, SharedRuleStore};
 use crate::models::traffic::{SharedTrafficStore, TrafficData, TrafficStore};
 use config::parser::SubscriptionParser;
@@ -23,6 +24,7 @@ pub struct Workspace {
     traffic_store: SharedTrafficStore,
     profile_store: SharedProfileStore,
     rule_store: SharedRuleStore,
+    log_store: SharedLogStore,
     connection_store: SharedConnectionStore,
     start_time: std::time::Instant,
     focus_handle: FocusHandle,
@@ -41,6 +43,8 @@ impl Workspace {
         )));
 
         let rule_store = Arc::new(RwLock::new(RuleStore::new()));
+        let log_store = Arc::new(RwLock::new(LogStore::new()));
+        let log_store_clone = log_store.clone();
         let connection_store = Arc::new(RwLock::new(ConnectionStore::new()));
         let conn_store_clone = connection_store.clone();
 
@@ -70,11 +74,24 @@ impl Workspace {
             }
         });
 
+        // 日志轮询 (IPC)
+        utils::TOKIO_RUNTIME.spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                if let Ok(response) = ipc_client::send_command("get_logs").await {
+                    if !response.is_empty() {
+                        log_store_clone.write().add_logs(response);
+                    }
+                }
+            }
+        });
+
         Self {
             selected_tab: 0,
             traffic_store: store,
             profile_store,
             rule_store,
+            log_store,
             connection_store,
             start_time: std::time::Instant::now(),
             focus_handle: cx.focus_handle(),
@@ -174,7 +191,10 @@ impl Workspace {
                         p_store.nodes = nodes;
                         drop(p_store);
                         // 触发测速
-                        workspace.test_all_latencies(window, cx);
+                        let entity = cx.entity().clone();
+                        entity.update(cx, |workspace, cx| {
+                            workspace.test_all_latencies(window, cx);
+                        });
                     }
                     Err(e) => {
                         p_store.last_error = Some(e.to_string());
@@ -309,7 +329,8 @@ impl Render for Workspace {
                     .child(self.render_tab(1, "Proxies", &cx.entity().clone(), cx))
                     .child(self.render_tab(2, "Profiles", &cx.entity().clone(), cx))
                     .child(self.render_tab(3, "Rules", &cx.entity().clone(), cx))
-                    .child(self.render_tab(4, "Settings", &cx.entity().clone(), cx))
+                    .child(self.render_tab(4, "Logs", &cx.entity().clone(), cx))
+                    .child(self.render_tab(5, "Settings", &cx.entity().clone(), cx))
                     .child(div().flex_1())
                     .child(
                         div()
@@ -336,7 +357,11 @@ impl Render for Workspace {
                             1 => self.render_proxies(cx).into_any_element(),
                             2 => self.render_profiles(cx).into_any_element(),
                             3 => RulePanel::render(&self.rule_store, cx).into_any_element(),
-                            4 => div()
+                            4 => {
+                                cx.on_next_frame(_window, |_, _, cx| cx.notify());
+                                self.render_logs(cx).into_any_element()
+                            }
+                            5 => div()
                                 .text_color(rgb(0x888888))
                                 .child("App Settings")
                                 .into_any_element(),
@@ -619,6 +644,51 @@ impl Workspace {
                     .min_h_0()
                     .overflow_y_scroll()
                     .child(ProxyList::render(&self.profile_store, cx)),
+            )
+    }
+
+    fn render_logs(&self, _cx: &mut Context<Self>) -> impl IntoElement {
+        let store = self.log_store.read();
+        let logs = store.logs.clone();
+        drop(store);
+
+        div()
+            .flex()
+            .flex_col()
+            .size_full()
+            .child(
+                div()
+                    .text_2xl()
+                    .text_color(rgb(0xffffff))
+                    .mb_6()
+                    .child("System Logs"),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .bg(rgb(0x141414))
+                    .rounded_xl()
+                    .border_1()
+                    .border_color(rgb(0x303030))
+                    .p_4()
+                    .overflow_hidden()
+                    .child(
+                        div()
+                            .id("logs-scroll")
+                            .size_full()
+                            .overflow_y_scroll()
+                            .child(
+                                div().flex().flex_col().gap_1().children(
+                                    logs.into_iter().map(|line| {
+                                        div()
+                                            .text_xs()
+                                            .font_family("monospace")
+                                            .text_color(rgb(0xaaaaaa))
+                                            .child(line)
+                                    })
+                                )
+                            )
+                    )
             )
     }
 

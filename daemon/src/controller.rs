@@ -146,4 +146,8 @@ impl NaryaDaemon {
         }
         Ok(())
     }
+
+    pub fn get_logs(&self) -> String {
+        self.core.get_logs()
+    }
 }
