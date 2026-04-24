@@ -4,7 +4,8 @@ use anyhow::Result;
 use config::diff::ConfigDiff;
 use config::matcher::RuleEngine;
 use config::model::{Action, NaryaConfig};
-use narya_core::singbox::{MockSingBox, SingBoxCore};
+use config::transformer::Transformer;
+use narya_core::singbox::{SingBoxCore, SingBoxFfi};
 use platform::{LinuxAdapter, PlatformAdapter};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -39,7 +40,7 @@ impl NaryaDaemon {
         Self {
             config: RwLock::new(initial_config),
             engine: RwLock::new(engine),
-            core: Arc::new(MockSingBox::new()),
+            core: Arc::new(SingBoxFfi),
             platform: Arc::new(LinuxAdapter),
             tracker,
             config_manager,
@@ -76,7 +77,7 @@ impl NaryaDaemon {
         // Start Tracker
         self.tracker.start().await?;
 
-        let config_json = serde_json::to_string(&*config)?;
+        let config_json = Transformer::transform(&config);
         self.core.start(&config_json)?;
 
         tracing::info!("Narya Daemon started");
@@ -126,7 +127,7 @@ impl NaryaDaemon {
                 }
             }
 
-            let new_config_json = serde_json::to_string(&new_config)?;
+            let new_config_json = Transformer::transform(&new_config);
             self.core.reload(diff, &new_config_json)?;
 
             let mut engine_lock = self.engine.write().await;

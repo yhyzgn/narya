@@ -10,13 +10,12 @@ import (
 	"fmt"
 
 	"github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
-	_ "github.com/sagernet/sing-box/include"
 )
 
 var (
 	currentBox *box.Box
-	cancelFunc context.CancelFunc
 )
 
 //export sing_box_start
@@ -26,8 +25,10 @@ func sing_box_start(configJson *C.char) C.int {
 	}
 	jsonStr := C.GoString(configJson)
 	
-	ctx, cancel := context.WithCancel(context.Background())
-	cancelFunc = cancel
+	ctx := include.Context(context.Background())
+	// 这里不需要 cancelFunc = cancel，因为 box.Close 会处理关闭。
+	// 但如果我们确实需要手动取消上下文，可以保存。
+	// cancelFunc = nil 
 
 	var opts option.Options
 	if err := json.Unmarshal([]byte(jsonStr), &opts); err != nil {
@@ -61,9 +62,6 @@ func sing_box_stop() C.int {
 	if err := currentBox.Close(); err != nil {
 		fmt.Printf("Failed to close box: %v\n", err)
 		return -1
-	}
-	if cancelFunc != nil {
-		cancelFunc()
 	}
 	currentBox = nil
 	return 0
