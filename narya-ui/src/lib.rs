@@ -101,7 +101,7 @@ impl Workspace {
             }
         });
 
-        cx.on_next_frame(window, move |workspace, _, cx| {
+        fn poll(window: &mut Window, cx: &mut Context<Workspace>, rx: std::sync::mpsc::Receiver<Vec<api::tracker::AppIdentity>>, rule_store: SharedRuleStore) {
             if let Ok(apps) = rx.try_recv() {
                 let mut store = rule_store.write();
                 let current_assigned: std::collections::HashSet<String> = store
@@ -121,7 +121,15 @@ impl Workspace {
                     })
                     .collect();
                 cx.notify();
+            } else {
+                cx.on_next_frame(window, move |_, window, cx| {
+                    poll(window, cx, rx, rule_store);
+                });
             }
+        }
+
+        cx.on_next_frame(window, move |_, window, cx| {
+            poll(window, cx, rx, rule_store);
         });
     }
 
@@ -146,42 +154,49 @@ impl Workspace {
             let _ = tx.send(result);
         });
 
-        cx.on_next_frame(window, move |workspace, window, cx| {
-            workspace.poll_subscription(window, cx, rx);
-        });
-    }
-
-    fn poll_subscription(&self, window: &mut Window, cx: &mut Context<Self>, rx: std::sync::mpsc::Receiver<anyhow::Result<config::model::NaryaConfig>>) {
-        if let Ok(result) = rx.try_recv() {
-            let mut p_store = self.profile_store.write();
-            p_store.is_loading = false;
-            match result {
-                Ok(conf) => {
-                    let nodes: Vec<ProxyNode> = conf
-                        .proxies
-                        .iter()
-                        .map(|p| ProxyNode {
-                            name: p.name.clone(),
-                            protocol: p.proxy_type.clone(),
-                            delay: None,
-                            server: p.server.clone(),
-                            port: p.port,
-                        })
-                        .collect();
-                    p_store.nodes = nodes;
-                    drop(p_store);
-                    self.test_all_latencies(window, cx);
+        fn poll(window: &mut Window, cx: &mut Context<Workspace>, rx: std::sync::mpsc::Receiver<anyhow::Result<config::model::NaryaConfig>>, profile_store: SharedProfileStore) {
+            if let Ok(result) = rx.try_recv() {
+                let mut p_store = profile_store.write();
+                p_store.is_loading = false;
+                match result {
+                    Ok(conf) => {
+                        let nodes: Vec<ProxyNode> = conf
+                            .proxies
+                            .iter()
+                            .map(|p| ProxyNode {
+                                name: p.name.clone(),
+                                protocol: p.proxy_type.clone(),
+                                delay: None,
+                                server: p.server.clone(),
+                                port: p.port,
+                            })
+                            .collect();
+                        p_store.nodes = nodes;
+                        drop(p_store);
+                        // 触发测速
+                        // 在 Context<_> 中可以直接通过闭包获取 entity 引用进行操作
+                        // 或者更简单：在 Context<_> 中直接调用 self 的方法（如果能拿到 self）
+                        // 由于 poll 是嵌套函数，我们通过 cx.entity_id() 获取 entity 后更新
+                        let entity = cx.entity().clone();
+                        entity.update(cx, |workspace, cx| {
+                            workspace.test_all_latencies(window, cx);
+                        });
+                    }
+                    Err(e) => {
+                        p_store.last_error = Some(e.to_string());
+                    }
                 }
-                Err(e) => {
-                    p_store.last_error = Some(e.to_string());
-                }
+                cx.notify();
+            } else {
+                cx.on_next_frame(window, move |_, window, cx| {
+                    poll(window, cx, rx, profile_store);
+                });
             }
-            cx.notify();
-        } else {
-            cx.on_next_frame(window, move |workspace, window, cx| {
-                workspace.poll_subscription(window, cx, rx);
-            });
         }
+
+        cx.on_next_frame(window, move |_, window, cx| {
+            poll(window, cx, rx, profile_store);
+        });
     }
 
     pub fn sync_proxy_selection(&self, name: &str) {
@@ -224,14 +239,22 @@ impl Workspace {
                 let _ = tx.send(delay);
             });
 
-            cx.on_next_frame(window, move |_, _, cx| {
+            fn poll(window: &mut Window, cx: &mut Context<Workspace>, rx: std::sync::mpsc::Receiver<Option<u64>>, p_store: SharedProfileStore, node_name: String) {
                 if let Ok(delay) = rx.try_recv() {
                     let mut store = p_store.write();
                     if let Some(node) = store.nodes.iter_mut().find(|n| n.name == node_name) {
                         node.delay = delay;
                     }
                     cx.notify();
+                } else {
+                    cx.on_next_frame(window, move |_, window, cx| {
+                        poll(window, cx, rx, p_store, node_name);
+                    });
                 }
+            }
+
+            cx.on_next_frame(window, move |_, window, cx| {
+                poll(window, cx, rx, p_store, node_name);
             });
         }
     }
