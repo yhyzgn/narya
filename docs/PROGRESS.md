@@ -46,10 +46,11 @@
 - [ ] 系统托盘与 GUI 窗口联动 (Show/Hide)
 - [ ] 全局快捷键支持
 
-### Stage 8: 搜索与高级过滤 (Planned)
-- [ ] Rules 页面应用搜索算法优化
+### Stage 8: 搜索与高级过滤 (In Progress)
+- [x] 引入 `fuzzy-matcher` 算法支持
+- [x] Rules 页面应用搜索升级为模糊匹配并优化排序
+- [x] 搜索栏实时显示匹配结果计数
 - [ ] 代理节点关键词过滤
-- [ ] 规则组拖拽排序优化
 
 ### Stage 9: 日志查看器 (Planned)
 - [ ] 实时获取 Sing-box 运行日志

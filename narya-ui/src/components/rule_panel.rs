@@ -4,6 +4,9 @@ use gpui::prelude::*;
 use gpui::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+
 pub struct RulePanel;
 
 #[derive(Clone)]
@@ -24,13 +27,21 @@ impl RulePanel {
             .as_millis();
         let cursor_visible = (now / 500) % 2 == 0;
 
+        let matcher = SkimMatcherV2::default();
         let filter = |apps: &[AppInfo]| {
-            let q_lower = q.to_lowercase();
-            apps.iter()
-                .filter(|a| q_lower.is_empty() || a.name.to_lowercase().contains(&q_lower))
-                .take(150)
-                .cloned()
-                .collect::<Vec<_>>()
+            if q.is_empty() {
+                return apps.iter().take(150).cloned().collect::<Vec<_>>();
+            }
+            let mut matched: Vec<(i64, AppInfo)> = apps
+                .iter()
+                .filter_map(|a| {
+                    matcher
+                        .fuzzy_match(&a.name, &q)
+                        .map(|score| (score, a.clone()))
+                })
+                .collect();
+            matched.sort_by(|a, b| b.0.cmp(&a.0));
+            matched.into_iter().map(|(_, a)| a).take(150).collect()
         };
 
         let unassigned = filter(&store_read.unassigned);
@@ -39,6 +50,7 @@ impl RulePanel {
 
         let total_count =
             store_read.unassigned.len() + store_read.direct.len() + store_read.proxy.len();
+        let filtered_count = unassigned.len() + direct.len() + proxy.len();
         drop(store_read);
 
         div()
@@ -100,7 +112,11 @@ impl RulePanel {
                         div()
                             .text_xs()
                             .text_color(rgb(0x555555))
-                            .child(format!("{} apps", total_count)),
+                            .child(if q.is_empty() {
+                                format!("{} apps", total_count)
+                            } else {
+                                format!("Found {} / {} apps", filtered_count, total_count)
+                            }),
                     ),
             )
             .child(
