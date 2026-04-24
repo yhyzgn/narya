@@ -53,12 +53,12 @@ impl RulePanel {
                     .items_center()
                     .px_4()
                     .py_2()
-                    .bg(rgb(0x141414))
+                    .bg(rgba(0xffffff05))
                     .border_1()
                     .border_color(if q.is_empty() {
-                        rgb(0x303030)
+                        rgba(0xffffff0a)
                     } else {
-                        rgb(0x1677ff)
+                        rgba(0x1677ff66)
                     })
                     .rounded_lg()
                     .child(
@@ -150,13 +150,13 @@ impl RulePanel {
             .flex()
             .flex_col()
             .h_full()
-            .bg(rgb(0x141414))
+            .bg(rgba(0xffffff05))
             .rounded_xl()
             .border_1()
-            .border_color(rgb(0x303030))
+            .border_color(rgba(0xffffff0a))
             .p_4()
             .id(zone_id)
-            .hover(|s| s.border_color(rgb(0x1677ff)))
+            .hover(|s| s.border_color(rgba(0x1677ff33)))
             .on_drop(move |drag: &AppDrag, _, cx| {
                 let mut rules_changed = false;
                 {
@@ -197,12 +197,24 @@ impl RulePanel {
                     .justify_between()
                     .items_center()
                     .mb_4()
-                    .child(div().text_sm().text_color(rgb(0xcccccc)).child(title))
                     .child(
                         div()
                             .text_xs()
-                            .text_color(rgb(0x555555))
-                            .child(count.to_string()),
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(0x666666))
+                            .child(title.to_uppercase())
+                    )
+                    .child(
+                        div()
+                            .px_2()
+                            .rounded_full()
+                            .bg(rgba(0xffffff0a))
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(0x555555))
+                                    .child(count.to_string())
+                            ),
                     ),
             )
             .child(
@@ -229,7 +241,6 @@ impl RulePanel {
                                                 name: app_name.clone(),
                                             },
                                             |drag, _, _, cx| {
-                                                // 核心修正：返回一个带负边距的 View 以对齐光标
                                                 cx.new(|_| AppDragView {
                                                     name: drag.name.clone(),
                                                 })
@@ -237,13 +248,13 @@ impl RulePanel {
                                         )
                                         .px_3()
                                         .py_2()
-                                        .bg(rgb(0x232323))
-                                        .rounded_md()
+                                        .bg(rgba(0xffffff05))
+                                        .rounded_lg()
                                         .flex()
                                         .items_center()
                                         .justify_between()
                                         .cursor_pointer()
-                                        .hover(|style| style.bg(rgb(0x2d2d2d)))
+                                        .hover(|style| style.bg(rgba(0xffffff0a)))
                                         .child(
                                             div()
                                                 .flex()
@@ -251,10 +262,14 @@ impl RulePanel {
                                                 .gap_3()
                                                 .child(
                                                     div()
-                                                        .w_5()
-                                                        .h_5()
-                                                        .bg(rgba(0xffffff0d))
-                                                        .rounded_sm(),
+                                                        .w_1p5()
+                                                        .h_1p5()
+                                                        .rounded_full()
+                                                        .bg(match zone_id {
+                                                            "direct" => rgb(0x52c41a),
+                                                            "proxy" => rgb(0x1677ff),
+                                                            _ => rgb(0x666666),
+                                                        })
                                                 )
                                                 .child(
                                                     div()
@@ -276,9 +291,6 @@ struct AppDragView {
 
 impl Render for AppDragView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        // 极致对齐方案：
-        // 1. 设置固定宽度 140px，高度 30px
-        // 2. 使用负边距 (ml_-70, mt_-15) 强制让指针落在矩形正中心
         div()
             .w(px(140.0))
             .h(px(30.0))
@@ -289,7 +301,7 @@ impl Render for AppDragView {
             .justify_center()
             .bg(rgb(0x1677ff))
             .rounded_full()
-            .shadow_lg() // 增加阴影增强浮动感
+            .shadow_lg()
             .text_color(rgb(0xffffff))
             .text_xs()
             .overflow_hidden()
