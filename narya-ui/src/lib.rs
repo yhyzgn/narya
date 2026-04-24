@@ -593,6 +593,7 @@ impl Workspace {
                 div()
                     .id("proxies-scroll")
                     .flex_1()
+                    .min_h_0()
                     .overflow_y_scroll()
                     .child(ProxyList::render(&self.profile_store, cx)),
             )

@@ -12,8 +12,6 @@ impl ProxyList {
         let store = store.read();
         let entity = cx.entity().clone();
 
-        let mut list_container = div().flex().flex_col().gap_2().w_full();
-
         if store.nodes.is_empty() {
             if store.is_loading {
                 return div()
@@ -28,20 +26,24 @@ impl ProxyList {
             }
         }
 
-        for (i, node) in store.nodes.iter().enumerate() {
-            let name = node.name.clone();
-            let is_active = store.active_node.as_ref() == Some(&name);
-            let store_handle = store_handle.clone();
-            let entity = entity.clone();
+        div()
+            .id("proxy-list-inner")
+            .flex()
+            .flex_col()
+            .gap_2()
+            .children(store.nodes.iter().enumerate().map(|(i, node)| {
+                let name = node.name.clone();
+                let is_active = store.active_node.as_ref() == Some(&name);
+                let store_handle = store_handle.clone();
+                let entity = entity.clone();
 
-            let delay_color = match node.delay {
-                Some(d) if d < 100 => rgb(0x52c41a),
-                Some(d) if d < 300 => rgb(0xfaad14),
-                Some(_) => rgb(0xff4d4f),
-                None => rgb(0x888888),
-            };
+                let delay_color = match node.delay {
+                    Some(d) if d < 100 => rgb(0x52c41a),
+                    Some(d) if d < 300 => rgb(0xfaad14),
+                    Some(_) => rgb(0xff4d4f),
+                    None => rgb(0x888888),
+                };
 
-            list_container = list_container.child(
                 div()
                     .id(i)
                     .flex()
@@ -103,14 +105,8 @@ impl ProxyList {
                                 Some(d) => format!("{}ms", d),
                                 None => "- ms".to_string(),
                             }),
-                    ),
-            );
-        }
-
-        div()
-            .id("proxy-list-container")
-            .h_full()
-            .child(list_container)
+                    )
+            }))
             .into_any_element()
     }
 }
