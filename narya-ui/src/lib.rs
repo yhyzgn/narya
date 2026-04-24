@@ -92,14 +92,14 @@ impl Workspace {
     fn refresh_apps(&self, window: &mut Window, cx: &mut Context<Self>) {
         let rule_store = self.rule_store.clone();
         let (tx, rx) = std::sync::mpsc::channel();
-        cx.background_executor().spawn(async move {
+        utils::TOKIO_RUNTIME.spawn(async move {
             let response = ipc_client::send_command("get_apps").await;
             if let Ok(resp) = response {
                 if let Ok(apps) = serde_json::from_str::<Vec<api::tracker::AppIdentity>>(&resp) {
                     let _ = tx.send(apps);
                 }
             }
-        }).detach();
+        });
 
         cx.on_next_frame(window, move |workspace, _, cx| {
             if let Ok(apps) = rx.try_recv() {
@@ -135,7 +135,7 @@ impl Workspace {
         let url = profile_store.read().url.clone();
         let (tx, rx) = std::sync::mpsc::channel();
 
-        cx.background_executor().spawn(async move {
+        utils::TOKIO_RUNTIME.spawn(async move {
             let result = SubscriptionParser::fetch_and_parse(&url).await;
             if let Ok(ref conf) = result {
                 if let Ok(json) = serde_json::to_string(conf) {
@@ -144,7 +144,7 @@ impl Workspace {
                 }
             }
             let _ = tx.send(result);
-        }).detach();
+        });
 
         cx.on_next_frame(window, move |workspace, window, cx| {
             workspace.poll_subscription(window, cx, rx);
@@ -219,10 +219,10 @@ impl Workspace {
         for (node_name, server, port) in nodes {
             let p_store = profile_store.clone();
             let (tx, rx) = std::sync::mpsc::channel();
-            cx.background_executor().spawn(async move {
+            utils::TOKIO_RUNTIME.spawn(async move {
                 let delay = Self::tcp_ping(server, port).await;
                 let _ = tx.send(delay);
-            }).detach();
+            });
 
             cx.on_next_frame(window, move |_, _, cx| {
                 if let Ok(delay) = rx.try_recv() {
