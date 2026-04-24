@@ -75,13 +75,28 @@ impl IpcServer {
                     }
                     Err(e) => format!("invalid json: {}\n", e),
                 }
+            } else if request_trimmed.starts_with("update_config ") {
+                let json_part = &request_trimmed["update_config ".len()..];
+                match serde_json::from_str::<config::model::NaryaConfig>(json_part) {
+                    Ok(new_config) => {
+                        match daemon.update_config(new_config).await {
+                            Ok(_) => "ok\n".to_string(),
+                            Err(e) => format!("error: {}\n", e),
+                        }
+                    }
+                    Err(e) => format!("invalid json: {}\n", e),
+                }
             } else if request_trimmed.starts_with("select_proxy ") {
+
                 let proxy_name = &request_trimmed["select_proxy ".len()..];
                 tracing::info!("Switching active proxy to: {}", proxy_name);
                 // 1. 持久化选中的节点
                 let _ = daemon
                     .get_config_manager()
                     .update_active_node(proxy_name.to_string());
+                // 2. 触发配置重载以应用新节点
+                let current_config = daemon.get_config().await;
+                let _ = daemon.update_config(current_config).await;
                 "ok\n".to_string()
             } else if request_trimmed == "start" {
                 daemon.start().await?;

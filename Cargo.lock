@@ -3795,6 +3795,7 @@ dependencies = [
  "anyhow",
  "api",
  "config",
+ "futures",
  "gpui",
  "gpui_linux",
  "gpui_platform",

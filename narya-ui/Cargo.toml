@@ -17,3 +17,4 @@ serde_json = { workspace = true }
 rand = "0.8"
 tokio = { workspace = true }
 parking_lot = "0.12"
+futures = "0.3"

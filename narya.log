@@ -1,0 +1,56 @@
+warning: patch `core-foundation v0.10.1 (https://github.com/servo/core-foundation-rs#6f844cf1)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+warning: variable does not need to be mutable
+  --> config/src/transformer.rs:74:13
+   |
+74 |         let mut proxy_group_outbounds = if all_proxy_tags.is_empty() {
+   |             ----^^^^^^^^^^^^^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `suffixes` is never read
+  --> config/src/matcher.rs:50:5
+   |
+49 | struct DomainSuffixMatcher {
+   |        ------------------- field in this struct
+50 |     suffixes: Vec<String>,
+   |     ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `config` (lib) generated 2 warnings (run `cargo fix --lib -p config` to apply 1 suggestion)
+warning: value assigned to `rules_changed` is never read
+   --> narya-ui/src/components/rule_panel.rs:161:41
+    |
+161 |                 let mut rules_changed = false;
+    |                                         ^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `workspace`
+   --> narya-ui/src/lib.rs:104:40
+    |
+104 |         cx.on_next_frame(window, move |workspace, _, cx| {
+    |                                        ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_workspace`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `set_search` is never used
+  --> narya-ui/src/models/rule.rs:28:12
+   |
+18 | impl RuleStore {
+   | -------------- method in this implementation
+...
+28 |     pub fn set_search(&mut self, query: &str) {
+   |            ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narya-ui` (lib) generated 3 warnings (run `cargo fix --lib -p narya-ui` to apply 1 suggestion)
+   Compiling narya v0.1.0 (/home/neo/Projects/neo/github/narya)

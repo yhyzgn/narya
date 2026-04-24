@@ -6,7 +6,6 @@ package main
 import "C"
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/sagernet/sing-box"
@@ -26,13 +25,10 @@ func sing_box_start(configJson *C.char) C.int {
 	jsonStr := C.GoString(configJson)
 	
 	ctx := include.Context(context.Background())
-	// 这里不需要 cancelFunc = cancel，因为 box.Close 会处理关闭。
-	// 但如果我们确实需要手动取消上下文，可以保存。
-	// cancelFunc = nil 
 
 	var opts option.Options
-	if err := json.Unmarshal([]byte(jsonStr), &opts); err != nil {
-		fmt.Printf("Failed to parse config: %v\n", err)
+	if err := opts.UnmarshalJSONContext(ctx, []byte(jsonStr)); err != nil {
+		fmt.Printf("Failed to parse config: %v\nRaw JSON: %s\n", err, jsonStr)
 		return -2
 	}
 
@@ -41,9 +37,7 @@ func sing_box_start(configJson *C.char) C.int {
 		Options: opts,
 	})
 	if err != nil {
-		// 即使报错，我们也返回错误码，让 Rust 知道。
-		// 如果是因为 registry 缺失，报错信息会打印在 stdout。
-		fmt.Printf("Failed to create box: %v\n", err)
+		fmt.Printf("Failed to create box: %v\nRaw JSON: %s\n", err, jsonStr)
 		return -3
 	}
 	if err := b.Start(); err != nil {

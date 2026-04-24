@@ -28,6 +28,8 @@ pub struct Workspace {
     focus_handle: FocusHandle,
 }
 
+impl EventEmitter<()> for Workspace {}
+
 impl Workspace {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let store = Arc::new(RwLock::new(TrafficStore::new(60)));
@@ -79,47 +81,51 @@ impl Workspace {
         }
     }
 
-    fn select_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+    fn select_tab(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
         self.selected_tab = index;
         if index == 3 {
-            self.refresh_apps(cx);
+            self.refresh_apps(window, cx);
         }
         cx.notify();
     }
 
-    fn refresh_apps(&self, _cx: &mut Context<Self>) {
+    fn refresh_apps(&self, window: &mut Window, cx: &mut Context<Self>) {
         let rule_store = self.rule_store.clone();
-        utils::TOKIO_RUNTIME.spawn(async move {
-            match ipc_client::send_command("get_apps").await {
-                Ok(response) => {
-                    if let Ok(apps) =
-                        serde_json::from_str::<Vec<api::tracker::AppIdentity>>(&response)
-                    {
-                        let mut store = rule_store.write();
-                        let current_assigned: std::collections::HashSet<String> = store
-                            .direct
-                            .iter()
-                            .map(|a| a.id.clone())
-                            .chain(store.proxy.iter().map(|a| a.id.clone()))
-                            .collect();
-
-                        store.unassigned = apps
-                            .into_iter()
-                            .filter(|app| !current_assigned.contains(&app.identifier))
-                            .map(|app| AppInfo {
-                                id: app.identifier,
-                                name: app.name,
-                                icon: app.icon_path,
-                            })
-                            .collect();
-                    }
+        let (tx, rx) = std::sync::mpsc::channel();
+        cx.background_executor().spawn(async move {
+            let response = ipc_client::send_command("get_apps").await;
+            if let Ok(resp) = response {
+                if let Ok(apps) = serde_json::from_str::<Vec<api::tracker::AppIdentity>>(&resp) {
+                    let _ = tx.send(apps);
                 }
-                Err(e) => tracing::error!("Failed to get apps via IPC: {}", e),
+            }
+        }).detach();
+
+        cx.on_next_frame(window, move |workspace, _, cx| {
+            if let Ok(apps) = rx.try_recv() {
+                let mut store = rule_store.write();
+                let current_assigned: std::collections::HashSet<String> = store
+                    .direct
+                    .iter()
+                    .map(|a| a.id.clone())
+                    .chain(store.proxy.iter().map(|a| a.id.clone()))
+                    .collect();
+
+                store.unassigned = apps
+                    .into_iter()
+                    .filter(|app| !current_assigned.contains(&app.identifier))
+                    .map(|app| AppInfo {
+                        id: app.identifier,
+                        name: app.name,
+                        icon: app.icon_path,
+                    })
+                    .collect();
+                cx.notify();
             }
         });
     }
 
-    fn fetch_subscription(&self, _cx: &mut Context<Self>) {
+    fn fetch_subscription(&self, window: &mut Window, cx: &mut Context<Self>) {
         {
             let mut store = self.profile_store.write();
             store.is_loading = true;
@@ -127,30 +133,55 @@ impl Workspace {
         }
         let profile_store = self.profile_store.clone();
         let url = profile_store.read().url.clone();
-        utils::TOKIO_RUNTIME.spawn(async move {
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        cx.background_executor().spawn(async move {
             let result = SubscriptionParser::fetch_and_parse(&url).await;
-            let mut p_store = profile_store.write();
+            if let Ok(ref conf) = result {
+                if let Ok(json) = serde_json::to_string(conf) {
+                    let cmd = format!("update_config {}", json);
+                    let _ = ipc_client::send_command(&cmd).await;
+                }
+            }
+            let _ = tx.send(result);
+        }).detach();
+
+        cx.on_next_frame(window, move |workspace, window, cx| {
+            workspace.poll_subscription(window, cx, rx);
+        });
+    }
+
+    fn poll_subscription(&self, window: &mut Window, cx: &mut Context<Self>, rx: std::sync::mpsc::Receiver<anyhow::Result<config::model::NaryaConfig>>) {
+        if let Ok(result) = rx.try_recv() {
+            let mut p_store = self.profile_store.write();
             p_store.is_loading = false;
             match result {
                 Ok(conf) => {
-                    let nodes = conf
+                    let nodes: Vec<ProxyNode> = conf
                         .proxies
-                        .into_iter()
+                        .iter()
                         .map(|p| ProxyNode {
-                            name: p.name,
-                            protocol: p.proxy_type,
+                            name: p.name.clone(),
+                            protocol: p.proxy_type.clone(),
                             delay: None,
-                            server: p.server,
+                            server: p.server.clone(),
                             port: p.port,
                         })
                         .collect();
                     p_store.nodes = nodes;
+                    drop(p_store);
+                    self.test_all_latencies(window, cx);
                 }
                 Err(e) => {
                     p_store.last_error = Some(e.to_string());
                 }
             }
-        });
+            cx.notify();
+        } else {
+            cx.on_next_frame(window, move |workspace, window, cx| {
+                workspace.poll_subscription(window, cx, rx);
+            });
+        }
     }
 
     pub fn sync_proxy_selection(&self, name: &str) {
@@ -174,28 +205,35 @@ impl Workspace {
         }
     }
 
-    fn test_all_latencies(&self, _cx: &mut Context<Self>) {
+    fn test_all_latencies(&self, window: &mut Window, cx: &mut Context<Self>) {
         let profile_store = self.profile_store.clone();
-        utils::TOKIO_RUNTIME.spawn(async move {
-            let nodes: Vec<(String, String, u16)> = {
-                profile_store
-                    .read()
-                    .nodes
-                    .iter()
-                    .map(|n| (n.name.clone(), n.server.clone(), n.port))
-                    .collect()
-            };
-            for (node_name, server, port) in nodes {
-                let p_store = profile_store.clone();
-                utils::TOKIO_RUNTIME.spawn(async move {
-                    let delay = Self::tcp_ping(server, port).await;
+
+        let nodes: Vec<(String, String, u16)> = {
+            profile_store
+                .read()
+                .nodes
+                .iter()
+                .map(|n| (n.name.clone(), n.server.clone(), n.port))
+                .collect()
+        };
+        for (node_name, server, port) in nodes {
+            let p_store = profile_store.clone();
+            let (tx, rx) = std::sync::mpsc::channel();
+            cx.background_executor().spawn(async move {
+                let delay = Self::tcp_ping(server, port).await;
+                let _ = tx.send(delay);
+            }).detach();
+
+            cx.on_next_frame(window, move |_, _, cx| {
+                if let Ok(delay) = rx.try_recv() {
                     let mut store = p_store.write();
                     if let Some(node) = store.nodes.iter_mut().find(|n| n.name == node_name) {
                         node.delay = delay;
                     }
-                });
-            }
-        });
+                    cx.notify();
+                }
+            });
+        }
     }
 }
 
@@ -309,9 +347,9 @@ impl Workspace {
             })
             .hover(|style| style.bg(rgba(0xffffff0d)))
             .cursor_pointer()
-            .on_click(move |_, _, cx| {
+            .on_click(move |_, window, cx| {
                 entity.update(cx, |workspace, cx| {
-                    workspace.select_tab(index, cx);
+                    workspace.select_tab(index, window, cx);
                 });
             })
             .child(if is_selected {
@@ -526,9 +564,9 @@ impl Workspace {
                             .rounded_md()
                             .text_xs()
                             .cursor_pointer()
-                            .on_click(move |_, _, cx| {
+                            .on_click(move |_, window, cx| {
                                 entity.update(cx, |workspace, cx| {
-                                    workspace.test_all_latencies(cx);
+                                    workspace.test_all_latencies(window, cx);
                                 });
                             })
                             .child("Test All"),
@@ -598,10 +636,10 @@ impl Workspace {
                                 .text_color(rgb(0xffffff))
                                 .cursor_pointer()
                                 .hover(|s| if !is_loading { s.bg(rgb(0x4096ff)) } else { s })
-                                .on_click(move |_, _, cx| {
+                                .on_click(move |_, window, cx| {
                                     if !is_loading {
                                         entity.update(cx, |workspace, cx| {
-                                            workspace.fetch_subscription(cx);
+                                            workspace.fetch_subscription(window, cx);
                                         });
                                     }
                                 })

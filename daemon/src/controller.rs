@@ -55,6 +55,10 @@ impl NaryaDaemon {
         self.config_manager.clone()
     }
 
+    pub async fn get_config(&self) -> NaryaConfig {
+        self.config.read().await.clone()
+    }
+
     pub async fn start(&self) -> Result<()> {
         let config = self.config.read().await;
 
@@ -77,7 +81,9 @@ impl NaryaDaemon {
         // Start Tracker
         self.tracker.start().await?;
 
-        let config_json = Transformer::transform(&config);
+        let active_node = state.active_node.as_deref();
+        let config_json = Transformer::transform(&config, active_node);
+        tracing::info!("Starting sing-box with config: {}", config_json);
         self.core.start(&config_json)?;
 
         tracing::info!("Narya Daemon started");
@@ -127,7 +133,9 @@ impl NaryaDaemon {
                 }
             }
 
-            let new_config_json = Transformer::transform(&new_config);
+            let state = self.config_manager.get_state();
+            let active_node = state.active_node.as_deref();
+            let new_config_json = Transformer::transform(&new_config, active_node);
             self.core.reload(diff, &new_config_json)?;
 
             let mut engine_lock = self.engine.write().await;

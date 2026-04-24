@@ -91,6 +91,7 @@ mod tests {
         }"#;
 
         let result = sb.start(config);
+
         assert!(result.is_ok());
 
         let stop_result = sb.stop();
