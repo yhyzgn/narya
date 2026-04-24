@@ -50,19 +50,26 @@ impl ProxyList {
                     .justify_between()
                     .items_center()
                     .p_3()
+                    .mb_1()
                     .bg(if is_active {
                         rgba(0x1677ff1a)
                     } else {
-                        rgb(0x2d2d2d)
+                        rgba(0xffffff05)
                     })
                     .border_1()
                     .border_color(if is_active {
                         rgb(0x1677ff)
                     } else {
-                        rgba(0x00000000)
+                        rgba(0xffffff0a)
                     })
                     .rounded_lg()
-                    .hover(|style| style.bg(rgb(0x353535)))
+                    .hover(|style| {
+                        if is_active {
+                            style
+                        } else {
+                            style.bg(rgba(0xffffff0a)).border_color(rgba(0xffffff1a))
+                        }
+                    })
                     .cursor_pointer()
                     .on_click(move |_, _, cx| {
                         let name_clone = name.clone();
@@ -79,32 +86,63 @@ impl ProxyList {
                     .child(
                         div()
                             .flex()
-                            .flex_col()
-                            .gap_1()
+                            .items_center()
+                            .gap_4()
                             .child(
                                 div()
-                                    .text_color(if is_active {
+                                    .w_1()
+                                    .h_8()
+                                    .rounded_full()
+                                    .bg(if is_active {
                                         rgb(0x1677ff)
                                     } else {
-                                        rgb(0xffffff)
+                                        rgba(0xffffff0a)
                                     })
-                                    .child(node.name.clone()),
                             )
                             .child(
                                 div()
-                                    .text_color(rgb(0x888888))
-                                    .text_sm()
-                                    .child(node.protocol.clone()),
+                                    .flex()
+                                    .flex_col()
+                                    .child(
+                                        div()
+                                            .text_sm()
+                                            .font_weight(if is_active { FontWeight::BOLD } else { FontWeight::NORMAL })
+                                            .text_color(if is_active {
+                                                rgb(0x1677ff)
+                                            } else {
+                                                rgb(0xffffff)
+                                            })
+                                            .child(node.name.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(rgb(0x666666))
+                                            .child(node.protocol.to_uppercase()),
+                                    ),
                             ),
                     )
                     .child(
                         div()
-                            .text_color(delay_color)
-                            .text_sm()
-                            .child(match node.delay {
-                                Some(d) => format!("{}ms", d),
-                                None => "- ms".to_string(),
-                            }),
+                            .px_2()
+                            .py_0p5()
+                            .rounded_md()
+                            .bg(Rgba {
+                                r: delay_color.r,
+                                g: delay_color.g,
+                                b: delay_color.b,
+                                a: 0.1,
+                            })
+                            .child(
+                                div()
+                                    .text_color(delay_color)
+                                    .text_xs()
+                                    .font_weight(FontWeight::BOLD)
+                                    .child(match node.delay {
+                                        Some(d) => format!("{}ms", d),
+                                        None => "---".to_string(),
+                                    }),
+                            ),
                     )
             }))
             .into_any_element()

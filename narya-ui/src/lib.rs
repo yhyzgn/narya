@@ -309,7 +309,17 @@ impl Render for Workspace {
                     .child(self.render_tab(1, "Proxies", &cx.entity().clone(), cx))
                     .child(self.render_tab(2, "Profiles", &cx.entity().clone(), cx))
                     .child(self.render_tab(3, "Rules", &cx.entity().clone(), cx))
-                    .child(self.render_tab(4, "Settings", &cx.entity().clone(), cx)),
+                    .child(self.render_tab(4, "Settings", &cx.entity().clone(), cx))
+                    .child(div().flex_1())
+                    .child(
+                        div()
+                            .p_4()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().w_2().h_2().bg(rgb(0x52c41a)).rounded_full())
+                            .child(div().text_xs().text_color(rgb(0x555555)).child("Core Running v0.1.0")),
+                    ),
             )
             .child(
                 div().flex_1().h_full().bg(rgb(0x141414)).p_6().child(
@@ -351,8 +361,9 @@ impl Workspace {
         div()
             .id(index)
             .relative()
-            .px_4()
-            .py_3()
+            .px_3()
+            .py_2()
+            .mx_2()
             .mb_1()
             .rounded_lg()
             .flex()
@@ -362,32 +373,39 @@ impl Workspace {
             } else {
                 rgba(0x00000000)
             })
-            .hover(|style| style.bg(rgba(0xffffff0d)))
+            .hover(|style| {
+                if !is_selected {
+                    style.bg(rgba(0xffffff0a))
+                } else {
+                    style
+                }
+            })
             .cursor_pointer()
             .on_click(move |_, window, cx| {
                 entity.update(cx, |workspace, cx| {
                     workspace.select_tab(index, window, cx);
                 });
             })
-            .child(if is_selected {
-                div()
-                    .absolute()
-                    .left_0()
-                    .w_1()
-                    .h_4()
-                    .bg(rgb(0x1677ff))
-                    .rounded_full()
-            } else {
-                div()
-            })
             .child(
                 div()
-                    .ml_2()
-                    .text_sm()
-                    .text_color(if is_selected {
+                    .w_1()
+                    .h_4()
+                    .rounded_full()
+                    .bg(if is_selected {
                         rgb(0x1677ff)
                     } else {
-                        rgb(0xcccccc)
+                        rgba(0x00000000)
+                    })
+            )
+            .child(
+                div()
+                    .ml_3()
+                    .text_sm()
+                    .font_weight(if is_selected { FontWeight::MEDIUM } else { FontWeight::NORMAL })
+                    .text_color(if is_selected {
+                        rgb(0xffffff)
+                    } else {
+                        rgb(0x888888)
                     })
                     .child(label),
             )
@@ -542,15 +560,20 @@ impl Workspace {
         div()
             .flex()
             .flex_col()
-            .items_end()
-            .child(div().text_xs().text_color(rgb(0x888888)).child(label))
+            .p_3()
+            .min_w(px(140.0))
+            .bg(rgba(0xffffff05))
+            .rounded_lg()
+            .border_1()
+            .border_color(rgba(0xffffff0a))
+            .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(rgb(0x666666)).mb_1().child(label.to_uppercase()))
             .child(
                 div()
                     .flex()
                     .items_baseline()
                     .gap_1()
-                    .child(div().text_xl().text_color(color).child(value))
-                    .child(div().text_xs().text_color(rgb(0x555555)).child(unit)),
+                    .child(div().text_2xl().font_weight(FontWeight::BOLD).text_color(color).child(value))
+                    .child(div().text_xs().text_color(rgb(0x444444)).child(unit)),
             )
     }
 
