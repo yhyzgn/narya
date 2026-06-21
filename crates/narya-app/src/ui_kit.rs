@@ -9,17 +9,24 @@ use liora::components::{
 use liora_icons::Icon;
 use liora_icons_lucide::IconName;
 
-pub const APP_BG: u32 = 0xF7FAFF;
+const SIDEBAR_W: f32 = 256.0;
+const HEADER_H: f32 = 120.0;
+const FOOTER_H: f32 = 68.0;
+const CONTENT_X_PAD: f32 = 36.0;
+const CONTENT_BOTTOM_PAD: f32 = 16.0;
+const GAP: f32 = 24.0;
+
+pub const APP_BG: u32 = 0xF8FBFF;
 pub const SURFACE: u32 = 0xFFFFFF;
 pub const BORDER: u32 = 0xDDE6F5;
 pub const TEXT: u32 = 0x10203D;
-pub const MUTED: u32 = 0x61708C;
-pub const SOFT: u32 = 0xEEF4FF;
+pub const MUTED: u32 = 0x637392;
+pub const SOFT: u32 = 0xF1F5FF;
 pub const BRAND: u32 = 0x2F66FF;
-pub const VIOLET: u32 = 0x8757F5;
+pub const VIOLET: u32 = 0x7C4DFF;
 pub const SUCCESS: u32 = 0x10B981;
 pub const WARNING: u32 = 0xF59E0B;
-pub const DANGER: u32 = 0xFF5A3D;
+pub const DANGER: u32 = 0xFF4D2E;
 pub const INFO: u32 = 0x0EA5E9;
 
 pub fn color(hex: u32) -> Rgba {
@@ -126,8 +133,8 @@ impl IntoElement for ShellFrame {
                             .flex_1()
                             .min_h_0()
                             .overflow_hidden()
-                            .px(px(28.0))
-                            .pb(px(16.0))
+                            .px(px(CONTENT_X_PAD))
+                            .pb(px(CONTENT_BOTTOM_PAD))
                             .child(self.content),
                     )
                     .child(self.footer),
@@ -185,13 +192,13 @@ impl IntoElement for Sidebar {
         let on_nav = self.on_nav.clone();
 
         div()
-            .w(px(256.0))
+            .w(px(SIDEBAR_W))
             .h_full()
             .flex_none()
             .flex()
             .flex_col()
             .justify_between()
-            .bg(color(SURFACE))
+            .bg(color(0xFBFDFF))
             .border_r_1()
             .border_color(color(BORDER))
             .child(
@@ -220,13 +227,13 @@ fn brand_block() -> gpui::Div {
     div()
         .flex()
         .items_center()
-        .gap_3()
-        .h(px(150.0))
-        .px(px(34.0))
+        .gap_4()
+        .h(px(146.0))
+        .px(px(36.0))
         .child(
             Image::local("ui/icons/narya-logo-v2.png")
-                .width(px(56.0))
-                .height(px(56.0))
+                .width(px(62.0))
+                .height(px(62.0))
                 .shadow(false)
                 .bordered(false),
         )
@@ -236,7 +243,7 @@ fn brand_block() -> gpui::Div {
                 .gap_px(2.0)
                 .child(
                     Text::new("Narya")
-                        .size(px(27.0))
+                        .size(px(26.0))
                         .bold()
                         .text_color(color(TEXT).into())
                         .selectable(false),
@@ -252,16 +259,13 @@ fn brand_block() -> gpui::Div {
 
 fn nav_item(icon: IconName, label: &'static str, active: bool) -> Button {
     let fg = color(if active { BRAND } else { TEXT });
-    let button = Button::new(label)
-        .icon_start(Icon::new(icon).size(px(21.0)).color(fg.into()))
+    let bg = color(if active { 0xEEF0FF } else { 0xFBFDFF });
+    Button::new(label)
+        .icon_start(Icon::new(icon).size(px(20.0)).color(fg.into()))
+        .custom_color(bg.into(), fg.into())
         .rounded_md()
         .border(false)
-        .large();
-    if active {
-        button.custom_color(color(0xEEF0FF).into(), color(BRAND).into())
-    } else {
-        button.tertiary().background(false)
-    }
+        .large()
 }
 
 fn sidebar_status(running: bool, node: String, latency: u32, down: f32, up: f32) -> gpui::Div {
@@ -325,13 +329,7 @@ fn sidebar_status(running: bool, node: String, latency: u32, down: f32, up: f32)
                         .area_fill(true),
                 ),
         ))
-        .child(
-            Space::new()
-                .gap_lg()
-                .child(NaryaButton::icon(""))
-                .child(NaryaButton::icon("☾"))
-                .child(NaryaButton::icon("♢")),
-        )
+        .child(sidebar_footer_icons())
 }
 
 pub struct HeaderBar {
@@ -367,19 +365,20 @@ impl IntoElement for HeaderBar {
 
     fn into_element(self) -> Self::Element {
         div()
-            .h(px(108.0))
+            .h(px(HEADER_H))
             .flex_none()
             .flex()
-            .items_center()
+            .items_start()
             .justify_between()
-            .px(px(28.0))
+            .px(px(CONTENT_X_PAD))
+            .pt(px(24.0))
             .child(
                 Flex::new()
                     .column()
                     .gap_px(6.0)
                     .child(
                         Text::new(self.title)
-                            .size(px(28.0))
+                            .size(px(30.0))
                             .bold()
                             .text_color(color(TEXT).into())
                             .selectable(false),
@@ -391,8 +390,38 @@ impl IntoElement for HeaderBar {
                             .selectable(false),
                     ),
             )
-            .child(Space::new().gap_md().children(self.actions))
+            .child(
+                Flex::new()
+                    .column()
+                    .align_end()
+                    .gap_xl()
+                    .child(window_controls())
+                    .child(Space::new().gap_md().children(self.actions)),
+            )
     }
+}
+
+fn window_controls() -> gpui::Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_5()
+        .pr(px(4.0))
+        .child(
+            Icon::new(IconName::Minus)
+                .size(px(16.0))
+                .color(color(TEXT).into()),
+        )
+        .child(
+            Icon::new(IconName::Square)
+                .size(px(14.0))
+                .color(color(TEXT).into()),
+        )
+        .child(
+            Icon::new(IconName::X)
+                .size(px(18.0))
+                .color(color(TEXT).into()),
+        )
 }
 
 pub struct FooterBar;
@@ -402,12 +431,12 @@ impl IntoElement for FooterBar {
 
     fn into_element(self) -> Self::Element {
         div()
-            .h(px(68.0))
+            .h(px(FOOTER_H))
             .flex_none()
             .flex()
             .items_center()
             .justify_between()
-            .px(px(28.0))
+            .px(px(CONTENT_X_PAD))
             .bg(color(SURFACE))
             .border_t_1()
             .border_color(color(BORDER))
@@ -465,7 +494,7 @@ impl IntoElement for NaryaPage {
         div()
             .flex()
             .flex_col()
-            .gap_4()
+            .gap(px(GAP))
             .size_full()
             .overflow_hidden()
             .children(self.rows)
@@ -547,17 +576,27 @@ impl NaryaButton {
     pub fn icon(label: impl Into<gpui::SharedString>) -> Button {
         Button::new(label).tertiary().rounded_md().small()
     }
+
+    pub fn icon_name(icon: IconName) -> Button {
+        Button::new("")
+            .icon_only(icon)
+            .tertiary()
+            .background(false)
+            .border(false)
+            .rounded_md()
+    }
 }
 
 pub fn page_row(children: Vec<AnyElement>) -> impl IntoElement {
-    Flex::new().row().gap_lg().w_full().children(children)
+    Flex::new().row().gap_px(GAP).w_full().children(children)
 }
 
 pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
     Flex::new()
         .row()
-        .gap_lg()
+        .gap_px(28.0)
         .w_full()
+        .height_px(164.0)
         .child(Flex::new().width_px(548.0).flex_none().child(left))
         .child(Flex::new().flex_1().child(right))
 }
@@ -565,7 +604,8 @@ pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl In
 pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
     Flex::new()
         .row()
-        .gap_lg()
+        .gap_px(28.0)
+        .height_px(310.0)
         .child(Flex::new().width_px(488.0).flex_none().child(left))
         .child(Flex::new().flex_1().child(right))
 }
@@ -577,10 +617,42 @@ pub fn dashboard_bottom(
 ) -> impl IntoElement {
     Flex::new()
         .row()
-        .gap_lg()
+        .gap_px(28.0)
+        .height_px(284.0)
         .child(Flex::new().width_px(488.0).flex_none().child(a))
         .child(Flex::new().width_px(306.0).flex_none().child(b))
         .child(Flex::new().flex_1().child(c))
+}
+
+pub fn nodes_main(
+    strategy: impl IntoElement,
+    list: impl IntoElement,
+    overview: impl IntoElement,
+) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .gap_md()
+        .height_px(420.0)
+        .child(Flex::new().width_px(280.0).flex_none().child(strategy))
+        .child(Flex::new().flex_1().min_h_0().child(list))
+        .child(Flex::new().width_px(276.0).flex_none().child(overview))
+}
+
+pub fn nodes_bottom(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .gap_lg()
+        .height_px(188.0)
+        .child(Flex::new().flex_1().child(left))
+        .child(Flex::new().width_px(604.0).flex_none().child(right))
+}
+
+pub fn node_grid(items: Vec<AnyElement>) -> impl IntoElement {
+    Flex::new().row().wrap().gap_md().children(
+        items
+            .into_iter()
+            .map(|item| Flex::new().width_px(296.0).child(item)),
+    )
 }
 
 pub fn page_columns(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
@@ -594,7 +666,12 @@ pub fn page_columns(left: impl IntoElement, right: impl IntoElement) -> impl Int
 }
 
 pub fn toolbar(children: Vec<AnyElement>) -> impl IntoElement {
-    Flex::new().row().gap_md().w_full().children(children)
+    Flex::new()
+        .row()
+        .gap_md()
+        .w_full()
+        .height_px(38.0)
+        .children(children)
 }
 
 pub fn grid_two(items: Vec<AnyElement>) -> impl IntoElement {
@@ -605,31 +682,246 @@ pub fn grid_two(items: Vec<AnyElement>) -> impl IntoElement {
     )
 }
 
+pub fn design_card(body: impl IntoElement) -> impl IntoElement {
+    div()
+        .size_full()
+        .rounded(px(12.0))
+        .border_1()
+        .border_color(color(BORDER))
+        .bg(color(SURFACE))
+        .overflow_hidden()
+        .child(body)
+}
+
+pub fn titled_panel(title: &'static str, body: impl IntoElement) -> impl IntoElement {
+    design_card(
+        Flex::new()
+            .column()
+            .size_full()
+            .padding_px(20.0)
+            .gap_md()
+            .child(
+                Text::new(title)
+                    .size(px(17.0))
+                    .bold()
+                    .text_color(color(TEXT).into())
+                    .selectable(false),
+            )
+            .child(Flex::new().flex_1().min_h_0().child(body)),
+    )
+}
+
+pub fn panel_header(title: &'static str, action: &'static str) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .align_center()
+        .justify_between()
+        .child(
+            Text::new(title)
+                .size(px(17.0))
+                .bold()
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(action)
+                .sm()
+                .text_color(color(BRAND).into())
+                .selectable(false),
+        )
+}
+
+pub fn dashboard_quick_panel(items: Vec<AnyElement>) -> impl IntoElement {
+    titled_panel("快速连接", Flex::new().column().gap_sm().children(items))
+}
+
+pub fn dashboard_network_panel(
+    chart: impl IntoElement,
+    metrics: Vec<AnyElement>,
+) -> impl IntoElement {
+    titled_panel(
+        "网络概览",
+        Flex::new()
+            .row()
+            .gap_lg()
+            .child(Flex::new().flex_1().min_h_0().child(chart))
+            .child(
+                Flex::new()
+                    .width_px(300.0)
+                    .flex_none()
+                    .child(metric_quad(metrics)),
+            ),
+    )
+}
+
+pub fn dashboard_traffic_panel(
+    stats: Vec<AnyElement>,
+    chart: impl IntoElement,
+) -> impl IntoElement {
+    titled_panel(
+        "流量使用",
+        Flex::new()
+            .row()
+            .gap_lg()
+            .child(
+                Flex::new()
+                    .width_px(126.0)
+                    .flex_none()
+                    .child(Flex::new().column().gap_lg().children(stats)),
+            )
+            .child(Flex::new().flex_1().child(chart)),
+    )
+}
+
+pub fn metric_quad(items: Vec<AnyElement>) -> impl IntoElement {
+    Flex::new().row().wrap().gap_lg().children(
+        items
+            .into_iter()
+            .map(|item| Flex::new().width_px(126.0).child(item)),
+    )
+}
+
+pub fn compact_metric(
+    title: &'static str,
+    value: impl Into<String>,
+    caption: impl Into<String>,
+) -> impl IntoElement {
+    Flex::new()
+        .column()
+        .gap_px(5.0)
+        .child(
+            Text::new(title)
+                .xs()
+                .text_color(color(MUTED).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(value.into())
+                .size(px(28.0))
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(caption.into())
+                .xs()
+                .text_color(color(MUTED).into())
+                .selectable(false),
+        )
+}
+
+pub fn sidebar_footer_icons() -> impl IntoElement {
+    Flex::new()
+        .row()
+        .justify_between()
+        .align_center()
+        .padding_x_px(24.0)
+        .height_px(44.0)
+        .child(
+            Icon::new(IconName::BadgeQuestionMark)
+                .size(px(27.0))
+                .color(color(TEXT).into()),
+        )
+        .child(
+            Icon::new(IconName::Moon)
+                .size(px(27.0))
+                .color(color(TEXT).into()),
+        )
+        .child(
+            Icon::new(IconName::Bell)
+                .size(px(27.0))
+                .color(color(TEXT).into()),
+        )
+}
+
+pub fn nodes_top_controls(items: Vec<AnyElement>) -> impl IntoElement {
+    Flex::new().row().gap_lg().height_px(80.0).children(items)
+}
+
+pub fn control_card(
+    title: &'static str,
+    value: impl Into<String>,
+    icon: IconName,
+    width: f32,
+    tone: NaryaStatus,
+) -> impl IntoElement {
+    div().w(px(width)).child(design_card(
+        Flex::new()
+            .row()
+            .align_center()
+            .justify_between()
+            .padding_x_px(18.0)
+            .padding_y_px(14.0)
+            .size_full()
+            .child(
+                Space::new()
+                    .gap_md()
+                    .child(
+                        Icon::new(icon)
+                            .size(px(24.0))
+                            .color(status_color(tone).into()),
+                    )
+                    .child(
+                        Flex::new()
+                            .column()
+                            .gap_sm()
+                            .child(
+                                Text::new(title)
+                                    .xs()
+                                    .bold()
+                                    .text_color(color(TEXT).into())
+                                    .selectable(false),
+                            )
+                            .child(
+                                Text::new(value.into())
+                                    .sm()
+                                    .text_color(color(TEXT).into())
+                                    .selectable(false),
+                            ),
+                    ),
+            )
+            .child(
+                Icon::new(IconName::ChevronDown)
+                    .size(px(18.0))
+                    .color(color(MUTED).into()),
+            ),
+    ))
+}
+
+pub fn gradient_action(label: &'static str, icon: IconName) -> Button {
+    Button::new(label)
+        .icon_start(Icon::new(icon).size(px(24.0)).color(color(SURFACE).into()))
+        .gradient(color(0x5B8CFF).into(), color(0x8B5CF6).into())
+        .rounded_md()
+        .large()
+}
+
 pub fn hero_toggle_card(
-    icon: &'static str,
+    icon: IconName,
     title: &'static str,
     desc: &'static str,
     enabled: bool,
     mode: &'static str,
     tone: NaryaStatus,
 ) -> impl IntoElement {
-    NaryaCard::plain(
+    design_card(
         Flex::new()
             .column()
-            .gap_lg()
+            .justify_between()
+            .size_full()
+            .padding_px(28.0)
             .child(
                 Flex::new()
                     .row()
                     .align_center()
                     .justify_between()
                     .child(
-                        Space::new().gap_lg().child(metric_icon(icon, tone)).child(
+                        Space::new().gap_lg().child(hero_icon(icon, tone)).child(
                             Flex::new()
                                 .column()
                                 .gap_sm()
                                 .child(
                                     Text::new(title)
-                                        .size(px(18.0))
+                                        .size(px(22.0))
                                         .bold()
                                         .text_color(color(TEXT).into())
                                         .selectable(false),
@@ -673,20 +965,22 @@ pub fn quick_node(
     latency: u32,
     tone: NaryaStatus,
 ) -> impl IntoElement {
+    let name = name.into();
     Flex::new()
         .row()
         .align_center()
         .justify_between()
-        .padding_sm()
+        .height_px(54.0)
+        .padding_x_px(10.0)
         .border()
         .border_color(color(BORDER).into())
         .rounded_md()
         .child(
-            Space::new().gap_md().child(flag("✤")).child(
+            Space::new().gap_md().child(flag_for_name(&name)).child(
                 Flex::new()
                     .column()
                     .child(
-                        Text::new(name.into())
+                        Text::new(name)
                             .sm()
                             .text_color(color(TEXT).into())
                             .selectable(false),
@@ -754,7 +1048,7 @@ pub fn node_card(data: NodeCardData, on_connect: ClickHandler) -> impl IntoEleme
                                     )
                                     .selectable(false),
                             )
-                            .child(flag("✤"))
+                            .child(flag_for_name(&data.name))
                             .child(
                                 Flex::new()
                                     .column()
@@ -928,6 +1222,10 @@ pub fn trend_chart(values: Vec<f64>, height: f32, color_hex: u32) -> impl IntoEl
     .height(px(height))
     .show_legend(false)
     .show_tooltip(false)
+    .show_value_labels(false)
+    .max_axis_labels(6)
+    .point_markers(false)
+    .stroke_width(px(2.2))
 }
 
 pub fn chart_card(
@@ -1087,6 +1385,38 @@ fn flag(symbol: &'static str) -> impl IntoElement {
         .selectable(false)
 }
 
+fn hero_icon(icon: IconName, tone: NaryaStatus) -> impl IntoElement {
+    div()
+        .size(px(56.0))
+        .rounded(px(12.0))
+        .bg(status_color(tone))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(Icon::new(icon).size(px(27.0)).color(color(SURFACE).into()))
+}
+
+fn flag_for_name(name: &str) -> impl IntoElement {
+    let emoji = if name.contains("香港") || name.contains("HK") {
+        "🇭🇰"
+    } else if name.contains("日本") || name.contains("JP") {
+        "🇯🇵"
+    } else if name.contains("美国") || name.contains("US") {
+        "🇺🇸"
+    } else if name.contains("新加坡") || name.contains("SG") {
+        "🇸🇬"
+    } else if name.contains("台湾") || name.contains("TW") {
+        "🇹🇼"
+    } else if name.contains("德国") || name.contains("DE") {
+        "🇩🇪"
+    } else if name.contains("英国") || name.contains("UK") {
+        "🇬🇧"
+    } else {
+        "🌐"
+    };
+    Text::new(emoji).size(px(28.0)).selectable(false)
+}
+
 fn metric_icon(icon: &'static str, tone: NaryaStatus) -> impl IntoElement {
     div()
         .size(px(56.0))
@@ -1155,8 +1485,10 @@ pub fn entity_window_options(cx: &mut gpui::App) -> gpui::WindowOptions {
         window_min_size: Some(size),
         titlebar: Some(gpui::TitlebarOptions {
             title: Some("Narya".into()),
+            appears_transparent: true,
             ..Default::default()
         }),
+        window_decorations: Some(gpui::WindowDecorations::Client),
         app_id: Some("narya".into()),
         ..Default::default()
     }

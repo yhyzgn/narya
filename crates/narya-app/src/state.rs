@@ -610,7 +610,7 @@ impl AppState {
             active_node_id: Some("hk-01".to_string()),
             nodes,
             subscriptions,
-            kernel_running: false,
+            kernel_running: true,
             filter_text: String::new(),
             selected_subscription_id: Some("sub-1".to_string()),
             active_subscription_tab: SubscriptionTab::Overview,

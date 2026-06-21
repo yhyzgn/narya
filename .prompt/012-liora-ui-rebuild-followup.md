@@ -50,3 +50,7 @@ timeout 8s cargo run -p narya-app
 ## 2026-06-21 Light 主题补充
 
 当前启动默认主题已固定为 Liora Light：`liora::init_liora_with_mode(cx, liora::ThemeMode::Light)`。后续截图/像素校准请基于浅色主题，不再以系统主题为准。
+
+## 2026-06-21 视觉纠偏补充
+
+已完成真实截图驱动的 Dashboard/Nodes 主骨架纠偏：client-side decorations、Dashboard 三行布局、Nodes 三列布局。下一次继续以运行截图对照 `ui/dashboard.png`，不要写 spec，也不要伪造 1:1；优先校准图表内框、菜单质感、国旗圆形、阴影和其它页面。

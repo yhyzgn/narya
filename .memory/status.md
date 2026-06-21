@@ -52,3 +52,17 @@ timeout 8s cargo run -p narya-app
 - 应用户要求，启动时从 `liora::init_liora(cx)` 改为 `liora::init_liora_with_mode(cx, liora::ThemeMode::Light)`，默认进入 Light 主题，便于继续按浅色效果图校准。
 - 契约测试已同步锁定显式 Light 初始化。
 - 验证：`cargo fmt --all -- --check`、`cargo check -p narya-app`、`cargo test -p narya-contract-tests` 通过；`timeout 8s cargo run -p narya-app` 成功启动并按预期 timeout。
+
+## 2026-06-21 视觉还原纠偏切片
+
+用户指出布局仍低于可接受还原度后，本轮改为真实截图驱动纠偏：用 `spectacle` 抓取运行窗口 `/tmp/narya-shot*.png` 对照 `ui/dashboard.png`，不再只凭代码猜测。
+
+完成：
+- Linux/Wayland 窗口改为 GPUI client-side decorations，移除原生深色标题栏，窗口比例接近效果图。
+- Dashboard 改成按源图三行骨架：164px 顶部开关卡、310px 中部快速连接/网络概览、284px 底部流量/统计/日志。
+- 顶部右侧加入源图式窗口控制图标，动作按钮改 Lucide 图标。
+- Hero 卡改本地 design_card 封装，使用 Lucide Monitor/Network 图标、已连接 mock 默认状态和蓝/绿开关。
+- Nodes 页面按效果图重组为顶部控制卡 + 筛选条 + 策略组/节点列表/测速概览三列 + 底部趋势/详情。
+- 快速连接行压缩高度并改国家 emoji，避免第四行裁切和红十字误读。
+
+真实截图证据：`/tmp/narya-shot5.png` 已生成用于对照。仍不能宣称 1:1：图表内框、菜单按钮质感、国旗圆形样式、卡片微阴影/渐变和部分尺寸还需继续校准。

@@ -35,3 +35,12 @@
 - [x] 将 Narya 启动默认主题改为 Liora Light。
 - [x] 更新启动契约测试以锁定 Light 初始化。
 - [x] 运行 fmt、app check、contract tests、GUI timeout smoke。
+
+## 2026-06-21 视觉还原纠偏切片
+
+- [x] 用真实运行截图对照 `ui/dashboard.png`，确认主要偏差。
+- [x] 去除 Linux/Wayland 原生深色标题栏，改 GPUI client-side decorations。
+- [x] 重做 Dashboard 三行主骨架和顶部 Hero 卡样式。
+- [x] 重组 Nodes 主结构为策略组/节点列表/测速概览三列。
+- [x] 保持页面层零原生 GPUI 红线，契约测试通过。
+- [ ] 下一轮继续像素校准图表内框、菜单 inactive 质感、圆形国旗、阴影/渐变和其它页面。

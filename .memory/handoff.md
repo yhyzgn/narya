@@ -54,3 +54,7 @@ timeout 8s cargo run -p narya-app
 
 - 当前 app 默认 Light：`crates/narya-app/src/lib.rs` 使用 `liora::init_liora_with_mode(cx, liora::ThemeMode::Light)`。
 - 契约测试已更新；后续视觉校准应以浅色主题运行截图为准。
+
+## 2026-06-21 视觉纠偏接力
+
+本轮已用真实截图纠偏 Dashboard/Nodes 骨架，并修掉 Linux 原生标题栏。后续继续从 `/tmp/narya-shot5.png` 与 `ui/dashboard.png` 对照，不要声明 1:1。优先项：去掉/弱化 Liora LineChart 内层边框，菜单 inactive 更接近白底源图，国旗改圆形图标，细调卡片阴影/渐变与右上窗口控制位置。

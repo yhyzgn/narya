@@ -83,3 +83,12 @@
 - `narya-app` 启动时改用 `liora::init_liora_with_mode(cx, liora::ThemeMode::Light)`，不再跟随系统主题。
 - `narya-contract-tests` 同步锁定显式 Light 初始化。
 - 验证：fmt、`cargo check -p narya-app`、`cargo test -p narya-contract-tests`、GUI timeout smoke 通过。
+
+## 2026-06-21 — 视觉还原纠偏切片
+
+- 使用 `spectacle` 抓取真实运行窗口截图并对照源图，修复“凭感觉调布局”的问题。
+- `narya-app` 窗口切为 client-side decorations，去除 Linux/Wayland 原生深色标题栏。
+- `ui_kit.rs` 新增 design-card/titled-panel/dashboard/nodes 布局封装，页面层继续只组合 Liora/本地组件。
+- Dashboard 改为源图三段固定骨架；Hero 卡改 Lucide 图标和演示连接态。
+- Nodes 改为顶部控制卡、筛选条、三列主体和底部双卡布局。
+- 验证：fmt/check/test/clippy/GUI smoke 均通过；真实截图 `/tmp/narya-shot5.png` 已生成用于人工对照。

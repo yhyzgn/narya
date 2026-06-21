@@ -5,6 +5,7 @@ use crate::ui_kit::{
 };
 use crate::views::ActiveView;
 use liora::components::{Flex, Text};
+use liora_icons_lucide::IconName;
 use narya_ui::{
     App, Context, NaryaAppContext, NaryaEntity as Entity, NaryaIntoElement, Render, Window,
 };
@@ -98,10 +99,10 @@ fn header(view: ActiveView, model: &Entity<AppState>) -> impl NaryaIntoElement {
     let page = PageKind::from(view);
     let model_for_connect = model.clone();
     let mut actions = vec![
-        NaryaButton::icon("□").into_any_element(),
-        NaryaButton::icon("▣").into_any_element(),
-        NaryaButton::icon("⚙").into_any_element(),
-        NaryaButton::icon("⋮").into_any_element(),
+        NaryaButton::icon_name(IconName::Fullscreen).into_any_element(),
+        NaryaButton::icon_name(IconName::ClipboardList).into_any_element(),
+        NaryaButton::icon_name(IconName::Settings).into_any_element(),
+        NaryaButton::icon_name(IconName::EllipsisVertical).into_any_element(),
     ];
     match view {
         ActiveView::Nodes => actions.insert(
@@ -114,12 +115,6 @@ fn header(view: ActiveView, model: &Entity<AppState>) -> impl NaryaIntoElement {
             0,
             NaryaButton::primary("＋ 添加订阅")
                 .disabled(true)
-                .into_any_element(),
-        ),
-        ActiveView::Dashboard => actions.insert(
-            0,
-            NaryaButton::primary("连接")
-                .on_click(move |_, _, cx| AppState::toggle_proxy(model_for_connect.clone(), cx))
                 .into_any_element(),
         ),
         _ => {}
@@ -151,7 +146,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
     NaryaPage::new()
         .row(narya_ui::dashboard_top(
             narya_ui::hero_toggle_card(
-                "▣",
+                IconName::Monitor,
                 "系统代理",
                 "管理系统网络代理设置",
                 snapshot.running,
@@ -159,7 +154,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                 NaryaStatus::Info,
             ),
             narya_ui::hero_toggle_card(
-                "☍",
+                IconName::Network,
                 "TUN 虚拟网卡",
                 "拦截并代理所有网络流量（推荐）",
                 snapshot.running,
@@ -168,80 +163,52 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
             ),
         ))
         .row(narya_ui::dashboard_middle(
-            NaryaCard::titled(
-                "快速连接",
-                Flex::new()
-                    .column()
-                    .gap_md()
-                    .children(snapshot.nodes.iter().take(4).map(|node| {
+            narya_ui::dashboard_quick_panel(
+                snapshot
+                    .nodes
+                    .iter()
+                    .take(4)
+                    .map(|node| {
                         narya_ui::quick_node(
                             node.name.clone(),
                             node.protocol.clone(),
                             node.latency.unwrap_or(0),
                             latency_status(node.latency.unwrap_or(0)),
                         )
-                    })),
+                        .into_any_element()
+                    })
+                    .collect(),
             ),
-            NaryaCard::titled(
-                "网络概览",
-                Flex::new()
-                    .row()
-                    .gap_lg()
-                    .child(Flex::new().flex_1().child(narya_ui::trend_chart(
-                        latency_values(),
-                        214.0,
-                        narya_ui::SUCCESS,
-                    )))
-                    .child(
-                        Flex::new()
-                            .width_px(270.0)
-                            .flex_none()
-                            .child(narya_ui::metric_grid(vec![
-                                NaryaMetric::card(
-                                    "节点延迟",
-                                    format!("{} ms", snapshot.active_latency),
-                                    "当前节点",
-                                    "↯",
-                                    NaryaStatus::Info,
-                                )
-                                .into_any_element(),
-                                NaryaMetric::card(
-                                    "可用节点",
-                                    format!("{} / 128", snapshot.nodes.len() * 9 + 2),
-                                    "在线 / 总数",
-                                    "◎",
-                                    NaryaStatus::Success,
-                                )
-                                .into_any_element(),
-                            ])),
-                    ),
+            narya_ui::dashboard_network_panel(
+                narya_ui::trend_chart(latency_values(), 212.0, narya_ui::SUCCESS),
+                vec![
+                    narya_ui::compact_metric(
+                        "节点延迟",
+                        format!("{} ms", snapshot.active_latency),
+                        "当前节点",
+                    )
+                    .into_any_element(),
+                    narya_ui::compact_metric(
+                        "可用节点",
+                        format!("{} / 128", snapshot.nodes.len() * 9 + 2),
+                        "在线 / 总数",
+                    )
+                    .into_any_element(),
+                    narya_ui::compact_metric("负载", "23%", "当前节点负载").into_any_element(),
+                    narya_ui::compact_metric("丢包率", "0.2%", "当前节点").into_any_element(),
+                ],
             ),
         ))
         .row(narya_ui::dashboard_bottom(
-            NaryaCard::titled(
-                "流量使用",
-                Flex::new()
-                    .column()
-                    .gap_lg()
-                    .child(narya_ui::metric_grid(vec![
-                        NaryaMetric::card(
-                            "总流量",
-                            "1.26 GB",
-                            "↓ 842 MB  ↑ 436 MB",
-                            "⇅",
-                            NaryaStatus::Info,
-                        )
+            narya_ui::dashboard_traffic_panel(
+                vec![
+                    narya_ui::compact_metric("总流量", "1.26 GB", "↓ 842 MB  ↑ 436 MB")
                         .into_any_element(),
-                        NaryaMetric::card("连接数", "324", "峰值 1280", "☷", NaryaStatus::Success)
-                            .into_any_element(),
-                    ]))
-                    .child(narya_ui::trend_chart(
-                        traffic_values(),
-                        128.0,
-                        narya_ui::BRAND,
-                    )),
+                    narya_ui::compact_metric("连接数", "324", "峰值 1280").into_any_element(),
+                ],
+                narya_ui::trend_chart(traffic_values(), 188.0, narya_ui::BRAND),
             ),
-            NaryaCard::titled(
+            narya_ui::titled_panel(
                 "连接统计",
                 Flex::new()
                     .column()
@@ -252,7 +219,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                     .child(narya_ui::ratio_row("Hysteria2", 4.4, NaryaStatus::Danger))
                     .child(narya_ui::detail_field("总连接数", "324")),
             ),
-            NaryaCard::titled(
+            narya_ui::titled_panel(
                 "活动日志",
                 Flex::new()
                     .column()
@@ -277,7 +244,12 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                         "正在更新 GeoIP 数据库",
                         NaryaStatus::Info,
                     ))
-                    .child(NaryaButton::ghost("立即连接").on_click(move |_, _, cx| {
+                    .child(narya_ui::log_line(
+                        "17:25:08",
+                        "配置加载成功",
+                        NaryaStatus::Info,
+                    ))
+                    .child(NaryaButton::ghost("断开连接").on_click(move |_, _, cx| {
                         AppState::toggle_proxy(model_for_toggle.clone(), cx)
                     })),
             ),
@@ -286,26 +258,35 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
 
 fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
     NaryaPage::new()
-        .row(narya_ui::page_row(vec![
-            NaryaMetric::card(
+        .row(narya_ui::nodes_top_controls(vec![
+            narya_ui::control_card(
                 "当前策略组",
                 "Proxy / 自动选择",
-                "38 / 128",
-                "🚀",
+                IconName::Rocket,
+                300.0,
                 NaryaStatus::Info,
             )
             .into_any_element(),
-            NaryaMetric::card(
+            narya_ui::control_card(
                 "当前节点",
-                snapshot.active_node_name.clone(),
-                format!("{} ms", snapshot.active_latency),
-                "✤",
+                format!(
+                    "{}    {} ms",
+                    snapshot.active_node_name, snapshot.active_latency
+                ),
+                IconName::MapPinHouse,
+                356.0,
                 NaryaStatus::Success,
             )
             .into_any_element(),
-            NaryaMetric::card("模式", "规则模式", "智能分流", "⌘", NaryaStatus::Info)
-                .into_any_element(),
-            NaryaButton::primary("一键测速")
+            narya_ui::control_card(
+                "模式",
+                "规则模式",
+                IconName::Settings2,
+                262.0,
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            narya_ui::gradient_action("一键测速", IconName::Gauge)
                 .on_click({
                     let model = model.clone();
                     move |_, _, cx| AppState::test_all_latency(model.clone(), cx)
@@ -319,36 +300,77 @@ fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
             NaryaButton::ghost("香港").into_any_element(),
             NaryaButton::ghost("日本").into_any_element(),
             NaryaButton::ghost("美国").into_any_element(),
+            NaryaButton::ghost("新加坡").into_any_element(),
+            NaryaButton::ghost("Hysteria2").into_any_element(),
+            NaryaButton::ghost("Vmess").into_any_element(),
             NaryaButton::ghost("Shadowsocks").into_any_element(),
             NaryaButton::ghost("按延迟排序⌄").into_any_element(),
         ]))
-        .row(narya_ui::page_columns(
-            NaryaCard::titled(
-                "节点列表",
+        .row(narya_ui::nodes_main(
+            narya_ui::titled_panel(
+                "策略组",
                 Flex::new()
-                    .row()
-                    .wrap()
-                    .gap_lg()
-                    .children(snapshot.nodes.iter().cloned().map(|node| {
-                        let id = node.id.clone();
-                        let model = model.clone();
-                        narya_ui::node_card(
-                            narya_ui::NodeCardData::new(
-                                node.name,
-                                node.protocol,
-                                node.latency.unwrap_or(0),
-                                node.usage_pct,
-                                node.download_speed,
-                                node.upload_speed,
-                                snapshot.active_node_name == id,
-                            ),
-                            Box::new(move |_, _, cx| {
-                                AppState::connect_node(model.clone(), cx, id.clone())
-                            }),
-                        )
-                    })),
+                    .column()
+                    .gap_md()
+                    .child(narya_ui::category(
+                        "🚀   1   Proxy   自动选择      38 / 128",
+                        true,
+                    ))
+                    .child(narya_ui::category(
+                        "🌐   2   Global   全局代理      36 / 128",
+                        false,
+                    ))
+                    .child(narya_ui::category(
+                        "🎯   3   Direct   国内直连      1 / 128",
+                        false,
+                    ))
+                    .child(narya_ui::category(
+                        "🛡   4   AI Services          28 / 128",
+                        false,
+                    ))
+                    .child(narya_ui::category(
+                        "📺   5   Streaming            24 / 128",
+                        false,
+                    ))
+                    .child(narya_ui::category(
+                        "🎮   6   Gaming               20 / 128",
+                        false,
+                    ))
+                    .child(narya_ui::category(
+                        "⚗   7   Fallback             8 / 128",
+                        false,
+                    )),
             ),
-            NaryaCard::titled(
+            narya_ui::titled_panel(
+                "节点列表",
+                narya_ui::node_grid(
+                    snapshot
+                        .nodes
+                        .iter()
+                        .cloned()
+                        .map(|node| {
+                            let id = node.id.clone();
+                            let model = model.clone();
+                            narya_ui::node_card(
+                                narya_ui::NodeCardData::new(
+                                    node.name,
+                                    node.protocol,
+                                    node.latency.unwrap_or(0),
+                                    node.usage_pct,
+                                    node.download_speed,
+                                    node.upload_speed,
+                                    snapshot.active_node_name == id,
+                                ),
+                                Box::new(move |_, _, cx| {
+                                    AppState::connect_node(model.clone(), cx, id.clone())
+                                }),
+                            )
+                            .into_any_element()
+                        })
+                        .collect(),
+                ),
+            ),
+            narya_ui::titled_panel(
                 "测速概览",
                 Flex::new()
                     .column()
@@ -366,10 +388,9 @@ fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                     .child(NaryaButton::ghost("查看测速日志")),
             ),
         ))
-        .row(narya_ui::page_row(vec![
-            narya_ui::chart_card("延迟趋势", latency_values(), 128.0, narya_ui::SUCCESS)
-                .into_any_element(),
-            NaryaCard::titled(
+        .row(narya_ui::nodes_bottom(
+            narya_ui::chart_card("延迟趋势", latency_values(), 128.0, narya_ui::SUCCESS),
+            narya_ui::titled_panel(
                 "节点详情（香港 · HK 01）",
                 Flex::new()
                     .column()
@@ -379,9 +400,8 @@ fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                     .child(narya_ui::detail_field("加密", "2022-blake3-aes-128-gcm"))
                     .child(narya_ui::detail_field("UDP", "已启用"))
                     .child(NaryaButton::ghost("设为默认")),
-            )
-            .into_any_element(),
-        ]))
+            ),
+        ))
 }
 
 fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
