@@ -1,89 +1,29 @@
 # 阶段任务计划
 
-## Phase 0：GPUI 项目骨架
-状态：已完成 ✅
+## 2026-06-21：Liora UI 重建
+状态：完成 ✅
 
-- [x] 删除旧版 Tauri/Vue 前端工程与配置
-- [x] 更新架构文档与总提示词，确立 GPUI 路线
-- [x] 在根目录初始化 GPUI 环境并实现基础窗口验证
-- [ ] 设置全局字体与初始基础 Theme/Tokens (移至 Phase 1)
+- [x] 读取 `prompt.md`、`.memory/*`、`.prompt/*`、架构和 UI 规格上下文。
+- [x] 调研 Liora 0.1.5 文档/本地源码示例，确认 `liora::init_liora(cx)`、`gpui::Application::new()`、组件 API 与 GPUI 0.2.2 版本要求。
+- [x] 移除 splash 启动路径，直接打开主窗口。
+- [x] 增加 `ui_kit` 项目组件边界，所有新主壳布局通过 Liora 组件/项目 wrapper 组合。
+- [x] 重写主 AppShell 为 Liora 版本，覆盖 Dashboard/Nodes/Subscriptions/Config/Connections/Rules/Logs/Tools/Settings 的首版运行面。
+- [x] 新增 `narya-contract-tests` 锁定无 splash、Liora 初始化、依赖对齐、组件边界和关键集成红线。
+- [x] 连接按钮接入真实 AppState 动作：顶部连接、Dashboard 连接/断开、节点连接。
+- [x] 修复 IPC/daemon 响应顺序与 app 错误处理：忽略先到通知、只在 `IpcResponse.error.is_none()` 后更新 connected state。
+- [x] 移除 fake kernel install 成功路径，安装入口显示未实现并 fail-closed。
+- [x] 移除固定 `/tmp/narya.sock` / `/tmp/narya-kernel.json`，改用 per-user runtime dir。
+- [x] 修复 sing-box config 生成红线：unsupported protocol fail-closed，Shadowsocks 使用 `method:password`，无假密码/direct proxy fallback。
+- [x] 保留并验证核心/daemon/IPC/订阅解析可编译测试。
+- [x] 运行 fmt、check、test、clippy 分段严格验证和 GUI 启动烟测。
+- [x] 独立 code-reviewer 复核 review blockers，最终 APPROVED。
 
-## Phase 1：基础 UI 组件系统 (GPUI)
-状态：已完成 ✅
+## 下一阶段建议：Liora 视觉深度还原与交互落地
+状态：待开始 🏗️
 
-- [x] 实现 GlassCard 容器
-- [x] 实现基础 Typography (Theme 驱动)
-- [x] 实现 AppShell 布局骨架
-- [ ] 实现自研 Switch、Button 控件 (移至 Phase 2)
-
-## Phase 2：Splash 与 Dashboard 重建 (GPUI)
-状态：已完成 ✅
-
-- [x] 在 GPUI 中还原 Splash 页面（像素级坐标对照 PNG/specs）
-- [x] 实现 Splash 动画逻辑与窗口切换
-- [x] 在 GPUI 中还原 Dashboard 页面（Sidebar, TopBar, 控制面板）
-
-## Phase 3：高级与业务页面迁移
-状态：已完成 ✅
-
-- [x] 实现 Nodes 节点列表页面（支持表格/网格切换，延迟排序）
-- [x] 实现 Subscriptions 订阅管理（添加、更新、流量统计）
-- [x] 实现基础业务组件库 (Dropdown, Input, Table skeleton) -> Badge & SearchInput
-- [x] 建立视图路由机制，在 Dashboard 侧边栏点击后切换主区域视图
-- [x] **工程化重构**：将 UI 逻辑迁移至 `crates/narya-app`，实现 Workspace 模式
-
-## Phase 4：核心逻辑集成
-状态：已完成 ✅
-
-- [x] 对接 `narya-core` 领域模型，实现节点列表的真实数据驱动
-- [x] 实现订阅更新逻辑的视图模型对接
-- [x] 实现侧边栏连接状态的实时更新
-- [x] 重构为 Workspace 模式，解耦 `narya-app` 与 `narya-core`
-
-## Phase 5：高级业务功能与交互
-状态：已完成 ✅
-
-- [x] 实现 Nodes 页面的“一键测速”逻辑，并异步回显延迟数据
-- [x] 实现侧边栏 Footer 的实时流量网速显示 (Mock 实时更新)
-- [x] 开发 Nodes 页面右下角的固定“节点详情”展示面板，严格对齐 UI
-- [x] 实现节点选中后的全局状态同步
-
-## Phase 6：后端 IPC 通信集成
-状态：已完成 ✅
-
-- [x] 在 `narya-ipc` 中定义 Request/Response/Notification 协议
-- [x] 实现 `narya-daemon` 基础 UDS 监听服务
-- [x] 在 `narya-app` 中集成 IPC Client 并对接 `AppState`
-- [x] 解决 `narya-core` 与 `gpui` 的命名空间冲突问题
-
-## Phase 7：内核编排与系统控制
-状态：已完成 ✅
-
-- [x] 实现 `narya-daemon` 对 `sing-box` 进程的生命周期管理 (spawn/kill)
-- [x] 编写 Linux (`gsettings`) 系统代理原子切换逻辑
-- [x] 在 `narya-config` 中实现 YAML 配置的持久化存储
-- [x] 为核心模型增加 `serde` 序列化支持以支持持久化
-
-## Phase 8：UI/后端全链路集成
-状态：已完成 ✅
-
-- [x] 在 `AppState` 中集成真实的 `IpcClient` 持久连接
-- [x] 实现 Dashboard 页面一键代理开关的后端调用 (`SetSystemProxy`)
-- [x] 对接 Daemon 推送的实时流量数据通知
-- [x] 实现 UI 端的自动断线重连逻辑
-
-## Phase 9：业务深度集成 (Business Polish)
-状态：已完成 ✅
-
-- [x] 实现 `narya-subscription` 的 Clash YAML 解析引擎
-- [x] 在 `narya-daemon` 中增加 macOS (`networksetup`) 支付后端
-- [x] 实现 Nodes 页面的实时搜索过滤逻辑
-- [x] 优化异步闭包与 dyn 兼容性代码结构
-
-## Phase 10：生产级调优与正式发布
-状态：进行中 🏗️
-
-- [ ] 实现 `reqwest` 集成，支持真实订阅 URL 的网络下载与重试
-- [ ] 开发 `narya-daemon` 的真实测速模块，通过 UDS 将延迟数据推送到 UI
-- [ ] 为应用增加托盘图标 (System Tray) 支持
-- [ ] 完善配置文件合并逻辑，生成 sing-box 生产级 JSON 配置
+- [ ] 逐页对照 `ui/*.png` 和 `ui/specs/main_window_spec_detailed.md` 做截图级视觉校准。
+- [ ] 把旧 raw GPUI 页面模块中的有价值业务结构迁移到 Liora wrapper，迁完后删除旧模块。
+- [ ] 封装 Narya 专属 Sidebar、TopBar、StatusCard、NodeCard、SubscriptionCard、KernelPanel、Toolbar、Section 等低耦合组件。
+- [ ] 接入真实内核安装器：下载、校验、权限设置、版本读取、错误提示。
+- [ ] 为订阅刷新、节点测速、系统代理切换增加更细粒度契约/单元测试。
+- [ ] 为 IPC 引入真正 length-prefixed/framed codec，替代当前“单 read 一个 JSON 对象”的临时协议。

@@ -1,39 +1,27 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "2048"]
 pub mod assets;
 pub mod components;
 pub mod ipc;
 pub mod state;
 pub mod theme;
+pub mod ui_kit;
 pub mod views;
 
 use crate::assets::Assets;
-use crate::views::splash::Splash;
-use gpui::{prelude::*, *};
+use crate::views::app_shell::AppShell;
+use gpui::*;
 
 pub fn run() {
-    gpui_platform::application()
+    gpui::Application::new()
         .with_assets(Assets)
         .run(|cx: &mut App| {
             // Initialize System Tray (Skeleton)
-            #[cfg(not(target_os = "linux"))] // Tray icon can be tricky on Linux in some environments
+            #[cfg(not(target_os = "linux"))]
+            // Tray icon can be tricky on Linux in some environments
             let _tray = init_tray();
 
-            let bounds = Bounds::centered(None, size(px(600.0), px(400.0)), cx);
-            cx.open_window(
-                WindowOptions {
-                    window_bounds: Some(WindowBounds::Windowed(bounds)),
-                    titlebar: Some(TitlebarOptions {
-                        title: None,
-                        appears_transparent: true,
-                        ..Default::default()
-                    }),
-                    window_background: WindowBackgroundAppearance::Transparent,
-                    kind: WindowKind::PopUp,
-                    ..Default::default()
-                },
-                |_, cx| cx.new(Splash::new),
-            )
-            .expect("failed to open splash window");
+            liora::init_liora(cx);
+            AppShell::open(cx);
             cx.activate(true);
         });
 }

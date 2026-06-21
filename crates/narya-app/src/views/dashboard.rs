@@ -3,8 +3,11 @@ use crate::state::AppState;
 use crate::views::app_shell::AppShell;
 use gpui::{prelude::*, *};
 
-pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell>) -> impl IntoElement {
-    let state = model.read(cx);
+pub fn render_dashboard_view(
+    model: &Entity<AppState>,
+    cx: &mut Context<AppShell>,
+) -> impl IntoElement {
+    let _state = model.read(cx);
 
     // --- High-Fidelity Design System ---
     let color_bg = rgb(0xF8FAFC);
@@ -45,7 +48,7 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                     IconName::Nodes,
                     color_success,
                     true,
-                ))
+                )),
         )
         .child(
             // --- 2. Middle Row: Quick Connect & Overview ---
@@ -71,19 +74,51 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .flex()
                                 .justify_between()
                                 .items_center()
-                                .child(div().text_base().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("快速连接"))
-                                .child(div().text_sm().text_color(color_brand).cursor_pointer().child("管理"))
+                                .child(
+                                    div()
+                                        .text_base()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(color_text_primary)
+                                        .child("快速连接"),
+                                )
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(color_brand)
+                                        .cursor_pointer()
+                                        .child("管理"),
+                                ),
                         )
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
                                 .gap_1()
-                                .child(quick_node_item("香港 · HK 01", "Shadowsocks", "48 ms", color_success))
-                                .child(quick_node_item("日本 · JP 01", "Shadowsocks", "62 ms", color_success))
-                                .child(quick_node_item("美国 · US 01", "Vmess", "110 ms", rgb(0xEF4444)))
-                                .child(quick_node_item("新加坡 · SG 01", "Shadowsocks", "55 ms", color_success))
-                        )
+                                .child(quick_node_item(
+                                    "香港 · HK 01",
+                                    "Shadowsocks",
+                                    "48 ms",
+                                    color_success,
+                                ))
+                                .child(quick_node_item(
+                                    "日本 · JP 01",
+                                    "Shadowsocks",
+                                    "62 ms",
+                                    color_success,
+                                ))
+                                .child(quick_node_item(
+                                    "美国 · US 01",
+                                    "Vmess",
+                                    "110 ms",
+                                    rgb(0xEF4444),
+                                ))
+                                .child(quick_node_item(
+                                    "新加坡 · SG 01",
+                                    "Shadowsocks",
+                                    "55 ms",
+                                    color_success,
+                                )),
+                        ),
                 )
                 .child(
                     // Network Overview Panel
@@ -102,7 +137,13 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .flex_col()
                                 .flex_1()
                                 .gap_4()
-                                .child(div().text_base().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("网络概览"))
+                                .child(
+                                    div()
+                                        .text_base()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(color_text_primary)
+                                        .child("网络概览"),
+                                )
                                 .child(
                                     div()
                                         .flex()
@@ -111,8 +152,13 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                         .rounded_xl()
                                         .items_center()
                                         .justify_center()
-                                        .child(div().text_sm().text_color(color_text_muted).child("Network Latency Chart Placeholder"))
-                                )
+                                        .child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(color_text_muted)
+                                                .child("Network Latency Chart Placeholder"),
+                                        ),
+                                ),
                         )
                         .child(
                             // Side Stats
@@ -125,9 +171,9 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .child(overview_stat("节点延迟", "48", "ms", "当前节点"))
                                 .child(overview_stat("可用节点", "38", "/ 128", "在线 / 总数"))
                                 .child(overview_stat("负载", "23", "%", "当前节点负载"))
-                                .child(overview_stat("丢包率", "0.2", "%", "当前节点"))
-                        )
-                )
+                                .child(overview_stat("丢包率", "0.2", "%", "当前节点")),
+                        ),
+                ),
         )
         .child(
             // --- 3. Bottom Row: Three columns ---
@@ -152,8 +198,23 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .flex()
                                 .justify_between()
                                 .items_center()
-                                .child(div().text_base().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("流量使用"))
-                                .child(div().text_xs().text_color(color_text_secondary).bg(color_bg).px_2().py_1().rounded_md().child("今日 ▾"))
+                                .child(
+                                    div()
+                                        .text_base()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(color_text_primary)
+                                        .child("流量使用"),
+                                )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(color_text_secondary)
+                                        .bg(color_bg)
+                                        .px_2()
+                                        .py_1()
+                                        .rounded_md()
+                                        .child("今日 ▾"),
+                                ),
                         )
                         .child(
                             div()
@@ -168,34 +229,66 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                             div()
                                                 .flex()
                                                 .flex_col()
-                                                .child(div().text_xs().text_color(color_text_secondary).child("总流量"))
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(color_text_secondary)
+                                                        .child("总流量"),
+                                                )
                                                 .child(
                                                     div()
                                                         .flex()
                                                         .items_baseline()
                                                         .gap_1()
-                                                        .child(div().text_2xl().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("1.26"))
-                                                        .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("GB"))
+                                                        .child(
+                                                            div()
+                                                                .text_2xl()
+                                                                .font_weight(FontWeight::BOLD)
+                                                                .text_color(color_text_primary)
+                                                                .child("1.26"),
+                                                        )
+                                                        .child(
+                                                            div()
+                                                                .text_xs()
+                                                                .font_weight(FontWeight::BOLD)
+                                                                .text_color(color_text_primary)
+                                                                .child("GB"),
+                                                        ),
                                                 )
-                                                .child(div().text_xs().text_color(color_success).child("↓ 842 MB ↑ 436 MB"))
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(color_success)
+                                                        .child("↓ 842 MB ↑ 436 MB"),
+                                                ),
                                         )
                                         .child(
                                             div()
                                                 .flex()
                                                 .flex_col()
-                                                .child(div().text_xs().text_color(color_text_secondary).child("连接数"))
-                                                .child(div().text_2xl().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("324"))
-                                                .child(div().text_xs().text_color(color_text_muted).child("峰值 1280"))
-                                        )
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(color_text_secondary)
+                                                        .child("连接数"),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_2xl()
+                                                        .font_weight(FontWeight::BOLD)
+                                                        .text_color(color_text_primary)
+                                                        .child("324"),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(color_text_muted)
+                                                        .child("峰值 1280"),
+                                                ),
+                                        ),
                                 )
-                                .child(
-                                    div()
-                                        .flex()
-                                        .flex_1()
-                                        .bg(rgb(0xFAFBFE))
-                                        .rounded_xl()
-                                )
-                        )
+                                .child(div().flex().flex_1().bg(rgb(0xFAFBFE)).rounded_xl()),
+                        ),
                 )
                 .child(
                     // Connection Stats
@@ -214,8 +307,23 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .flex()
                                 .justify_between()
                                 .items_center()
-                                .child(div().text_base().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("连接统计"))
-                                .child(div().text_xs().text_color(color_text_secondary).bg(color_bg).px_2().py_1().rounded_md().child("按协议 ▾"))
+                                .child(
+                                    div()
+                                        .text_base()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(color_text_primary)
+                                        .child("连接统计"),
+                                )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(color_text_secondary)
+                                        .bg(color_bg)
+                                        .px_2()
+                                        .py_1()
+                                        .rounded_md()
+                                        .child("按协议 ▾"),
+                                ),
                         )
                         .child(
                             div()
@@ -225,16 +333,27 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .child(protocol_row("Shadowsocks", 63.5, color_brand))
                                 .child(protocol_row("Vmess", 23.4, color_success))
                                 .child(protocol_row("Trojan", 8.7, rgb(0x3B82F6)))
-                                .child(protocol_row("Hysteria2", 4.4, rgb(0xF59E0B)))
+                                .child(protocol_row("Hysteria2", 4.4, rgb(0xF59E0B))),
                         )
                         .child(
                             div()
                                 .mt_auto()
                                 .flex()
                                 .justify_between()
-                                .child(div().text_xs().text_color(color_text_secondary).child("总连接数"))
-                                .child(div().text_sm().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("324"))
-                        )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(color_text_secondary)
+                                        .child("总连接数"),
+                                )
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(color_text_primary)
+                                        .child("324"),
+                                ),
+                        ),
                 )
                 .child(
                     // Activity Logs
@@ -253,8 +372,20 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .flex()
                                 .justify_between()
                                 .items_center()
-                                .child(div().text_base().font_weight(FontWeight::BOLD).text_color(color_text_primary).child("活动日志"))
-                                .child(div().text_xs().text_color(color_brand).cursor_pointer().child("更多 >"))
+                                .child(
+                                    div()
+                                        .text_base()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(color_text_primary)
+                                        .child("活动日志"),
+                                )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(color_brand)
+                                        .cursor_pointer()
+                                        .child("更多 >"),
+                                ),
                         )
                         .child(
                             div()
@@ -265,13 +396,25 @@ pub fn render_dashboard_view(model: &Entity<AppState>, cx: &mut Context<AppShell
                                 .child(log_item("17:25:20", "系统代理已启用", color_brand))
                                 .child(log_item("17:25:18", "TUN 模式已启用", color_success))
                                 .child(log_item("17:25:10", "应用启动成功", color_text_muted))
-                                .child(log_item("17:25:09", "正在更新 GeoIP 数据库", rgb(0x3B82F6)))
-                        )
-                )
+                                .child(log_item(
+                                    "17:25:09",
+                                    "正在更新 GeoIP 数据库",
+                                    rgb(0x3B82F6),
+                                )),
+                        ),
+                ),
         )
 }
 
-fn status_control_card(title: &'static str, desc: &'static str, status: &'static str, mode: &'static str, icon_name: IconName, accent: Rgba, active: bool) -> impl IntoElement {
+fn status_control_card(
+    title: &'static str,
+    desc: &'static str,
+    status: &'static str,
+    mode: &'static str,
+    icon_name: IconName,
+    accent: Rgba,
+    active: bool,
+) -> impl IntoElement {
     let mut bg: Hsla = accent.into();
     bg.a = 0.1;
 
@@ -302,16 +445,22 @@ fn status_control_card(title: &'static str, desc: &'static str, status: &'static
                                 .size(px(48.0))
                                 .bg(bg)
                                 .rounded_xl()
-                                .child(icon(icon_name, 24.0, accent.into()))
+                                .child(icon(icon_name, 24.0, accent.into())),
                         )
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
                                 .gap_1()
-                                .child(div().text_lg().font_weight(FontWeight::BOLD).text_color(rgb(0x0F172A)).child(title))
-                                .child(div().text_xs().text_color(rgb(0x64748B)).child(desc))
-                        )
+                                .child(
+                                    div()
+                                        .text_lg()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(rgb(0x0F172A))
+                                        .child(title),
+                                )
+                                .child(div().text_xs().text_color(rgb(0x64748B)).child(desc)),
+                        ),
                 )
                 .child(
                     // Large Toggle
@@ -323,8 +472,8 @@ fn status_control_card(title: &'static str, desc: &'static str, status: &'static
                         .bg(if active { accent } else { rgb(0xE2E8F0) })
                         .rounded_full()
                         .px_1()
-                        .child(div().size(px(22.0)).bg(white()).rounded_full().ml_auto())
-                )
+                        .child(div().size(px(22.0)).bg(white()).rounded_full().ml_auto()),
+                ),
         )
         .child(
             div()
@@ -337,7 +486,13 @@ fn status_control_card(title: &'static str, desc: &'static str, status: &'static
                         .items_center()
                         .gap_2()
                         .child(icon(IconName::About, 14.0, rgb(0x10B981).into()))
-                        .child(div().text_sm().font_weight(FontWeight::MEDIUM).text_color(rgb(0x10B981)).child(status))
+                        .child(
+                            div()
+                                .text_sm()
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(rgb(0x10B981))
+                                .child(status),
+                        ),
                 )
                 .child(
                     div()
@@ -346,12 +501,17 @@ fn status_control_card(title: &'static str, desc: &'static str, status: &'static
                         .gap_1()
                         .cursor_pointer()
                         .child(div().text_sm().text_color(rgb(0x0F172A)).child(mode))
-                        .child(div().text_sm().text_color(rgb(0x94A3B8)).child(">"))
-                )
+                        .child(div().text_sm().text_color(rgb(0x94A3B8)).child(">")),
+                ),
         )
 }
 
-fn quick_node_item(name: &'static str, proto: &'static str, latency: &'static str, latency_color: Rgba) -> impl IntoElement {
+fn quick_node_item(
+    name: &'static str,
+    proto: &'static str,
+    latency: &'static str,
+    latency_color: Rgba,
+) -> impl IntoElement {
     let mut bg: Hsla = latency_color.into();
     bg.a = 0.1;
 
@@ -372,22 +532,33 @@ fn quick_node_item(name: &'static str, proto: &'static str, latency: &'static st
                     div()
                         .flex()
                         .flex_col()
-                        .child(div().text_sm().font_weight(FontWeight::BOLD).text_color(rgb(0x0F172A)).child(name))
-                        .child(div().text_xs().text_color(rgb(0x94A3B8)).child(proto))
-                )
+                        .child(
+                            div()
+                                .text_sm()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(rgb(0x0F172A))
+                                .child(name),
+                        )
+                        .child(div().text_xs().text_color(rgb(0x94A3B8)).child(proto)),
+                ),
         )
         .child(
-            div()
-                .flex()
-                .px_2()
-                .py_0p5()
-                .bg(bg)
-                .rounded_md()
-                .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(latency_color).child(latency))
+            div().flex().px_2().py_0p5().bg(bg).rounded_md().child(
+                div()
+                    .text_xs()
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(latency_color)
+                    .child(latency),
+            ),
         )
 }
 
-fn overview_stat(label: &'static str, val: &'static str, unit: &'static str, desc: &'static str) -> impl IntoElement {
+fn overview_stat(
+    label: &'static str,
+    val: &'static str,
+    unit: &'static str,
+    desc: &'static str,
+) -> impl IntoElement {
     div()
         .flex()
         .flex_col()
@@ -398,10 +569,21 @@ fn overview_stat(label: &'static str, val: &'static str, unit: &'static str, des
                 .flex()
                 .items_baseline()
                 .gap_1()
-                .child(div().text_xl().font_weight(FontWeight::BOLD).text_color(rgb(0x0F172A)).child(val))
-                .child(div().text_xs().text_color(rgb(0x64748B)).child(unit))
+                .child(
+                    div()
+                        .text_xl()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(0x0F172A))
+                        .child(val),
+                )
+                .child(div().text_xs().text_color(rgb(0x64748B)).child(unit)),
         )
-        .child(div().text_size(px(10.0)).text_color(rgb(0x94A3B8)).child(desc))
+        .child(
+            div()
+                .text_size(px(10.0))
+                .text_color(rgb(0x94A3B8))
+                .child(desc),
+        )
 }
 
 fn protocol_row(name: &'static str, pct: f32, color: Rgba) -> impl IntoElement {
@@ -414,7 +596,13 @@ fn protocol_row(name: &'static str, pct: f32, color: Rgba) -> impl IntoElement {
                 .flex()
                 .justify_between()
                 .child(div().text_xs().text_color(rgb(0x64748B)).child(name))
-                .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(rgb(0x0F172A)).child(format!("{:.1}%", pct)))
+                .child(
+                    div()
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(0x0F172A))
+                        .child(format!("{:.1}%", pct)),
+                ),
         )
         .child(
             div()
@@ -423,7 +611,14 @@ fn protocol_row(name: &'static str, pct: f32, color: Rgba) -> impl IntoElement {
                 .h(px(4.0))
                 .bg(rgb(0xF1F5F9))
                 .rounded_full()
-                .child(div().flex().w(relative(pct / 100.0)).h_full().bg(color).rounded_full())
+                .child(
+                    div()
+                        .flex()
+                        .w(relative(pct / 100.0))
+                        .h_full()
+                        .bg(color)
+                        .rounded_full(),
+                ),
         )
 }
 
@@ -434,5 +629,11 @@ fn log_item(time: &'static str, msg: &'static str, dot_color: Rgba) -> impl Into
         .gap_3()
         .child(div().size(px(6.0)).bg(dot_color).rounded_full())
         .child(div().text_xs().text_color(rgb(0x94A3B8)).child(time))
-        .child(div().flex_1().text_xs().text_color(rgb(0x64748B)).child(msg))
+        .child(
+            div()
+                .flex_1()
+                .text_xs()
+                .text_color(rgb(0x64748B))
+                .child(msg),
+        )
 }

@@ -51,7 +51,7 @@ pub fn icon(name: IconName, size: f32, color: Hsla) -> impl IntoElement {
             svg()
                 .path(name.path())
                 .size(px(size * 0.8))
-                .text_color(color) // Use text_color to set currentColor for SVG stroke/fill
+                .text_color(color), // Use text_color to set currentColor for SVG stroke/fill
         )
 }
 
@@ -68,18 +68,13 @@ pub fn badge(text: impl Into<String>, color: Hsla) -> impl IntoElement {
     let mut bg = color;
     bg.a = 0.1;
 
-    div()
-        .bg(bg)
-        .px_2()
-        .py_0p5()
-        .rounded_md()
-        .child(
-            div()
-                .text_color(color)
-                .text_size(px(11.0))
-                .font_weight(FontWeight::BOLD)
-                .child(text.into())
-        )
+    div().bg(bg).px_2().py_0p5().rounded_md().child(
+        div()
+            .text_color(color)
+            .text_size(px(11.0))
+            .font_weight(FontWeight::BOLD)
+            .child(text.into()),
+    )
 }
 
 pub fn search_input() -> impl IntoElement {
@@ -104,28 +99,16 @@ pub fn search_input() -> impl IntoElement {
 }
 
 pub fn toast(message: impl Into<String>, _kind: ToastKind) -> impl IntoElement {
-    div()
-        .absolute()
-        .bottom_10()
-        .right_10()
-        .child(
-            glass_card()
-                .p_4()
-                .shadow_lg()
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .child("🔔")
-                        .child(
-                            div()
-                                .text_sm()
-                                .font_weight(FontWeight::MEDIUM)
-                                .child(message.into()),
-                        ),
-                ),
-        )
+    div().absolute().bottom_10().right_10().child(
+        glass_card().p_4().shadow_lg().child(
+            div().flex().items_center().gap_3().child("🔔").child(
+                div()
+                    .text_sm()
+                    .font_weight(FontWeight::MEDIUM)
+                    .child(message.into()),
+            ),
+        ),
+    )
 }
 
 pub enum ToastKind {

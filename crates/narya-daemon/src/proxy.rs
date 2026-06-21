@@ -11,12 +11,12 @@ impl SystemProxy for LinuxGSettings {
     async fn set_enabled(&self, enabled: bool) -> Result<()> {
         let mode = if enabled { "manual" } else { "none" };
         println!("Setting Linux system proxy mode to: {}", mode);
-        
+
         let status = Command::new("gsettings")
             .args(["set", "org.gnome.system.proxy", "mode", mode])
             .status()
             .await?;
-            
+
         if !status.success() {
             anyhow::bail!("Failed to set gsettings proxy mode");
         }
@@ -30,12 +30,12 @@ impl SystemProxy for MacOSNetworkSetup {
     async fn set_enabled(&self, enabled: bool) -> Result<()> {
         let state = if enabled { "on" } else { "off" };
         println!("Setting macOS system proxy state to: {}", state);
-        
+
         let status = Command::new("networksetup")
             .args(["-setwebproxystate", "Wi-Fi", state])
             .status()
             .await?;
-            
+
         if !status.success() {
             anyhow::bail!("Failed to set networksetup proxy state");
         }

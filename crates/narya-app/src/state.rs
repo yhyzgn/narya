@@ -1,10 +1,10 @@
+use crate::ipc::IpcClient;
+use gpui::*;
 use narya_core;
 use narya_ipc::{IpcNotification, IpcRequest};
-use gpui::*;
-use std::time::Duration;
-use crate::ipc::IpcClient;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SubscriptionTab {
@@ -38,15 +38,16 @@ pub struct AppState {
     pub active_node_id: Option<String>,
     pub kernel_running: bool,
     pub filter_text: String,
-    
+
     // Subscription specific state
     pub selected_subscription_id: Option<String>,
     pub active_subscription_tab: SubscriptionTab,
     pub subscription_filter_text: String,
 
     pub subscription_list_state: ListState,
-    
+
     pub log_lines: Vec<LogMessage>,
+    pub kernels: Vec<narya_ipc::KernelInfo>,
 }
 
 impl AppState {
@@ -124,15 +125,38 @@ impl AppState {
                     self.log_lines.remove(0); // keep it bounded
                 }
             }
+            IpcNotification::KernelStatusUpdate { kernels } => {
+                self.kernels = kernels;
+            }
         }
         cx.notify();
     }
 
+    pub fn select_node(&mut self, node_id: String, cx: &mut Context<Self>) {
+        self.active_node_id = Some(node_id);
+        self.save();
+        cx.notify();
+    }
+
+    pub fn connect_node(model: Entity<Self>, cx: &mut App, node_id: String) {
+        model.update(cx, |state, cx| {
+            state.active_node_id = Some(node_id);
+            state.save();
+            cx.notify();
+        });
+        Self::set_proxy_running(model, cx, true);
+    }
+
     pub fn toggle_proxy(model: Entity<Self>, cx: &mut App) {
-        let running = model.read(cx).kernel_running;
-        let next_state = !running;
-        
-        let active_node = model.read(cx).active_node_id.as_ref()
+        let next_state = !model.read(cx).kernel_running;
+        Self::set_proxy_running(model, cx, next_state);
+    }
+
+    pub fn set_proxy_running(model: Entity<Self>, cx: &mut App, next_state: bool) {
+        let active_node = model
+            .read(cx)
+            .active_node_id
+            .as_ref()
             .and_then(|id| model.read(cx).nodes.iter().find(|n| n.id == *id))
             .cloned();
 
@@ -140,40 +164,77 @@ impl AppState {
             let mut cx = cx.clone();
             let model = model.clone();
             async move {
-                if let Ok(mut client) = IpcClient::connect("/tmp/narya.sock").await {
-                    // Send SetSystemProxy command
-                    let req_proxy = IpcRequest {
-                        id: 1,
-                        method: "SetSystemProxy".to_string(),
-                        params: serde_json::json!(next_state),
-                    };
-                    let _ = client.send_request(req_proxy).await;
-                    
-                    // Send Kernel command
-                    let method = if next_state { "StartKernel" } else { "StopKernel" };
-                    
-                    let params = if next_state && active_node.is_some() {
-                        serde_json::to_value(active_node.unwrap()).unwrap_or(serde_json::json!(null))
-                    } else {
-                        serde_json::json!(null)
-                    };
+                let Some(mut client) = IpcClient::connect_default().await.ok() else {
+                    return;
+                };
 
-                    let req_kernel = IpcRequest {
-                        id: 2,
-                        method: method.to_string(),
-                        params,
+                let method = if next_state {
+                    "StartKernel"
+                } else {
+                    "StopKernel"
+                };
+                let params = if next_state {
+                    let Some(node) = active_node else {
+                        return;
                     };
-                    
-                    if let Ok(_res) = client.send_request(req_kernel).await {
+                    serde_json::to_value(node).unwrap_or(serde_json::json!(null))
+                } else {
+                    serde_json::json!(null)
+                };
+
+                let req_kernel = IpcRequest {
+                    id: 2,
+                    method: method.to_string(),
+                    params,
+                };
+
+                match client.send_request(req_kernel).await {
+                    Ok(response) if response.error.is_none() => {}
+                    Ok(response) => {
+                        eprintln!(
+                            "{} failed: {}",
+                            method,
+                            response
+                                .error
+                                .unwrap_or_else(|| "unknown daemon error".to_string())
+                        );
+                        return;
+                    }
+                    Err(error) => {
+                        eprintln!("{} transport failed: {}", method, error);
+                        return;
+                    }
+                }
+
+                let req_proxy = IpcRequest {
+                    id: 1,
+                    method: "SetSystemProxy".to_string(),
+                    params: serde_json::json!(next_state),
+                };
+
+                match client.send_request(req_proxy).await {
+                    Ok(response) if response.error.is_none() => {
                         let _ = model.update(&mut cx, |state, cx| {
                             state.kernel_running = next_state;
                             state.save();
                             cx.notify();
                         });
                     }
+                    Ok(response) => {
+                        eprintln!(
+                            "SetSystemProxy failed: {}",
+                            response
+                                .error
+                                .unwrap_or_else(|| "unknown daemon error".to_string())
+                        );
+                    }
+                    Err(error) => {
+                        eprintln!("SetSystemProxy transport failed: {}", error);
+                    }
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     pub fn start_traffic_monitor(model: Entity<Self>, cx: &mut App) {
@@ -183,7 +244,7 @@ impl AppState {
             async move {
                 loop {
                     // Try to connect to daemon
-                    if let Ok(mut client) = IpcClient::connect("/tmp/narya.sock").await {
+                    if let Ok(mut client) = IpcClient::connect_default().await {
                         println!("Connected to daemon IPC");
                         loop {
                             match client.next_notification().await {
@@ -200,12 +261,21 @@ impl AppState {
                         }
                     } else {
                         // Fallback to simulation if daemon is offline
-                        cx_inner.background_executor().timer(Duration::from_secs(1)).await;
+                        cx_inner
+                            .background_executor()
+                            .timer(Duration::from_secs(1))
+                            .await;
                         let _ = model.update(&mut cx_inner, |state, cx| {
                             if let Some(active_id) = &state.active_node_id {
-                                if let Some(node) = state.nodes.iter_mut().find(|n| n.id == *active_id) {
-                                    node.download_speed = (node.download_speed + (rand::random::<f32>() - 0.5) * 2.0).max(0.0);
-                                    node.upload_speed = (node.upload_speed + (rand::random::<f32>() - 0.5) * 1.0).max(0.0);
+                                if let Some(node) =
+                                    state.nodes.iter_mut().find(|n| n.id == *active_id)
+                                {
+                                    node.download_speed = (node.download_speed
+                                        + (rand::random::<f32>() - 0.5) * 2.0)
+                                        .max(0.0);
+                                    node.upload_speed = (node.upload_speed
+                                        + (rand::random::<f32>() - 0.5) * 1.0)
+                                        .max(0.0);
                                 }
                             }
                             cx.notify();
@@ -213,11 +283,13 @@ impl AppState {
                     }
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     pub fn refresh_subscription(model: Entity<Self>, cx: &mut App, sub_id: String) {
-        let url = model.read(cx)
+        let url = model
+            .read(cx)
             .subscriptions
             .iter()
             .find(|s| s.id == sub_id)
@@ -237,30 +309,37 @@ impl AppState {
                     });
 
                     // Execute the network request inside a Tokio runtime since reqwest requires it
-                    let fetch_result = cx.background_executor().spawn(async move {
-                        let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-                        rt.block_on(async {
-                            narya_subscription::fetch_remote_subscription(&url).await
+                    let fetch_result = cx
+                        .background_executor()
+                        .spawn(async move {
+                            let rt = tokio::runtime::Runtime::new()
+                                .expect("Failed to create Tokio runtime");
+                            rt.block_on(async {
+                                narya_subscription::fetch_remote_subscription(&url).await
+                            })
                         })
-                    }).await;
+                        .await;
 
                     if let Ok(content) = fetch_result {
-                        if let Ok((format, new_nodes)) = narya_subscription::parse_subscription(&content) {
-
+                        if let Ok((format, new_nodes)) =
+                            narya_subscription::parse_subscription(&content)
+                        {
                             let _ = model.update(&mut cx, |state, cx| {
-                                if let Some(sub) = state.subscriptions.iter_mut().find(|s| s.id == sub_id) {
+                                if let Some(sub) =
+                                    state.subscriptions.iter_mut().find(|s| s.id == sub_id)
+                                {
                                     sub.status = "更新成功".to_string();
                                     sub.update_time = "刚刚".to_string();
                                     sub.node_count = new_nodes.len() as u32;
                                     sub.format = Some(format.as_str().to_string());
                                 }
-                                
+
                                 // Replace nodes for this demo. In a real app, we'd tag them and keep others.
                                 state.nodes = new_nodes;
                                 if let Some(first_node) = state.nodes.first() {
                                     state.active_node_id = Some(first_node.id.clone());
                                 }
-                                
+
                                 state.save();
                                 cx.notify();
                             });
@@ -276,22 +355,56 @@ impl AppState {
                         }
                     });
                 }
-            }).detach();
+            })
+            .detach();
         }
+    }
+
+    pub fn fetch_kernel_status(model: Entity<Self>, cx: &mut App) {
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            let model = model.clone();
+            async move {
+                if let Ok(mut client) = IpcClient::connect_default().await {
+                    let request = IpcRequest {
+                        id: 3,
+                        method: "GetKernelStatus".to_string(),
+                        params: serde_json::json!(null),
+                    };
+                    if let Ok(res) = client.send_request(request).await {
+                        if let Some(result) = res.result {
+                            if let Ok(kernels) =
+                                serde_json::from_value::<Vec<narya_ipc::KernelInfo>>(result)
+                            {
+                                let _ = model.update(&mut cx, |state, cx| {
+                                    state.kernels = kernels;
+                                    cx.notify();
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        .detach();
+    }
+
+    pub fn install_kernel(_model: Entity<Self>, _cx: &mut App, _kernel_name: String) {
+        eprintln!("Kernel installation is not implemented yet; refusing to report fake success");
     }
 
     pub fn test_all_latency(model: Entity<Self>, cx: &mut App) {
         // Collect IDs first to avoid borrow checker issues with model.read(cx) and model.update(cx)
         let ids: Vec<String> = model.read(cx).nodes.iter().map(|n| n.id.clone()).collect();
         let weak_model = model.downgrade();
-        
+
         for id in ids {
             let weak_model = weak_model.clone();
-            
+
             // Clear current latency to show loading state
             model.update(cx, |state, cx| {
                 if let Some(node) = state.nodes.iter_mut().find(|n| n.id == id) {
-                    node.latency = None; 
+                    node.latency = None;
                 }
                 cx.notify();
             });
@@ -302,9 +415,11 @@ impl AppState {
                 async move {
                     // Simulate network delay
                     let delay = 500 + rand::random::<u64>() % 2000;
-                    cx.background_executor().timer(Duration::from_millis(delay)).await;
+                    cx.background_executor()
+                        .timer(Duration::from_millis(delay))
+                        .await;
                     let new_latency = Some(20 + rand::random::<u32>() % 200);
-                    
+
                     let _ = weak_model.update(&mut cx, |state, cx| {
                         if let Some(node) = state.nodes.iter_mut().find(|n| n.id == id) {
                             node.latency = new_latency;
@@ -312,7 +427,8 @@ impl AppState {
                         cx.notify();
                     });
                 }
-            }).detach();
+            })
+            .detach();
         }
     }
 
@@ -330,10 +446,12 @@ impl AppState {
                 subscription_filter_text: String::new(),
                 subscription_list_state: ListState::new(0, ListAlignment::Top, px(100.0)),
                 log_lines: Vec::new(),
+                kernels: Vec::new(),
             };
         }
 
-        let nodes = vec![            narya_core::Node {
+        let nodes = vec![
+            narya_core::Node {
                 id: "hk-01".to_string(),
                 name: "香港 HK 01".to_string(),
                 country_code: "HK".to_string(),
@@ -345,7 +463,7 @@ impl AppState {
                 upload_speed: 3.26,
                 details: narya_core::NodeDetails {
                     address: "hkg01.narya.net:443".to_string(),
-                    encryption: "2022-blake3-aes-128-gcm".to_string(),
+                    encryption: "2022-blake3-aes-128-gcm:demo-password".to_string(),
                     udp: true,
                     tls: false,
                     skip_cert_verify: false,
@@ -499,6 +617,26 @@ impl AppState {
             subscription_filter_text: String::new(),
             subscription_list_state: ListState::new(5, ListAlignment::Top, px(100.0)),
             log_lines: Vec::new(),
+            kernels: vec![
+                narya_ipc::KernelInfo {
+                    name: "sing-box".to_string(),
+                    installed: false,
+                    version: None,
+                    running: false,
+                },
+                narya_ipc::KernelInfo {
+                    name: "mihomo".to_string(),
+                    installed: false,
+                    version: None,
+                    running: false,
+                },
+                narya_ipc::KernelInfo {
+                    name: "xray-core".to_string(),
+                    installed: false,
+                    version: None,
+                    running: false,
+                },
+            ],
         };
         state.save();
         state

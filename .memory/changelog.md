@@ -46,3 +46,16 @@
 
 
 
+
+## 2026-06-21 — Liora UI 重建切片
+
+- 接入 `liora = 0.1.5`，将 GPUI 对齐到 registry `gpui = 0.2.2`，移除 `gpui_platform` 入口。
+- `narya-app` 改为 `gpui::Application::new().with_assets(...).run(...)`，启动时 `liora::init_liora(cx)` 后直接打开 `AppShell`。
+- 删除 splash 编译入口与 `crates/narya-app/src/views/splash.rs`。
+- 新增 `crates/narya-app/src/ui_kit.rs`，提供 Narya 项目级 Liora wrapper。
+- 重写 `crates/narya-app/src/views/app_shell.rs` 为 Liora 组件组合的主窗口。
+- 新增 `crates/narya-contract-tests` 静态契约测试，避免 GPUI test harness 栈溢出同时锁定 UI 架构红线与 review blockers。
+- 修复集成红线：连接按钮接入 AppState 动作；IPC 等待匹配 response；daemon `GetKernelStatus` 走 response；kernel install fail-closed；runtime socket/config 不再固定 `/tmp`；config generator unsupported protocol fail-closed；Shadowsocks 使用 `method:password`。
+- 修复 app 状态误报：只有 daemon `IpcResponse.error.is_none()` 时才更新 `kernel_running`。
+- 格式化并修复 Clippy 提示：订阅格式检测、config_gen 端口解析、active_node unwrap、旧视图 white() 冗余转换等。
+- 验证：fmt/check/test、分段 clippy、`timeout 8s cargo run -p narya-app` 均通过；独立 code-reviewer 最终 APPROVED。

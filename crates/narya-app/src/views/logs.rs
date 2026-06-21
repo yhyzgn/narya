@@ -246,7 +246,13 @@ pub fn render_logs_view(model: &Entity<AppState>, _cx: &mut Context<AppShell>) -
         )
 }
 
-fn log_metric_card(label: &'static str, val: &'static str, sub: &'static str, color: Rgba, icon_name: IconName) -> impl IntoElement {
+fn log_metric_card(
+    label: &'static str,
+    val: &'static str,
+    sub: &'static str,
+    color: Rgba,
+    icon_name: IconName,
+) -> impl IntoElement {
     let mut bg: Hsla = color.into();
     bg.a = 0.1;
     div()
@@ -267,22 +273,33 @@ fn log_metric_card(label: &'static str, val: &'static str, sub: &'static str, co
                 .size(px(44.0))
                 .bg(bg)
                 .rounded_xl()
-                .child(icon(icon_name, 22.0, color.into()))
+                .child(icon(icon_name, 22.0, color.into())),
         )
         .child(
             div()
                 .flex()
                 .flex_col()
                 .child(div().text_xs().text_color(rgb(0x64748B)).child(label))
-                .child(div().text_xl().font_weight(FontWeight::BOLD).text_color(rgb(0x0F172A)).child(val))
-                .child(div().text_xs().text_color(rgb(0x94A3B8)).child(sub))
+                .child(
+                    div()
+                        .text_xl()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(0x0F172A))
+                        .child(val),
+                )
+                .child(div().text_xs().text_color(rgb(0x94A3B8)).child(sub)),
         )
 }
 
-fn source_item(name: &'static str, count: &'static str, color: Rgba, active: bool) -> impl IntoElement {
+fn source_item(
+    name: &'static str,
+    count: &'static str,
+    color: Rgba,
+    active: bool,
+) -> impl IntoElement {
     let mut bg: Hsla = color.into();
     bg.a = 0.1;
-    let item_bg: Hsla = if active { bg } else { white().into() };
+    let item_bg: Hsla = if active { bg } else { white() };
     div()
         .flex()
         .items_center()
@@ -295,8 +312,23 @@ fn source_item(name: &'static str, count: &'static str, color: Rgba, active: boo
                 .flex()
                 .items_center()
                 .gap_3()
-                .child(div().flex().size(px(32.0)).bg(bg).rounded_lg().items_center().justify_center().child(icon(IconName::Logs, 18.0, color.into())))
-                .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(rgb(0x0F172A)).child(name))
+                .child(
+                    div()
+                        .flex()
+                        .size(px(32.0))
+                        .bg(bg)
+                        .rounded_lg()
+                        .items_center()
+                        .justify_center()
+                        .child(icon(IconName::Logs, 18.0, color.into())),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(0x0F172A))
+                        .child(name),
+                ),
         )
         .child(div().text_xs().text_color(rgb(0x64748B)).child(count))
 }
@@ -318,23 +350,47 @@ fn log_stream_row(time: String, level: String, module: String, msg: String) -> i
         .py_3()
         .border_b_1()
         .border_color(rgb(0xF1F5F9))
-        .child(div().flex().w(px(80.0)).text_xs().text_color(rgb(0x94A3B8)).child(time))
         .child(
             div()
                 .flex()
-                .w(px(70.0))
-                .child(
-                    div()
-                        .flex()
-                        .px_1p5()
-                        .py_0p5()
-                        .bg(level_bg)
-                        .rounded_md()
-                        .child(div().text_size(px(10.0)).font_weight(FontWeight::BOLD).text_color(level_color).child(level))
-                )
+                .w(px(80.0))
+                .text_xs()
+                .text_color(rgb(0x94A3B8))
+                .child(time),
         )
-        .child(div().flex().w(px(80.0)).text_xs().text_color(rgb(0x64748B)).child(module))
-        .child(div().flex().flex_1().text_xs().text_color(rgb(0x64748B)).child(msg))
+        .child(
+            div().flex().w(px(70.0)).child(
+                div()
+                    .flex()
+                    .px_1p5()
+                    .py_0p5()
+                    .bg(level_bg)
+                    .rounded_md()
+                    .child(
+                        div()
+                            .text_size(px(10.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(level_color)
+                            .child(level),
+                    ),
+            ),
+        )
+        .child(
+            div()
+                .flex()
+                .w(px(80.0))
+                .text_xs()
+                .text_color(rgb(0x64748B))
+                .child(module),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_1()
+                .text_xs()
+                .text_color(rgb(0x64748B))
+                .child(msg),
+        )
 }
 
 fn detail_row_log(label: &'static str, value: &'static str) -> impl IntoElement {
@@ -342,12 +398,26 @@ fn detail_row_log(label: &'static str, value: &'static str) -> impl IntoElement 
         .flex()
         .justify_between()
         .child(div().text_xs().text_color(rgb(0x64748B)).child(label))
-        .child(div().text_xs().font_weight(FontWeight::MEDIUM).text_color(rgb(0x0F172A)).child(value))
+        .child(
+            div()
+                .text_xs()
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(rgb(0x0F172A))
+                .child(value),
+        )
 }
 
 fn filter_tag_log(label: &'static str, active: bool) -> impl IntoElement {
-    let bg: Hsla = if active { rgb(0xEEF2FF).into() } else { white().into() };
-    let text: Hsla = if active { rgb(0x4F46E5).into() } else { rgb(0x64748B).into() };
+    let bg: Hsla = if active {
+        rgb(0xEEF2FF).into()
+    } else {
+        white()
+    };
+    let text: Hsla = if active {
+        rgb(0x4F46E5).into()
+    } else {
+        rgb(0x64748B).into()
+    };
     div()
         .flex()
         .px_3()
@@ -375,7 +445,11 @@ fn dropdown_log(label: &'static str) -> impl IntoElement {
 }
 
 fn toggle_log(label: &'static str, active: bool) -> impl IntoElement {
-    let bg: Hsla = if active { rgb(0x10B981).into() } else { rgb(0xE2E8F0).into() };
+    let bg: Hsla = if active {
+        rgb(0x10B981).into()
+    } else {
+        rgb(0xE2E8F0).into()
+    };
     div()
         .flex()
         .items_center()
@@ -392,14 +466,20 @@ fn toggle_log(label: &'static str, active: bool) -> impl IntoElement {
                 .px_0p5()
                 .child({
                     let mut dot = div().flex().size(px(14.0)).bg(white()).rounded_full();
-                    if active { dot = dot.ml_auto(); }
+                    if active {
+                        dot = dot.ml_auto();
+                    }
                     dot
-                })
+                }),
         )
 }
 
 fn checkbox_log(label: &'static str, checked: bool) -> impl IntoElement {
-    let bg: Hsla = if checked { rgb(0x4F46E5).into() } else { white().into() };
+    let bg: Hsla = if checked {
+        rgb(0x4F46E5).into()
+    } else {
+        white()
+    };
     div()
         .flex()
         .items_center()
@@ -412,9 +492,17 @@ fn checkbox_log(label: &'static str, checked: bool) -> impl IntoElement {
                 .size(px(16.0))
                 .bg(bg)
                 .border_1()
-                .border_color(if checked { rgb(0x4F46E5) } else { rgb(0xE2E8F0) })
+                .border_color(if checked {
+                    rgb(0x4F46E5)
+                } else {
+                    rgb(0xE2E8F0)
+                })
                 .rounded_sm()
-                .child(if checked { icon(IconName::Dashboard, 10.0, white().into()).into_any_element() } else { div().into_any_element() })
+                .child(if checked {
+                    icon(IconName::Dashboard, 10.0, white()).into_any_element()
+                } else {
+                    div().into_any_element()
+                }),
         )
         .child(div().text_xs().text_color(rgb(0x0F172A)).child(label))
 }
