@@ -40,3 +40,12 @@ timeout 8s cargo run -p narya-app
 ## 下一步推荐
 
 下一轮不要再写 spec。直接打开源图片和运行截图做像素级对照，从 `dashboard.png`、`nodes.png`、`subscriptions.png`、`settings.png` 开始校准。优先拆分 `ui_kit.rs` 为 `ui_kit/shell.rs`、`cards.rs`、`nodes.rs`、`subscriptions.rs`、`settings.rs` 等模块，降低后续反哺 Liora 的成本。
+
+## 2026-06-21 菜单与 Dashboard 纠偏
+
+- 左侧菜单从 Button 拼接改为按图的全宽菜单行，使用 Liora Lucide 图标，不再用文字符号冒充菜单图标。
+- active 菜单改为浅蓝背景 + 蓝色图标/文字，更接近效果图。
+- 左栏品牌区改用 `ui/icons/narya-logo-v2.png` 图片。
+- Dashboard 顶部、中部、底部改为固定列宽布局，减少页面错乱和卡片套卡片。
+- 图表卡片内部改为直接渲染 Liora LineChart，去掉嵌套 Card。
+- 截图尝试受当前显示/工具限制未得到可靠图片，因此未宣称 1:1 视觉验收。

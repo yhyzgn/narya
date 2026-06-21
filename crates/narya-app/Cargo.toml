@@ -24,5 +24,8 @@ narya-core = { path = "../narya-core" }
 narya-config = { path = "../narya-config" }
 narya-subscription = { path = "../narya-subscription" }
 
+liora-icons = "0.1.5"
+liora-icons-lucide = "0.1.5"
+
 [lib]
 test = false

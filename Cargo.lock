@@ -3930,6 +3930,8 @@ dependencies = [
  "dirs 5.0.1",
  "gpui",
  "liora",
+ "liora-icons",
+ "liora-icons-lucide",
  "narya-config",
  "narya-core",
  "narya-ipc",

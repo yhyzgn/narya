@@ -4,8 +4,10 @@ pub use gpui::{
     IntoElement as NaryaIntoElement, Render, Window,
 };
 use liora::components::{
-    Button, Card, Flex, LineChart, Progress, SignalMeter, Space, Sparkline, Tag, Text,
+    Button, Card, Flex, Image, LineChart, Progress, SignalMeter, Space, Sparkline, Tag, Text,
 };
+use liora_icons::Icon;
+use liora_icons_lucide::IconName;
 
 pub const APP_BG: u32 = 0xF7FAFF;
 pub const SURFACE: u32 = 0xFFFFFF;
@@ -43,6 +45,22 @@ pub enum NavTarget {
     Logs,
     Tools,
     Settings,
+}
+
+impl NavTarget {
+    fn icon(self) -> IconName {
+        match self {
+            NavTarget::Dashboard => IconName::House,
+            NavTarget::Nodes => IconName::Database,
+            NavTarget::Config => IconName::ClipboardList,
+            NavTarget::Subscriptions => IconName::ClipboardCheck,
+            NavTarget::Connections => IconName::SlidersHorizontal,
+            NavTarget::Rules => IconName::ListFilter,
+            NavTarget::Logs => IconName::List,
+            NavTarget::Tools => IconName::BriefcaseBusiness,
+            NavTarget::Settings => IconName::Settings,
+        }
+    }
 }
 
 type NavHandler = std::rc::Rc<dyn Fn(NavTarget, &mut gpui::App)>;
@@ -154,20 +172,20 @@ impl IntoElement for Sidebar {
 
     fn into_element(self) -> Self::Element {
         let nav_items = [
-            ("⌂", "仪表盘", NavTarget::Dashboard),
-            ("◉", "节点", NavTarget::Nodes),
-            ("▣", "配置", NavTarget::Config),
-            ("▤", "订阅", NavTarget::Subscriptions),
-            ("⇄", "连接", NavTarget::Connections),
-            ("☷", "规则", NavTarget::Rules),
-            ("☰", "日志", NavTarget::Logs),
-            ("▦", "工具箱", NavTarget::Tools),
-            ("⚙", "设置", NavTarget::Settings),
+            ("仪表盘", NavTarget::Dashboard),
+            ("节点", NavTarget::Nodes),
+            ("配置", NavTarget::Config),
+            ("订阅", NavTarget::Subscriptions),
+            ("连接", NavTarget::Connections),
+            ("规则", NavTarget::Rules),
+            ("日志", NavTarget::Logs),
+            ("工具箱", NavTarget::Tools),
+            ("设置", NavTarget::Settings),
         ];
         let on_nav = self.on_nav.clone();
 
         div()
-            .w(px(264.0))
+            .w(px(256.0))
             .h_full()
             .flex_none()
             .flex()
@@ -178,11 +196,11 @@ impl IntoElement for Sidebar {
             .border_color(color(BORDER))
             .child(
                 div().flex().flex_col().child(brand_block()).child(
-                    div().flex().flex_col().gap_2().px(px(18.0)).children(
-                        nav_items.into_iter().map(|(icon, label, target)| {
+                    div().flex().flex_col().gap_2().px(px(22.0)).children(
+                        nav_items.into_iter().map(|(label, target)| {
                             let active = self.active == target;
                             let on_nav = on_nav.clone();
-                            nav_item(icon, label, active)
+                            nav_item(target.icon(), label, active)
                                 .on_click(move |_, _, cx| on_nav(target, cx))
                         }),
                     ),
@@ -203,23 +221,14 @@ fn brand_block() -> gpui::Div {
         .flex()
         .items_center()
         .gap_3()
-        .h(px(112.0))
-        .px(px(32.0))
+        .h(px(150.0))
+        .px(px(34.0))
         .child(
-            div()
-                .size(px(44.0))
-                .rounded(px(14.0))
-                .bg(color(SOFT))
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(
-                    Text::new("N")
-                        .size(px(28.0))
-                        .weight(gpui::FontWeight::BOLD)
-                        .text_color(color(BRAND).into())
-                        .selectable(false),
-                ),
+            Image::local("ui/icons/narya-logo-v2.png")
+                .width(px(56.0))
+                .height(px(56.0))
+                .shadow(false)
+                .bordered(false),
         )
         .child(
             Flex::new()
@@ -227,7 +236,7 @@ fn brand_block() -> gpui::Div {
                 .gap_px(2.0)
                 .child(
                     Text::new("Narya")
-                        .size(px(26.0))
+                        .size(px(27.0))
                         .bold()
                         .text_color(color(TEXT).into())
                         .selectable(false),
@@ -241,23 +250,24 @@ fn brand_block() -> gpui::Div {
         )
 }
 
-fn nav_item(icon: &'static str, label: &'static str, active: bool) -> Button {
-    let text = format!("{}   {}", icon, label);
+fn nav_item(icon: IconName, label: &'static str, active: bool) -> Button {
+    let fg = color(if active { BRAND } else { TEXT });
+    let button = Button::new(label)
+        .icon_start(Icon::new(icon).size(px(21.0)).color(fg.into()))
+        .rounded_md()
+        .border(false)
+        .large();
     if active {
-        Button::new(text).primary().rounded_md().border(false)
+        button.custom_color(color(0xEEF0FF).into(), color(BRAND).into())
     } else {
-        Button::new(text)
-            .tertiary()
-            .rounded_md()
-            .border(false)
-            .background(false)
+        button.tertiary().background(false)
     }
 }
 
 fn sidebar_status(running: bool, node: String, latency: u32, down: f32, up: f32) -> gpui::Div {
     div()
         .px(px(22.0))
-        .pb(px(22.0))
+        .pb(px(26.0))
         .flex()
         .flex_col()
         .gap_5()
@@ -541,6 +551,36 @@ impl NaryaButton {
 
 pub fn page_row(children: Vec<AnyElement>) -> impl IntoElement {
     Flex::new().row().gap_lg().w_full().children(children)
+}
+
+pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .gap_lg()
+        .w_full()
+        .child(Flex::new().width_px(548.0).flex_none().child(left))
+        .child(Flex::new().flex_1().child(right))
+}
+
+pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .gap_lg()
+        .child(Flex::new().width_px(488.0).flex_none().child(left))
+        .child(Flex::new().flex_1().child(right))
+}
+
+pub fn dashboard_bottom(
+    a: impl IntoElement,
+    b: impl IntoElement,
+    c: impl IntoElement,
+) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .gap_lg()
+        .child(Flex::new().width_px(488.0).flex_none().child(a))
+        .child(Flex::new().width_px(306.0).flex_none().child(b))
+        .child(Flex::new().flex_1().child(c))
 }
 
 pub fn page_columns(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
@@ -877,27 +917,26 @@ pub fn metric_grid(items: Vec<AnyElement>) -> impl IntoElement {
     )
 }
 
+pub fn trend_chart(values: Vec<f64>, height: f32, color_hex: u32) -> impl IntoElement {
+    let points = values
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| liora::components::ChartPoint::new(format!("{}", index + 1), value));
+    LineChart::new([
+        liora::components::ChartSeries::new("趋势", points).color(color(color_hex).into())
+    ])
+    .height(px(height))
+    .show_legend(false)
+    .show_tooltip(false)
+}
+
 pub fn chart_card(
     title: &'static str,
     values: Vec<f64>,
     height: f32,
     color_hex: u32,
 ) -> impl IntoElement {
-    let points = values
-        .into_iter()
-        .enumerate()
-        .map(|(index, value)| liora::components::ChartPoint::new(format!("{}", index + 1), value));
-    NaryaCard::titled(
-        title,
-        Flex::new().column().gap_md().child(
-            LineChart::new([
-                liora::components::ChartSeries::new("趋势", points).color(color(color_hex).into())
-            ])
-            .height(px(height))
-            .show_legend(false)
-            .show_tooltip(false),
-        ),
-    )
+    NaryaCard::titled(title, trend_chart(values, height, color_hex))
 }
 
 pub fn ratio_row(label: &'static str, pct: f32, tone: NaryaStatus) -> impl IntoElement {

@@ -149,7 +149,7 @@ fn route_page(
 fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
     let model_for_toggle = model.clone();
     NaryaPage::new()
-        .row(narya_ui::page_row(vec![
+        .row(narya_ui::dashboard_top(
             narya_ui::hero_toggle_card(
                 "▣",
                 "系统代理",
@@ -157,8 +157,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                 snapshot.running,
                 "规则模式 ›",
                 NaryaStatus::Info,
-            )
-            .into_any_element(),
+            ),
             narya_ui::hero_toggle_card(
                 "☍",
                 "TUN 虚拟网卡",
@@ -166,10 +165,9 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                 snapshot.running,
                 "智能路由 ›",
                 NaryaStatus::Success,
-            )
-            .into_any_element(),
-        ]))
-        .row(narya_ui::page_columns(
+            ),
+        ))
+        .row(narya_ui::dashboard_middle(
             NaryaCard::titled(
                 "快速连接",
                 Flex::new()
@@ -187,35 +185,39 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
             NaryaCard::titled(
                 "网络概览",
                 Flex::new()
-                    .column()
+                    .row()
                     .gap_lg()
-                    .child(narya_ui::chart_card(
-                        "延迟 (ms)",
+                    .child(Flex::new().flex_1().child(narya_ui::trend_chart(
                         latency_values(),
-                        176.0,
+                        214.0,
                         narya_ui::SUCCESS,
-                    ))
-                    .child(narya_ui::metric_grid(vec![
-                        NaryaMetric::card(
-                            "节点延迟",
-                            format!("{} ms", snapshot.active_latency),
-                            "当前节点",
-                            "↯",
-                            NaryaStatus::Info,
-                        )
-                        .into_any_element(),
-                        NaryaMetric::card(
-                            "可用节点",
-                            format!("{} / 128", snapshot.nodes.len() * 9 + 2),
-                            "在线 / 总数",
-                            "◎",
-                            NaryaStatus::Success,
-                        )
-                        .into_any_element(),
-                    ])),
+                    )))
+                    .child(
+                        Flex::new()
+                            .width_px(270.0)
+                            .flex_none()
+                            .child(narya_ui::metric_grid(vec![
+                                NaryaMetric::card(
+                                    "节点延迟",
+                                    format!("{} ms", snapshot.active_latency),
+                                    "当前节点",
+                                    "↯",
+                                    NaryaStatus::Info,
+                                )
+                                .into_any_element(),
+                                NaryaMetric::card(
+                                    "可用节点",
+                                    format!("{} / 128", snapshot.nodes.len() * 9 + 2),
+                                    "在线 / 总数",
+                                    "◎",
+                                    NaryaStatus::Success,
+                                )
+                                .into_any_element(),
+                            ])),
+                    ),
             ),
         ))
-        .row(narya_ui::page_row(vec![
+        .row(narya_ui::dashboard_bottom(
             NaryaCard::titled(
                 "流量使用",
                 Flex::new()
@@ -233,14 +235,12 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                         NaryaMetric::card("连接数", "324", "峰值 1280", "☷", NaryaStatus::Success)
                             .into_any_element(),
                     ]))
-                    .child(narya_ui::chart_card(
-                        "今日",
+                    .child(narya_ui::trend_chart(
                         traffic_values(),
                         128.0,
                         narya_ui::BRAND,
                     )),
-            )
-            .into_any_element(),
+            ),
             NaryaCard::titled(
                 "连接统计",
                 Flex::new()
@@ -251,8 +251,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                     .child(narya_ui::ratio_row("Trojan", 8.7, NaryaStatus::Warning))
                     .child(narya_ui::ratio_row("Hysteria2", 4.4, NaryaStatus::Danger))
                     .child(narya_ui::detail_field("总连接数", "324")),
-            )
-            .into_any_element(),
+            ),
             NaryaCard::titled(
                 "活动日志",
                 Flex::new()
@@ -281,9 +280,8 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                     .child(NaryaButton::ghost("立即连接").on_click(move |_, _, cx| {
                         AppState::toggle_proxy(model_for_toggle.clone(), cx)
                     })),
-            )
-            .into_any_element(),
-        ]))
+            ),
+        ))
 }
 
 fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {

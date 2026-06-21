@@ -37,3 +37,12 @@ RUST_MIN_STACK=134217728 cargo clippy --workspace --all-targets --exclude narya-
 cargo clippy -p narya-app --lib -- -D warnings
 timeout 8s cargo run -p narya-app
 ```
+
+## 2026-06-21 菜单与 Dashboard 纠偏
+
+- 左侧菜单从 Button 拼接改为按图的全宽菜单行，使用 Liora Lucide 图标，不再用文字符号冒充菜单图标。
+- active 菜单改为浅蓝背景 + 蓝色图标/文字，更接近效果图。
+- 左栏品牌区改用 `ui/icons/narya-logo-v2.png` 图片。
+- Dashboard 顶部、中部、底部改为固定列宽布局，减少页面错乱和卡片套卡片。
+- 图表卡片内部改为直接渲染 Liora LineChart，去掉嵌套 Card。
+- 截图尝试受当前显示/工具限制未得到可靠图片，因此未宣称 1:1 视觉验收。
