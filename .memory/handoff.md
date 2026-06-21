@@ -58,3 +58,14 @@ timeout 8s cargo run -p narya-app
 ## 2026-06-21 视觉纠偏接力
 
 本轮已用真实截图纠偏 Dashboard/Nodes 骨架，并修掉 Linux 原生标题栏。后续继续从 `/tmp/narya-shot5.png` 与 `ui/dashboard.png` 对照，不要声明 1:1。优先项：去掉/弱化 Liora LineChart 内层边框，菜单 inactive 更接近白底源图，国旗改圆形图标，细调卡片阴影/渐变与右上窗口控制位置。
+
+## 2026-06-21 接力：Liora-first 控件纠偏后
+
+最新规则必须继续执行：页面层只能组合 Liora 控件或 `ui_kit` 包装；如果 Liora 提供 Menu/Input/Select/Segmented/Switch/Table/Statistic/Progress/Tag 等控件，应优先直接用或在 `ui_kit` 包装，不能在 app 页面层用 Button/文本/原生 GPUI 冒充。
+
+本轮已完成：Sidebar Menu、节点工具条 Input/Segmented/Select、Switch 只读包装、分类整组 Menu、Metric Statistic/IconName、字号 token 收敛。注意：当前 search/filter/select/hero switch 是视觉展示控件，因未接 AppState 使用 `readonly_shell` 遮罩阻断假交互；后续若要可交互，先把状态提升到 `AppState` 并绑定 on_change。
+
+下一步建议：
+1. 把连接/日志/规则列表逐步迁移到 Liora `Table` / `VirtualizedList`。
+2. 用可靠窗口截图工具捕获 app 窗口（Spectacle activewindow 当前抓到终端），再继续逐页视觉校准。
+3. 如拆分 `ui_kit.rs`，保持公共导出不破坏契约测试。

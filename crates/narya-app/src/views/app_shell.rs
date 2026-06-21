@@ -180,7 +180,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                     .collect(),
             ),
             narya_ui::dashboard_network_panel(
-                narya_ui::trend_chart(latency_values(), 212.0, narya_ui::SUCCESS),
+                narya_ui::soft_trend(latency_values(), 212.0, narya_ui::SUCCESS),
                 vec![
                     narya_ui::compact_metric(
                         "节点延迟",
@@ -206,7 +206,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                         .into_any_element(),
                     narya_ui::compact_metric("连接数", "324", "峰值 1280").into_any_element(),
                 ],
-                narya_ui::trend_chart(traffic_values(), 188.0, narya_ui::BRAND),
+                narya_ui::soft_trend(traffic_values(), 188.0, narya_ui::BRAND),
             ),
             narya_ui::titled_panel(
                 "连接统计",
@@ -294,52 +294,43 @@ fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                 .into_any_element(),
         ]))
         .row(narya_ui::toolbar(vec![
-            NaryaButton::ghost("搜索节点、地区、协议或标签").into_any_element(),
-            NaryaButton::primary("全部").into_any_element(),
-            NaryaButton::ghost("低延迟").into_any_element(),
-            NaryaButton::ghost("香港").into_any_element(),
-            NaryaButton::ghost("日本").into_any_element(),
-            NaryaButton::ghost("美国").into_any_element(),
-            NaryaButton::ghost("新加坡").into_any_element(),
-            NaryaButton::ghost("Hysteria2").into_any_element(),
-            NaryaButton::ghost("Vmess").into_any_element(),
-            NaryaButton::ghost("Shadowsocks").into_any_element(),
-            NaryaButton::ghost("按延迟排序⌄").into_any_element(),
+            narya_ui::search_input("搜索节点、地区、协议或标签", 286.0).into_any_element(),
+            narya_ui::filter_segmented(
+                &[
+                    "全部",
+                    "低延迟",
+                    "香港",
+                    "日本",
+                    "美国",
+                    "新加坡",
+                    "Hysteria2",
+                    "Vmess",
+                    "Shadowsocks",
+                ],
+                "全部",
+            )
+            .into_any_element(),
+            narya_ui::sort_select(&["按延迟排序", "按名称排序", "按负载排序"], 0, 132.0)
+                .into_any_element(),
         ]))
         .row(narya_ui::nodes_main(
             narya_ui::titled_panel(
                 "策略组",
-                Flex::new()
-                    .column()
-                    .gap_md()
-                    .child(narya_ui::category(
-                        "🚀   1   Proxy   自动选择      38 / 128",
-                        true,
-                    ))
-                    .child(narya_ui::category(
-                        "🌐   2   Global   全局代理      36 / 128",
-                        false,
-                    ))
-                    .child(narya_ui::category(
-                        "🎯   3   Direct   国内直连      1 / 128",
-                        false,
-                    ))
-                    .child(narya_ui::category(
-                        "🛡   4   AI Services          28 / 128",
-                        false,
-                    ))
-                    .child(narya_ui::category(
-                        "📺   5   Streaming            24 / 128",
-                        false,
-                    ))
-                    .child(narya_ui::category(
-                        "🎮   6   Gaming               20 / 128",
-                        false,
-                    ))
-                    .child(narya_ui::category(
-                        "⚗   7   Fallback             8 / 128",
-                        false,
-                    )),
+                narya_ui::category_menu(
+                    vec![
+                        ("1   Proxy   自动选择      38 / 128", IconName::Rocket),
+                        ("2   Global   全局代理      36 / 128", IconName::Globe),
+                        (
+                            "3   Direct   国内直连      1 / 128",
+                            IconName::MousePointer2,
+                        ),
+                        ("4   AI Services          28 / 128", IconName::ShieldCheck),
+                        ("5   Streaming            24 / 128", IconName::MonitorPlay),
+                        ("6   Gaming               20 / 128", IconName::Gamepad2),
+                        ("7   Fallback             8 / 128", IconName::FlaskConical),
+                    ],
+                    0,
+                ),
             ),
             narya_ui::titled_panel(
                 "节点列表",
@@ -379,7 +370,7 @@ fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                         "平均延迟",
                         "82 ms",
                         "最快节点：香港 · HK 01",
-                        "◴",
+                        IconName::Gauge,
                         NaryaStatus::Info,
                     ))
                     .child(narya_ui::detail_field("可用节点", "38 / 128"))
@@ -411,7 +402,7 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
                 "当前订阅",
                 "机场 A",
                 "类型：远程订阅",
-                "▤",
+                IconName::ClipboardList,
                 NaryaStatus::Info,
             )
             .into_any_element(),
@@ -419,17 +410,23 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
                 "节点总数",
                 "128",
                 "38 可用 / 3 失败",
-                "◎",
+                IconName::CircleGauge,
                 NaryaStatus::Success,
             )
             .into_any_element(),
-            NaryaMetric::card("剩余流量", "842 GB", "已用 436 GB", "◍", NaryaStatus::Info)
-                .into_any_element(),
+            NaryaMetric::card(
+                "剩余流量",
+                "842 GB",
+                "已用 436 GB",
+                IconName::ChartNoAxesCombined,
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
             NaryaMetric::card(
                 "到期时间",
                 "42 天",
                 "2026-06-10 到期",
-                "▣",
+                IconName::SquareStack,
                 NaryaStatus::Warning,
             )
             .into_any_element(),
@@ -466,15 +463,27 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
                         "更新成功",
                         "128 ms",
                         "下载时间 1.82s",
-                        "✓",
+                        IconName::Check,
                         NaryaStatus::Success,
                     ))
                     .child(narya_ui::metric_grid(vec![
-                        NaryaMetric::card("新增节点", "+4", "", "+", NaryaStatus::Success)
-                            .into_any_element(),
-                        NaryaMetric::card("移除节点", "-1", "", "−", NaryaStatus::Danger)
-                            .into_any_element(),
-                        NaryaMetric::card("未变更", "125", "", "=", NaryaStatus::Info)
+                        NaryaMetric::card(
+                            "新增节点",
+                            "+4",
+                            "",
+                            IconName::Plus,
+                            NaryaStatus::Success,
+                        )
+                        .into_any_element(),
+                        NaryaMetric::card(
+                            "移除节点",
+                            "-1",
+                            "",
+                            IconName::Minus,
+                            NaryaStatus::Danger,
+                        )
+                        .into_any_element(),
+                        NaryaMetric::card("未变更", "125", "", IconName::Equal, NaryaStatus::Info)
                             .into_any_element(),
                     ]))
                     .child(NaryaButton::ghost("查看更新日志")),
@@ -497,21 +506,21 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
                         "1",
                         "远程订阅",
                         "机场 A · 128 节点",
-                        "①",
+                        IconName::Badge,
                         NaryaStatus::Info,
                     ))
                     .child(NaryaMetric::card(
                         "2",
                         "本地覆写",
                         "Narya Default",
-                        "②",
+                        IconName::Badge,
                         NaryaStatus::Info,
                     ))
                     .child(NaryaMetric::card(
                         "3",
                         "UI 临时规则",
                         "活动中",
-                        "③",
+                        IconName::Badge,
                         NaryaStatus::Info,
                     )),
             )
@@ -545,7 +554,7 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                 "应用版本",
                 "1.0.0",
                 "当前为最新版本",
-                "▤",
+                IconName::ClipboardList,
                 NaryaStatus::Info,
             )
             .into_any_element(),
@@ -553,7 +562,7 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                 "当前内核",
                 kernel_label,
                 "运行中",
-                "◈",
+                IconName::Cpu,
                 NaryaStatus::Success,
             )
             .into_any_element(),
@@ -561,7 +570,7 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                 "系统代理",
                 "7890 / 7891",
                 "HTTP / SOCKS",
-                "▣",
+                IconName::SquareStack,
                 NaryaStatus::Info,
             )
             .into_any_element(),
@@ -569,31 +578,39 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                 "IPv6 状态",
                 "自动 / 防泄漏",
                 "已启用",
-                "IPv6",
+                IconName::Route,
                 NaryaStatus::Success,
             )
             .into_any_element(),
-            NaryaMetric::card("更新通道", "Stable", "稳定版更新", "◉", NaryaStatus::Info)
-                .into_any_element(),
+            NaryaMetric::card(
+                "更新通道",
+                "Stable",
+                "稳定版更新",
+                IconName::RefreshCw,
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
         ]))
         .row(narya_ui::page_columns(
             narya_ui::page_row(vec![
                 NaryaCard::titled(
                     "设置分类",
-                    Flex::new()
-                        .column()
-                        .gap_md()
-                        .child(narya_ui::category("常规", true))
-                        .child(narya_ui::category("外观", false))
-                        .child(narya_ui::category("网络", false))
-                        .child(narya_ui::category("IPv6", false))
-                        .child(narya_ui::category("内核", false))
-                        .child(narya_ui::category("TUN", false))
-                        .child(narya_ui::category("DNS", false))
-                        .child(narya_ui::category("安全", false))
-                        .child(narya_ui::category("通知", false))
-                        .child(narya_ui::category("更新", false))
-                        .child(narya_ui::category("高级", false)),
+                    narya_ui::category_menu(
+                        vec![
+                            ("常规", IconName::Settings),
+                            ("外观", IconName::Palette),
+                            ("网络", IconName::Network),
+                            ("IPv6", IconName::Route),
+                            ("内核", IconName::Cpu),
+                            ("TUN", IconName::Shield),
+                            ("DNS", IconName::Server),
+                            ("安全", IconName::LockKeyhole),
+                            ("通知", IconName::Bell),
+                            ("更新", IconName::RefreshCw),
+                            ("高级", IconName::SlidersHorizontal),
+                        ],
+                        0,
+                    ),
                 )
                 .into_any_element(),
                 NaryaCard::titled(
@@ -656,12 +673,7 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
         .row(narya_ui::page_row(vec![
             NaryaCard::titled(
                 "外观预览",
-                Flex::new()
-                    .row()
-                    .gap_lg()
-                    .child(NaryaButton::primary("浅色"))
-                    .child(NaryaButton::ghost("深色"))
-                    .child(NaryaButton::ghost("跟随系统")),
+                narya_ui::segmented_control(&["浅色", "深色", "跟随系统"], "浅色", 260.0),
             )
             .into_any_element(),
             NaryaCard::titled(
@@ -684,7 +696,7 @@ fn config_page() -> impl NaryaIntoElement {
                 "当前配置",
                 "Narya Default",
                 "规则模式",
-                "▤",
+                IconName::ClipboardList,
                 NaryaStatus::Info,
             )
             .into_any_element(),
@@ -692,12 +704,18 @@ fn config_page() -> impl NaryaIntoElement {
                 "链式代理",
                 "未启用",
                 "可视化编排",
-                "⇄",
+                IconName::ArrowLeftRight,
                 NaryaStatus::Warning,
             )
             .into_any_element(),
-            NaryaMetric::card("YAML", "只读预览", "编辑器待接入", "{}", NaryaStatus::Info)
-                .into_any_element(),
+            NaryaMetric::card(
+                "YAML",
+                "只读预览",
+                "编辑器待接入",
+                IconName::Braces,
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
         ]))
         .row(NaryaCard::titled(
             "配置工作台",
@@ -740,14 +758,14 @@ fn connections_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                     "活跃连接",
                     "324",
                     "TCP / UDP",
-                    "⇄",
+                    IconName::ArrowLeftRight,
                     NaryaStatus::Info,
                 ))
                 .child(NaryaMetric::card(
                     "规则命中",
                     "12,840",
                     "DIRECT 62%",
-                    "☷",
+                    IconName::ListFilter,
                     NaryaStatus::Success,
                 )),
         ),
@@ -757,13 +775,19 @@ fn connections_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
 fn rules_page() -> impl NaryaIntoElement {
     NaryaPage::new()
         .row(narya_ui::metric_grid(vec![
-            NaryaMetric::card("规则集", "8", "GeoSite / GeoIP", "☷", NaryaStatus::Info)
-                .into_any_element(),
+            NaryaMetric::card(
+                "规则集",
+                "8",
+                "GeoSite / GeoIP",
+                IconName::ListFilter,
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
             NaryaMetric::card(
                 "今日命中",
                 "12,840",
                 "DIRECT 62% · PROXY 38%",
-                "◎",
+                IconName::CircleGauge,
                 NaryaStatus::Success,
             )
             .into_any_element(),
@@ -771,7 +795,7 @@ fn rules_page() -> impl NaryaIntoElement {
                 "最后更新",
                 "2 天前",
                 "可手动刷新",
-                "↻",
+                IconName::RefreshCw,
                 NaryaStatus::Warning,
             )
             .into_any_element(),
@@ -816,7 +840,7 @@ fn tools_page() -> impl NaryaIntoElement {
             "Ping 测试",
             "就绪",
             "检测主机可达性",
-            "↯",
+            IconName::Zap,
             NaryaStatus::Info,
         )
         .into_any_element(),
@@ -824,7 +848,7 @@ fn tools_page() -> impl NaryaIntoElement {
             "DNS 查询",
             "就绪",
             "查看解析链路",
-            "◎",
+            IconName::CircleGauge,
             NaryaStatus::Success,
         )
         .into_any_element(),
@@ -832,12 +856,18 @@ fn tools_page() -> impl NaryaIntoElement {
             "MTR Trace",
             "就绪",
             "追踪链路质量",
-            "⇄",
+            IconName::ArrowLeftRight,
             NaryaStatus::Warning,
         )
         .into_any_element(),
-        NaryaMetric::card("端口检查", "就绪", "验证远端端口", "▣", NaryaStatus::Info)
-            .into_any_element(),
+        NaryaMetric::card(
+            "端口检查",
+            "就绪",
+            "验证远端端口",
+            IconName::SquareStack,
+            NaryaStatus::Info,
+        )
+        .into_any_element(),
     ]))
 }
 

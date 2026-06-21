@@ -66,3 +66,16 @@ timeout 8s cargo run -p narya-app
 - 快速连接行压缩高度并改国家 emoji，避免第四行裁切和红十字误读。
 
 真实截图证据：`/tmp/narya-shot5.png` 已生成用于对照。仍不能宣称 1:1：图表内框、菜单按钮质感、国旗圆形样式、卡片微阴影/渐变和部分尺寸还需继续校准。
+
+## 2026-06-21 Liora-first 控件纠偏
+
+用户明确补充：所有组件都应尽可能直接使用 Liora 现成控件；需要扩展时只能在 `ui_kit` 包装，只有 Liora 确实没有时才在本地组件库手搓。已按该规则完成一轮纠偏：
+
+- Sidebar 导航正式改为 Liora `Menu`，不再用 Button 拼接菜单。
+- 节点页搜索/筛选/排序分别改为 `ui_kit` 中基于 Liora `Input` / `Segmented` / `Select` 的包装。
+- Dashboard hero 开关与设置开关改为基于 Liora `Switch` 的包装；没有真实业务回调的展示控件设置为只读，避免产生假本地状态。
+- 策略组与设置分类改为整组 Liora `Menu` 包装，不再每行单独手搓/单独 Menu。
+- Metric 数值展示改为 Liora `Statistic`，图标参数从文字符号改为 Lucide `IconName`，减少字体大小不协调和符号冒充图标。
+- 统一字号 token：display/brand/card/body/small/caption/number，减少 `.sm()` / `.xs()` 与硬编码混用造成的层级不协调。
+
+验证：`cargo fmt --all -- --check`、`cargo check --workspace`、`cargo test --workspace`、`RUST_MIN_STACK=134217728 cargo clippy --workspace --all-targets --exclude narya-app -- -D warnings`、`cargo clippy -p narya-app --lib -- -D warnings` 均通过；`timeout 8s cargo run -p narya-app` 成功启动并按预期 124 timeout。截图尝试 `/tmp/narya-menu-typo.png` 仍捕获到 Codex 终端而非应用窗口，未作为视觉验收证据。

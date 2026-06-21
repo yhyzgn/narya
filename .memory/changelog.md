@@ -92,3 +92,12 @@
 - Dashboard 改为源图三段固定骨架；Hero 卡改 Lucide 图标和演示连接态。
 - Nodes 改为顶部控制卡、筛选条、三列主体和底部双卡布局。
 - 验证：fmt/check/test/clippy/GUI smoke 均通过；真实截图 `/tmp/narya-shot5.png` 已生成用于人工对照。
+
+## 2026-06-21 — Liora-first 控件与字号纠偏
+
+- Sidebar 使用 Liora `Menu` 替代 Button 拼接菜单。
+- 新增 `ui_kit` 包装：Liora `Input`、`Segmented`、`Select`、`Switch`、整组 `Menu`、只读交互遮罩。
+- 节点页工具条从按钮堆改为搜索输入、分段筛选、排序选择控件。
+- 策略组与设置分类使用整组 Menu；无真实状态绑定的展示控件只读化。
+- Metric 卡改为 Liora `Statistic` + Lucide `IconName`，并统一字号 token。
+- 验证矩阵通过；GUI run 按预期 timeout。

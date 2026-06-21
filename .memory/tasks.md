@@ -44,3 +44,15 @@
 - [x] 重组 Nodes 主结构为策略组/节点列表/测速概览三列。
 - [x] 保持页面层零原生 GPUI 红线，契约测试通过。
 - [ ] 下一轮继续像素校准图表内框、菜单 inactive 质感、圆形国旗、阴影/渐变和其它页面。
+
+## 2026-06-21 Liora-first 控件纠偏
+
+- [x] 将 Sidebar 导航从 Button 拼接改为 Liora `Menu`。
+- [x] 将搜索/筛选/排序从 Button 冒充控件改为 Liora `Input` / `Segmented` / `Select` 包装。
+- [x] 将开关展示改为 Liora `Switch` 包装，并在未接业务状态时只读化。
+- [x] 将策略组/设置分类整组改为 Liora `Menu` 包装。
+- [x] 将 Metric 文字符号图标改为 Lucide `IconName`，数值使用 Liora `Statistic`。
+- [x] 收敛字体 token，减少大小不协调。
+- [x] 通过 fmt/check/test/clippy/GUI smoke 验证。
+- [ ] 后续继续把连接/日志等列表型页面迁移到 Liora `Table` / `VirtualizedList` 等现成控件。
+- [ ] 后续把可交互筛选/search/select 状态提升到 `AppState` 后再解除只读遮罩。

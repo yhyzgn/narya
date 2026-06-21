@@ -54,3 +54,9 @@ timeout 8s cargo run -p narya-app
 ## 2026-06-21 视觉纠偏补充
 
 已完成真实截图驱动的 Dashboard/Nodes 主骨架纠偏：client-side decorations、Dashboard 三行布局、Nodes 三列布局。下一次继续以运行截图对照 `ui/dashboard.png`，不要写 spec，也不要伪造 1:1；优先校准图表内框、菜单质感、国旗圆形、阴影和其它页面。
+
+## 2026-06-21 Liora-first 控件纠偏补充
+
+用户红线已进一步明确：所有组件必须优先使用 Liora 现成控件；需要扩展/包装时放到 `ui_kit`；仅当 Liora 没有对应控件时才允许在本地组件库手搓 GPUI。不得在页面层用 Button、Text、div 或原生 GPUI 冒充 Menu/Input/Select/Segmented/Switch/Table 等。
+
+本轮已完成：Sidebar 使用 Liora `Menu`；节点工具条使用 Liora `Input` / `Segmented` / `Select` 包装；开关使用 Liora `Switch` 包装且未接业务状态时只读；策略组/设置分类使用整组 Liora `Menu`；Metric 使用 Liora `Statistic` + Lucide `IconName`；字号 token 已收敛。后续继续迁移连接/日志等列表到 Liora `Table` / `VirtualizedList`，并把真正可交互控件状态提升到 AppState 后解除只读遮罩。
