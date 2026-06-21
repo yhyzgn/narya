@@ -18,7 +18,7 @@ pub fn run() {
             // Tray icon can be tricky on Linux in some environments
             let _tray = init_tray();
 
-            liora::init_liora(cx);
+            liora::init_liora_with_mode(cx, liora::ThemeMode::Light);
             AppShell::open(cx);
             cx.activate(true);
         });

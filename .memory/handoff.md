@@ -49,3 +49,8 @@ timeout 8s cargo run -p narya-app
 - Dashboard 顶部、中部、底部改为固定列宽布局，减少页面错乱和卡片套卡片。
 - 图表卡片内部改为直接渲染 Liora LineChart，去掉嵌套 Card。
 - 截图尝试受当前显示/工具限制未得到可靠图片，因此未宣称 1:1 视觉验收。
+
+## 2026-06-21 Light 主题更新
+
+- 当前 app 默认 Light：`crates/narya-app/src/lib.rs` 使用 `liora::init_liora_with_mode(cx, liora::ThemeMode::Light)`。
+- 契约测试已更新；后续视觉校准应以浅色主题运行截图为准。

@@ -19,7 +19,7 @@ mod tests {
     fn ui_contract_launches_main_window_without_splash() {
         let lib = workspace_file("crates/narya-app/src/lib.rs");
         assert!(
-            lib.contains("liora::init_liora(cx)"),
+            lib.contains("liora::init_liora_with_mode(cx, liora::ThemeMode::Light)"),
             "narya-app must initialize Liora during GPUI startup"
         );
         assert!(

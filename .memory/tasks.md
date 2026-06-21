@@ -29,3 +29,9 @@
 - Dashboard 顶部、中部、底部改为固定列宽布局，减少页面错乱和卡片套卡片。
 - 图表卡片内部改为直接渲染 Liora LineChart，去掉嵌套 Card。
 - 截图尝试受当前显示/工具限制未得到可靠图片，因此未宣称 1:1 视觉验收。
+
+## 2026-06-21 Light 默认主题
+
+- [x] 将 Narya 启动默认主题改为 Liora Light。
+- [x] 更新启动契约测试以锁定 Light 初始化。
+- [x] 运行 fmt、app check、contract tests、GUI timeout smoke。
