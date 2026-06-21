@@ -1,44 +1,450 @@
-use gpui::{div, prelude::*, px, rgb, AnyElement, IntoElement, Rgba};
-use liora::components::{Button, Card, Flex, Progress, Space, Tag, Text};
+use gpui::{div, prelude::*, px, rgb, AnyElement, Entity, IntoElement, ParentElement, Rgba};
+pub use gpui::{
+    App, AppContext as NaryaAppContext, Context, Entity as NaryaEntity,
+    IntoElement as NaryaIntoElement, Render, Window,
+};
+use liora::components::{
+    Button, Card, Flex, LineChart, Progress, SignalMeter, Space, Sparkline, Tag, Text,
+};
 
-pub const BG: u32 = 0xF5F7FB;
+pub const APP_BG: u32 = 0xF7FAFF;
 pub const SURFACE: u32 = 0xFFFFFF;
-pub const BORDER: u32 = 0xE5E7EB;
-pub const TEXT: u32 = 0x111827;
-pub const MUTED: u32 = 0x6B7280;
-pub const BRAND: u32 = 0x3B82F6;
+pub const BORDER: u32 = 0xDDE6F5;
+pub const TEXT: u32 = 0x10203D;
+pub const MUTED: u32 = 0x61708C;
+pub const SOFT: u32 = 0xEEF4FF;
+pub const BRAND: u32 = 0x2F66FF;
+pub const VIOLET: u32 = 0x8757F5;
 pub const SUCCESS: u32 = 0x10B981;
 pub const WARNING: u32 = 0xF59E0B;
-pub const DANGER: u32 = 0xEF4444;
+pub const DANGER: u32 = 0xFF5A3D;
+pub const INFO: u32 = 0x0EA5E9;
 
 pub fn color(hex: u32) -> Rgba {
     rgb(hex)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NaryaStatus {
+    Info,
+    Success,
+    Warning,
+    Danger,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NavTarget {
+    Dashboard,
+    Nodes,
+    Config,
+    Subscriptions,
+    Connections,
+    Rules,
+    Logs,
+    Tools,
+    Settings,
+}
+
+type NavHandler = std::rc::Rc<dyn Fn(NavTarget, &mut gpui::App)>;
+pub type ClickHandler = Box<dyn Fn(&gpui::ClickEvent, &mut gpui::Window, &mut gpui::App)>;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PageKind {
+    Dashboard,
+    Nodes,
+    Config,
+    Subscriptions,
+    Connections,
+    Rules,
+    Logs,
+    Tools,
+    Settings,
+    About,
+}
+
+pub struct ShellFrame {
+    sidebar: AnyElement,
+    header: AnyElement,
+    content: AnyElement,
+    footer: AnyElement,
+}
+
+impl ShellFrame {
+    pub fn new(
+        sidebar: impl IntoElement,
+        header: impl IntoElement,
+        content: impl IntoElement,
+        footer: impl IntoElement,
+    ) -> Self {
+        Self {
+            sidebar: sidebar.into_any_element(),
+            header: header.into_any_element(),
+            content: content.into_any_element(),
+            footer: footer.into_any_element(),
+        }
+    }
+}
+
+impl IntoElement for ShellFrame {
+    type Element = gpui::Div;
+
+    fn into_element(self) -> Self::Element {
+        div()
+            .flex()
+            .size_full()
+            .bg(color(APP_BG))
+            .text_color(color(TEXT))
+            .child(self.sidebar)
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .h_full()
+                    .min_h_0()
+                    .child(self.header)
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .overflow_hidden()
+                            .px(px(28.0))
+                            .pb(px(16.0))
+                            .child(self.content),
+                    )
+                    .child(self.footer),
+            )
+    }
+}
+
+pub struct Sidebar {
+    active: NavTarget,
+    running: bool,
+    node: String,
+    latency: u32,
+    down: f32,
+    up: f32,
+    on_nav: NavHandler,
+}
+
+impl Sidebar {
+    pub fn new(
+        active: NavTarget,
+        running: bool,
+        node: impl Into<String>,
+        latency: u32,
+        down: f32,
+        up: f32,
+        on_nav: impl Fn(NavTarget, &mut gpui::App) + 'static,
+    ) -> Self {
+        Self {
+            active,
+            running,
+            node: node.into(),
+            latency,
+            down,
+            up,
+            on_nav: std::rc::Rc::new(on_nav),
+        }
+    }
+}
+
+impl IntoElement for Sidebar {
+    type Element = gpui::Div;
+
+    fn into_element(self) -> Self::Element {
+        let nav_items = [
+            ("⌂", "仪表盘", NavTarget::Dashboard),
+            ("◉", "节点", NavTarget::Nodes),
+            ("▣", "配置", NavTarget::Config),
+            ("▤", "订阅", NavTarget::Subscriptions),
+            ("⇄", "连接", NavTarget::Connections),
+            ("☷", "规则", NavTarget::Rules),
+            ("☰", "日志", NavTarget::Logs),
+            ("▦", "工具箱", NavTarget::Tools),
+            ("⚙", "设置", NavTarget::Settings),
+        ];
+        let on_nav = self.on_nav.clone();
+
+        div()
+            .w(px(264.0))
+            .h_full()
+            .flex_none()
+            .flex()
+            .flex_col()
+            .justify_between()
+            .bg(color(SURFACE))
+            .border_r_1()
+            .border_color(color(BORDER))
+            .child(
+                div().flex().flex_col().child(brand_block()).child(
+                    div().flex().flex_col().gap_2().px(px(18.0)).children(
+                        nav_items.into_iter().map(|(icon, label, target)| {
+                            let active = self.active == target;
+                            let on_nav = on_nav.clone();
+                            nav_item(icon, label, active)
+                                .on_click(move |_, _, cx| on_nav(target, cx))
+                        }),
+                    ),
+                ),
+            )
+            .child(sidebar_status(
+                self.running,
+                self.node,
+                self.latency,
+                self.down,
+                self.up,
+            ))
+    }
+}
+
+fn brand_block() -> gpui::Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_3()
+        .h(px(112.0))
+        .px(px(32.0))
+        .child(
+            div()
+                .size(px(44.0))
+                .rounded(px(14.0))
+                .bg(color(SOFT))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(
+                    Text::new("N")
+                        .size(px(28.0))
+                        .weight(gpui::FontWeight::BOLD)
+                        .text_color(color(BRAND).into())
+                        .selectable(false),
+                ),
+        )
+        .child(
+            Flex::new()
+                .column()
+                .gap_px(2.0)
+                .child(
+                    Text::new("Narya")
+                        .size(px(26.0))
+                        .bold()
+                        .text_color(color(TEXT).into())
+                        .selectable(false),
+                )
+                .child(
+                    Text::new("v1.0.0")
+                        .sm()
+                        .text_color(color(MUTED).into())
+                        .selectable(false),
+                ),
+        )
+}
+
+fn nav_item(icon: &'static str, label: &'static str, active: bool) -> Button {
+    let text = format!("{}   {}", icon, label);
+    if active {
+        Button::new(text).primary().rounded_md().border(false)
+    } else {
+        Button::new(text)
+            .tertiary()
+            .rounded_md()
+            .border(false)
+            .background(false)
+    }
+}
+
+fn sidebar_status(running: bool, node: String, latency: u32, down: f32, up: f32) -> gpui::Div {
+    div()
+        .px(px(22.0))
+        .pb(px(22.0))
+        .flex()
+        .flex_col()
+        .gap_5()
+        .child(NaryaCard::plain(
+            Flex::new()
+                .column()
+                .gap_md()
+                .child(
+                    Space::new().gap_sm().child(status_dot(running)).child(
+                        Text::new(if running { "已连接" } else { "未连接" })
+                            .sm()
+                            .bold()
+                            .selectable(false),
+                    ),
+                )
+                .child(
+                    Text::new("当前节点")
+                        .xs()
+                        .text_color(color(MUTED).into())
+                        .selectable(false),
+                )
+                .child(
+                    Space::new()
+                        .gap_sm()
+                        .child(flag("✤"))
+                        .child(
+                            Text::new(node)
+                                .sm()
+                                .text_color(color(TEXT).into())
+                                .selectable(false),
+                        )
+                        .child(narya_tag(format!("{} ms", latency), NaryaStatus::Info)),
+                )
+                .child(key_value("代理模式", "规则模式 ›"))
+                .child(
+                    Space::new()
+                        .gap_lg()
+                        .child(
+                            Text::new(format!("↓ {:.2} MB/s", down))
+                                .xs()
+                                .text_color(color(SUCCESS).into())
+                                .selectable(false),
+                        )
+                        .child(
+                            Text::new(format!("↑ {:.2} MB/s", up))
+                                .xs()
+                                .text_color(color(VIOLET).into())
+                                .selectable(false),
+                        ),
+                )
+                .child(
+                    Sparkline::new([6.0, 8.0, 7.0, 12.0, 9.0, 15.0, 10.0, 13.0, 8.0, 11.0])
+                        .height(px(52.0))
+                        .color(color(BRAND).into())
+                        .area_fill(true),
+                ),
+        ))
+        .child(
+            Space::new()
+                .gap_lg()
+                .child(NaryaButton::icon(""))
+                .child(NaryaButton::icon("☾"))
+                .child(NaryaButton::icon("♢")),
+        )
+}
+
+pub struct HeaderBar {
+    title: &'static str,
+    subtitle: &'static str,
+    actions: Vec<AnyElement>,
+}
+
+impl HeaderBar {
+    pub fn new(page: PageKind, actions: Vec<AnyElement>) -> Self {
+        let (title, subtitle) = match page {
+            PageKind::Dashboard => ("仪表盘", "一切运行正常  ●"),
+            PageKind::Nodes => ("节点", "选择最快的出口节点，支持自动测速与策略分组"),
+            PageKind::Config => ("配置", "管理代理配置、链式代理与 YAML 编辑"),
+            PageKind::Subscriptions => ("订阅", "管理远程订阅源、流量信息与自动更新策略"),
+            PageKind::Connections => ("连接", "查看活跃连接、目标地址与出口链路"),
+            PageKind::Rules => ("规则", "规则分流、模拟器与命中统计"),
+            PageKind::Logs => ("日志", "内核日志、诊断导出与错误追踪"),
+            PageKind::Tools => ("工具箱", "Ping、DNS、MTR、端口检查与报告导出"),
+            PageKind::Settings => ("设置", "调整应用、内核、网络、IPv6、安全与更新偏好"),
+            PageKind::About => ("关于", "Narya GPUI + Liora Native"),
+        };
+        Self {
+            title,
+            subtitle,
+            actions,
+        }
+    }
+}
+
+impl IntoElement for HeaderBar {
+    type Element = gpui::Div;
+
+    fn into_element(self) -> Self::Element {
+        div()
+            .h(px(108.0))
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_between()
+            .px(px(28.0))
+            .child(
+                Flex::new()
+                    .column()
+                    .gap_px(6.0)
+                    .child(
+                        Text::new(self.title)
+                            .size(px(28.0))
+                            .bold()
+                            .text_color(color(TEXT).into())
+                            .selectable(false),
+                    )
+                    .child(
+                        Text::new(self.subtitle)
+                            .sm()
+                            .text_color(color(MUTED).into())
+                            .selectable(false),
+                    ),
+            )
+            .child(Space::new().gap_md().children(self.actions))
+    }
+}
+
+pub struct FooterBar;
+
+impl IntoElement for FooterBar {
+    type Element = gpui::Div;
+
+    fn into_element(self) -> Self::Element {
+        div()
+            .h(px(68.0))
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_between()
+            .px(px(28.0))
+            .bg(color(SURFACE))
+            .border_t_1()
+            .border_color(color(BORDER))
+            .child(
+                Space::new()
+                    .gap_xl()
+                    .child(status_line("内核", "● sing-box"))
+                    .child(status_line("配置", "▤ Narya Default"))
+                    .child(status_line("订阅", "▣ 机场 A · 128 节点")),
+            )
+            .child(
+                Space::new()
+                    .gap_xl()
+                    .child(
+                        Text::new("检查更新")
+                            .sm()
+                            .text_color(color(BRAND).into())
+                            .selectable(false),
+                    )
+                    .child(
+                        Text::new("1.0.0")
+                            .sm()
+                            .text_color(color(MUTED).into())
+                            .selectable(false),
+                    ),
+            )
+    }
+}
+
 pub struct NaryaPage {
-    title: String,
-    subtitle: String,
-    children: Vec<AnyElement>,
+    rows: Vec<AnyElement>,
 }
 
 impl NaryaPage {
-    pub fn new(title: impl Into<String>, subtitle: impl Into<String>) -> Self {
-        Self {
-            title: title.into(),
-            subtitle: subtitle.into(),
-            children: Vec::new(),
-        }
+    pub fn new() -> Self {
+        Self { rows: Vec::new() }
     }
 
-    pub fn child(mut self, child: impl IntoElement) -> Self {
-        self.children.push(child.into_any_element());
+    pub fn row(mut self, row: impl IntoElement) -> Self {
+        self.rows.push(row.into_any_element());
         self
     }
+}
 
-    pub fn children(mut self, children: impl IntoIterator<Item = impl IntoElement>) -> Self {
-        self.children
-            .extend(children.into_iter().map(|c| c.into_any_element()));
-        self
+impl Default for NaryaPage {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -49,56 +455,10 @@ impl IntoElement for NaryaPage {
         div()
             .flex()
             .flex_col()
-            .size_full()
             .gap_4()
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_1()
-                    .child(
-                        div()
-                            .text_size(px(24.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(color(TEXT))
-                            .child(self.title),
-                    )
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(color(MUTED))
-                            .child(self.subtitle),
-                    ),
-            )
-            .children(self.children)
-    }
-}
-
-pub struct NaryaCard;
-
-impl NaryaCard {
-    pub fn panel(body: impl IntoElement) -> Card {
-        Card::new(body)
-    }
-
-    pub fn titled(title: impl Into<gpui::SharedString>, body: impl IntoElement) -> Card {
-        Card::new(body).title(title)
-    }
-}
-
-pub struct NaryaButton;
-
-impl NaryaButton {
-    pub fn primary(label: impl Into<gpui::SharedString>) -> Button {
-        Button::new(label).primary().rounded_md()
-    }
-
-    pub fn ghost(label: impl Into<gpui::SharedString>) -> Button {
-        Button::new(label).tertiary().rounded_md()
-    }
-
-    pub fn danger(label: impl Into<gpui::SharedString>) -> Button {
-        Button::new(label).danger().rounded_md()
+            .size_full()
+            .overflow_hidden()
+            .children(self.rows)
     }
 }
 
@@ -106,43 +466,528 @@ pub struct NaryaMetric;
 
 impl NaryaMetric {
     pub fn card(
-        label: impl Into<String>,
+        title: &'static str,
         value: impl Into<String>,
-        hint: impl Into<String>,
-        accent: Rgba,
-    ) -> impl IntoElement {
-        let accent: gpui::Hsla = accent.into();
-        NaryaCard::panel(
+        caption: impl Into<String>,
+        icon: &'static str,
+        status: NaryaStatus,
+    ) -> Card {
+        NaryaCard::metric(title, value, caption, icon, status)
+    }
+}
+
+pub struct NaryaCard;
+impl NaryaCard {
+    pub fn plain(body: impl IntoElement) -> Card {
+        Card::new(body).no_shadow()
+    }
+
+    pub fn titled(title: impl Into<gpui::SharedString>, body: impl IntoElement) -> Card {
+        Card::new(body).title(title).no_shadow()
+    }
+
+    pub fn metric(
+        title: &'static str,
+        value: impl Into<String>,
+        caption: impl Into<String>,
+        icon: &'static str,
+        status: NaryaStatus,
+    ) -> Card {
+        Self::plain(
             Flex::new()
-                .column()
-                .gap_md()
+                .row()
+                .align_center()
+                .gap_lg()
+                .child(metric_icon(icon, status))
                 .child(
-                    Text::new(label.into())
-                        .sm()
-                        .text_color(color(MUTED).into())
-                        .selectable(false),
-                )
-                .child(
-                    Text::new(value.into())
-                        .size(px(24.0))
-                        .weight(gpui::FontWeight::BOLD)
-                        .text_color(color(TEXT).into())
-                        .selectable(false),
-                )
-                .child(
-                    Space::new()
-                        .gap_sm()
-                        .child(Tag::new("LIVE").small().round(true).info())
+                    Flex::new()
+                        .column()
+                        .gap_px(3.0)
                         .child(
-                            Text::new(hint.into())
+                            Text::new(title)
                                 .xs()
-                                .text_color(accent)
+                                .text_color(color(MUTED).into())
+                                .selectable(false),
+                        )
+                        .child(
+                            Text::new(value.into())
+                                .size(px(24.0))
+                                .text_color(color(TEXT).into())
+                                .selectable(false),
+                        )
+                        .child(
+                            Text::new(caption.into())
+                                .xs()
+                                .text_color(color(MUTED).into())
                                 .selectable(false),
                         ),
                 ),
         )
-        .no_shadow()
     }
+}
+
+pub struct NaryaButton;
+impl NaryaButton {
+    pub fn primary(label: impl Into<gpui::SharedString>) -> Button {
+        Button::new(label).primary().rounded_md()
+    }
+    pub fn ghost(label: impl Into<gpui::SharedString>) -> Button {
+        Button::new(label).tertiary().rounded_md()
+    }
+    pub fn icon(label: impl Into<gpui::SharedString>) -> Button {
+        Button::new(label).tertiary().rounded_md().small()
+    }
+}
+
+pub fn page_row(children: Vec<AnyElement>) -> impl IntoElement {
+    Flex::new().row().gap_lg().w_full().children(children)
+}
+
+pub fn page_columns(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .gap_lg()
+        .flex_1()
+        .min_h_0()
+        .child(Flex::new().flex_1().min_h_0().child(left))
+        .child(Flex::new().width_px(366.0).flex_none().child(right))
+}
+
+pub fn toolbar(children: Vec<AnyElement>) -> impl IntoElement {
+    Flex::new().row().gap_md().w_full().children(children)
+}
+
+pub fn grid_two(items: Vec<AnyElement>) -> impl IntoElement {
+    Flex::new().row().wrap().gap_lg().children(
+        items
+            .into_iter()
+            .map(|item| Flex::new().width_px(304.0).child(item)),
+    )
+}
+
+pub fn hero_toggle_card(
+    icon: &'static str,
+    title: &'static str,
+    desc: &'static str,
+    enabled: bool,
+    mode: &'static str,
+    tone: NaryaStatus,
+) -> impl IntoElement {
+    NaryaCard::plain(
+        Flex::new()
+            .column()
+            .gap_lg()
+            .child(
+                Flex::new()
+                    .row()
+                    .align_center()
+                    .justify_between()
+                    .child(
+                        Space::new().gap_lg().child(metric_icon(icon, tone)).child(
+                            Flex::new()
+                                .column()
+                                .gap_sm()
+                                .child(
+                                    Text::new(title)
+                                        .size(px(18.0))
+                                        .bold()
+                                        .text_color(color(TEXT).into())
+                                        .selectable(false),
+                                )
+                                .child(
+                                    Text::new(desc)
+                                        .sm()
+                                        .text_color(color(MUTED).into())
+                                        .selectable(false),
+                                ),
+                        ),
+                    )
+                    .child(toggle_pill(enabled)),
+            )
+            .child(
+                Flex::new()
+                    .row()
+                    .justify_between()
+                    .align_center()
+                    .child(
+                        Space::new().gap_sm().child(status_dot(enabled)).child(
+                            Text::new(if enabled { "已启用" } else { "未启用" })
+                                .sm()
+                                .text_color(color(if enabled { SUCCESS } else { MUTED }).into())
+                                .selectable(false),
+                        ),
+                    )
+                    .child(
+                        Text::new(mode)
+                            .sm()
+                            .text_color(color(TEXT).into())
+                            .selectable(false),
+                    ),
+            ),
+    )
+}
+
+pub fn quick_node(
+    name: impl Into<String>,
+    protocol: impl Into<String>,
+    latency: u32,
+    tone: NaryaStatus,
+) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .align_center()
+        .justify_between()
+        .padding_sm()
+        .border()
+        .border_color(color(BORDER).into())
+        .rounded_md()
+        .child(
+            Space::new().gap_md().child(flag("✤")).child(
+                Flex::new()
+                    .column()
+                    .child(
+                        Text::new(name.into())
+                            .sm()
+                            .text_color(color(TEXT).into())
+                            .selectable(false),
+                    )
+                    .child(
+                        Text::new(protocol.into())
+                            .xs()
+                            .text_color(color(MUTED).into())
+                            .selectable(false),
+                    ),
+            ),
+        )
+        .child(narya_tag(format!("{} ms", latency), tone))
+}
+
+pub struct NodeCardData {
+    pub name: String,
+    pub protocol: String,
+    pub latency: u32,
+    pub load: u8,
+    pub down: f32,
+    pub up: f32,
+    pub active: bool,
+}
+
+impl NodeCardData {
+    pub fn new(
+        name: impl Into<String>,
+        protocol: impl Into<String>,
+        latency: u32,
+        load: u8,
+        down: f32,
+        up: f32,
+        active: bool,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            protocol: protocol.into(),
+            latency,
+            load,
+            down,
+            up,
+            active,
+        }
+    }
+}
+
+pub fn node_card(data: NodeCardData, on_connect: ClickHandler) -> impl IntoElement {
+    NaryaCard::plain(
+        Flex::new()
+            .column()
+            .gap_md()
+            .child(
+                Flex::new()
+                    .row()
+                    .align_center()
+                    .justify_between()
+                    .child(
+                        Space::new()
+                            .gap_md()
+                            .child(
+                                Text::new(if data.active { "◉" } else { "○" })
+                                    .text_color(
+                                        color(if data.active { BRAND } else { MUTED }).into(),
+                                    )
+                                    .selectable(false),
+                            )
+                            .child(flag("✤"))
+                            .child(
+                                Flex::new()
+                                    .column()
+                                    .child(
+                                        Text::new(data.name)
+                                            .bold()
+                                            .text_color(color(TEXT).into())
+                                            .selectable(false),
+                                    )
+                                    .child(
+                                        Text::new(data.protocol)
+                                            .xs()
+                                            .text_color(color(MUTED).into())
+                                            .selectable(false),
+                                    ),
+                            ),
+                    )
+                    .child(NaryaButton::ghost("连接").small().on_click(on_connect)),
+            )
+            .child(
+                Flex::new()
+                    .row()
+                    .align_center()
+                    .justify_between()
+                    .child(narya_tag(
+                        format!("{} ms", data.latency),
+                        if data.latency < 90 {
+                            NaryaStatus::Success
+                        } else if data.latency < 140 {
+                            NaryaStatus::Warning
+                        } else {
+                            NaryaStatus::Danger
+                        },
+                    ))
+                    .child(
+                        SignalMeter::new(signal_level(data.latency))
+                            .height(px(20.0))
+                            .active_color(
+                                color(if data.latency < 120 { SUCCESS } else { DANGER }).into(),
+                            ),
+                    ),
+            )
+            .child(
+                Space::new()
+                    .gap_lg()
+                    .child(
+                        Text::new(format!("● {}%", data.load))
+                            .xs()
+                            .text_color(color(MUTED).into())
+                            .selectable(false),
+                    )
+                    .child(
+                        Text::new(format!("↓ {:.1} MB/s", data.down))
+                            .xs()
+                            .text_color(color(BRAND).into())
+                            .selectable(false),
+                    )
+                    .child(
+                        Text::new(format!("↑ {:.1} MB/s", data.up))
+                            .xs()
+                            .text_color(color(VIOLET).into())
+                            .selectable(false),
+                    ),
+            )
+            .child(
+                Sparkline::new([4.0, 5.0, 4.8, 6.0, 5.2, 5.8, 4.9, 5.5, 5.3, 5.7])
+                    .height(px(24.0))
+                    .color(color(SUCCESS).into()),
+            ),
+    )
+}
+
+pub fn subscription_item(
+    name: impl Into<String>,
+    url: impl Into<String>,
+    nodes: u32,
+    usage: f32,
+    active: bool,
+) -> impl IntoElement {
+    NaryaCard::plain(
+        Flex::new()
+            .row()
+            .align_center()
+            .justify_between()
+            .gap_md()
+            .child(
+                Space::new()
+                    .gap_md()
+                    .child(metric_icon(
+                        "✈",
+                        if active {
+                            NaryaStatus::Info
+                        } else {
+                            NaryaStatus::Success
+                        },
+                    ))
+                    .child(
+                        Flex::new()
+                            .column()
+                            .gap_px(4.0)
+                            .child(
+                                Text::new(name.into())
+                                    .bold()
+                                    .text_color(color(TEXT).into())
+                                    .selectable(false),
+                            )
+                            .child(
+                                Text::new(url.into())
+                                    .xs()
+                                    .text_color(color(MUTED).into())
+                                    .selectable(false),
+                            )
+                            .child(
+                                Text::new(format!("{} 节点    更新：刚刚", nodes))
+                                    .xs()
+                                    .text_color(color(MUTED).into())
+                                    .selectable(false),
+                            ),
+                    ),
+            )
+            .child(
+                Flex::new()
+                    .column()
+                    .gap_sm()
+                    .width_px(100.0)
+                    .child(
+                        Text::new(format!("流量 {:.0}%", usage))
+                            .xs()
+                            .text_color(color(MUTED).into())
+                            .selectable(false),
+                    )
+                    .child(Progress::new(usage).show_text(false).stroke_width(px(6.0))),
+            ),
+    )
+}
+
+pub fn detail_field(label: impl Into<String>, value: impl Into<String>) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .justify_between()
+        .child(
+            Text::new(label.into())
+                .sm()
+                .text_color(color(MUTED).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(value.into())
+                .sm()
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+}
+
+pub fn metric_grid(items: Vec<AnyElement>) -> impl IntoElement {
+    Flex::new().row().gap_lg().children(
+        items
+            .into_iter()
+            .map(|item| Flex::new().flex_1().child(item)),
+    )
+}
+
+pub fn chart_card(
+    title: &'static str,
+    values: Vec<f64>,
+    height: f32,
+    color_hex: u32,
+) -> impl IntoElement {
+    let points = values
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| liora::components::ChartPoint::new(format!("{}", index + 1), value));
+    NaryaCard::titled(
+        title,
+        Flex::new().column().gap_md().child(
+            LineChart::new([
+                liora::components::ChartSeries::new("趋势", points).color(color(color_hex).into())
+            ])
+            .height(px(height))
+            .show_legend(false)
+            .show_tooltip(false),
+        ),
+    )
+}
+
+pub fn ratio_row(label: &'static str, pct: f32, tone: NaryaStatus) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .align_center()
+        .gap_md()
+        .child(
+            Text::new(label)
+                .sm()
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+        .child(
+            Flex::new()
+                .flex_1()
+                .child(Progress::new(pct).show_text(false).stroke_width(px(6.0))),
+        )
+        .child(
+            Text::new(format!("{:.1}%", pct))
+                .sm()
+                .text_color(status_color(tone).into())
+                .selectable(false),
+        )
+}
+
+pub fn log_line(
+    time: impl Into<String>,
+    message: impl Into<String>,
+    tone: NaryaStatus,
+) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .gap_lg()
+        .align_center()
+        .child(
+            Text::new("●")
+                .text_color(status_color(tone).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(time.into())
+                .sm()
+                .text_color(color(MUTED).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(message.into())
+                .sm()
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+}
+
+pub fn setting_row(label: &'static str, enabled: bool) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .justify_between()
+        .align_center()
+        .child(
+            Text::new(label)
+                .sm()
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+        .child(toggle_pill(enabled))
+}
+
+pub fn category(label: &'static str, active: bool) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .align_center()
+        .gap_md()
+        .height_px(42.0)
+        .padding_x_px(12.0)
+        .bg(color(if active { 0xEEF0FF } else { SURFACE }).into())
+        .border()
+        .border_color(color(if active { BRAND } else { BORDER }).into())
+        .rounded_md()
+        .child(
+            Text::new("⚙")
+                .text_color(color(if active { BRAND } else { MUTED }).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(label)
+                .sm()
+                .text_color(color(if active { BRAND } else { TEXT }).into())
+                .selectable(false),
+        )
 }
 
 pub fn narya_tag(label: impl Into<gpui::SharedString>, status: NaryaStatus) -> Tag {
@@ -155,16 +1000,134 @@ pub fn narya_tag(label: impl Into<gpui::SharedString>, status: NaryaStatus) -> T
     }
 }
 
-pub fn progress(percent: f32) -> Progress {
-    Progress::new(percent)
-        .show_text(false)
-        .stroke_width(px(7.0))
+pub fn status_dot(on: bool) -> impl IntoElement {
+    Text::new(if on { "●" } else { "○" })
+        .text_color(color(if on { SUCCESS } else { MUTED }).into())
+        .selectable(false)
 }
 
-#[derive(Clone, Copy)]
-pub enum NaryaStatus {
-    Info,
-    Success,
-    Warning,
-    Danger,
+fn status_line(label: &'static str, value: &'static str) -> impl IntoElement {
+    Space::new()
+        .gap_sm()
+        .child(
+            Text::new(label)
+                .sm()
+                .text_color(color(MUTED).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(value)
+                .sm()
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+}
+
+fn key_value(label: &'static str, value: &'static str) -> impl IntoElement {
+    Flex::new()
+        .row()
+        .justify_between()
+        .child(
+            Text::new(label)
+                .xs()
+                .text_color(color(MUTED).into())
+                .selectable(false),
+        )
+        .child(
+            Text::new(value)
+                .xs()
+                .text_color(color(TEXT).into())
+                .selectable(false),
+        )
+}
+
+fn flag(symbol: &'static str) -> impl IntoElement {
+    Text::new(symbol)
+        .size(px(22.0))
+        .text_color(color(DANGER).into())
+        .selectable(false)
+}
+
+fn metric_icon(icon: &'static str, tone: NaryaStatus) -> impl IntoElement {
+    div()
+        .size(px(56.0))
+        .rounded(px(12.0))
+        .bg(status_soft_color(tone))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(
+            Text::new(icon)
+                .size(px(24.0))
+                .text_color(status_color(tone).into())
+                .selectable(false),
+        )
+}
+
+fn toggle_pill(enabled: bool) -> impl IntoElement {
+    div()
+        .w(px(68.0))
+        .h(px(36.0))
+        .rounded(px(18.0))
+        .bg(color(if enabled { BRAND } else { 0xCBD5E1 }))
+        .flex()
+        .items_center()
+        .justify_end()
+        .when(!enabled, |el| el.justify_start())
+        .p_0p5()
+        .child(div().size(px(30.0)).rounded(px(999.0)).bg(color(SURFACE)))
+}
+
+fn status_color(status: NaryaStatus) -> Rgba {
+    color(match status {
+        NaryaStatus::Info => BRAND,
+        NaryaStatus::Success => SUCCESS,
+        NaryaStatus::Warning => WARNING,
+        NaryaStatus::Danger => DANGER,
+    })
+}
+
+fn status_soft_color(status: NaryaStatus) -> Rgba {
+    color(match status {
+        NaryaStatus::Info => 0xEEF4FF,
+        NaryaStatus::Success => 0xEAFBF3,
+        NaryaStatus::Warning => 0xFFF7E6,
+        NaryaStatus::Danger => 0xFFF0ED,
+    })
+}
+
+fn signal_level(latency: u32) -> usize {
+    if latency < 70 {
+        4
+    } else if latency < 110 {
+        3
+    } else if latency < 150 {
+        2
+    } else {
+        1
+    }
+}
+
+pub fn entity_window_options(cx: &mut gpui::App) -> gpui::WindowOptions {
+    let size = gpui::size(px(1536.0), px(1024.0));
+    let bounds = gpui::Bounds::centered(None, size, cx);
+    gpui::WindowOptions {
+        window_bounds: Some(gpui::WindowBounds::Windowed(bounds)),
+        window_min_size: Some(size),
+        titlebar: Some(gpui::TitlebarOptions {
+            title: Some("Narya".into()),
+            ..Default::default()
+        }),
+        app_id: Some("narya".into()),
+        ..Default::default()
+    }
+}
+
+pub fn open_shell_window<T: gpui::Render + 'static>(
+    cx: &mut gpui::App,
+    build: impl FnOnce(&mut gpui::Window, &mut gpui::App) -> Entity<T> + 'static,
+) {
+    let options = entity_window_options(cx);
+    cx.open_window(options, build)
+        .expect("failed to open Narya main window");
 }

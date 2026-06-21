@@ -3956,6 +3956,9 @@ dependencies = [
 [[package]]
 name = "narya-contract-tests"
 version = "0.1.0"
+dependencies = [
+ "walkdir",
+]
 
 [[package]]
 name = "narya-core"

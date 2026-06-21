@@ -1,15 +1,19 @@
-pub fn workspace_file(path: &str) -> String {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+pub fn workspace_root() -> &'static std::path::Path {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(2)
-        .expect("workspace root");
+        .expect("workspace root")
+}
+
+pub fn workspace_file(path: &str) -> String {
+    let root = workspace_root();
     std::fs::read_to_string(root.join(path))
         .unwrap_or_else(|err| panic!("failed to read {path}: {err}"))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::workspace_file;
+    use super::{workspace_file, workspace_root};
 
     #[test]
     fn ui_contract_launches_main_window_without_splash() {
@@ -136,5 +140,49 @@ mod tests {
                 && !ipc.contains("/tmp/narya.sock"),
             "IPC paths must use a per-user runtime directory, not fixed /tmp paths"
         );
+    }
+
+    #[test]
+    fn ui_specs_are_image_only_and_page_layer_has_no_raw_gpui_layout() {
+        let root = workspace_root();
+        for entry in walkdir::WalkDir::new(root.join("ui")) {
+            let entry = entry.expect("walk ui");
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let path = entry.path();
+            let path_string = path.strip_prefix(root).unwrap().display().to_string();
+            let lower = path_string.to_ascii_lowercase();
+            let is_image = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]
+                .iter()
+                .any(|suffix| lower.ends_with(suffix));
+            assert!(
+                !lower.contains("spec") || is_image,
+                "spec-related UI artifacts must be removed unless they are images: {path_string}"
+            );
+        }
+
+        for page in ["crates/narya-app/src/views/app_shell.rs"] {
+            let source = workspace_file(page);
+            for forbidden in [
+                "use gpui::",
+                "gpui::{",
+                "div()",
+                ".flex()",
+                ".bg(",
+                ".border_color(",
+                ".text_color(",
+                ".padding_",
+            ] {
+                assert!(
+                    !source.contains(forbidden),
+                    "page layer {page} must not use raw GPUI/layout styling token `{forbidden}`; use Liora or narya_ui wrappers"
+                );
+            }
+            assert!(
+                source.contains("narya_ui") || source.contains("crate::ui_kit"),
+                "page layer {page} must compose through the local reusable Narya UI layer"
+            );
+        }
     }
 }

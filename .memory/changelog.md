@@ -59,3 +59,12 @@
 - 修复 app 状态误报：只有 daemon `IpcResponse.error.is_none()` 时才更新 `kernel_running`。
 - 格式化并修复 Clippy 提示：订阅格式检测、config_gen 端口解析、active_node unwrap、旧视图 white() 冗余转换等。
 - 验证：fmt/check/test、分段 clippy、`timeout 8s cargo run -p narya-app` 均通过；独立 code-reviewer 最终 APPROVED。
+
+## 2026-06-21 — Liora UI 红线重做
+
+- 删除 `ui` 下错误 spec 相关非图片文件，后续 UI 只以图片为视觉真源。
+- 新增 contract test 锁定页面层零原生 GPUI 布局/样式 token。
+- 删除旧 raw GPUI 页面模块、旧 `components.rs`、旧 `theme.rs`。
+- 重写 `views/app_shell.rs` 为 Liora + `narya_ui` 语义组合层。
+- 扩展 `ui_kit.rs` 为本地解耦组件库边界，集中封装 shell、sidebar、cards、metrics、charts、node/subscription/settings 组件。
+- 验证：fmt/check/test、分段 clippy、GUI timeout smoke 均通过；`narya-contract-tests` 5/5 通过。

@@ -1,9 +1,7 @@
 #![recursion_limit = "2048"]
 pub mod assets;
-pub mod components;
 pub mod ipc;
 pub mod state;
-pub mod theme;
 pub mod ui_kit;
 pub mod views;
 

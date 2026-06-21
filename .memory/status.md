@@ -6,21 +6,20 @@
 
 ## 当前阶段
 
-Liora UI 重建切片已完成并经复核：Narya 已从旧的 splash-first GPUI 入口切换为直接打开主窗口，并接入已发布的 Liora 0.1.5 GPUI 组件库。当前主窗口运行路径通过项目本地 `ui_kit` 封装组合 Liora `Flex/Card/Button/Tag/Progress/Text/Space`，保留现有核心、IPC、订阅解析、daemon/kernel 相关可用逻辑。
+Liora UI 重建第二轮已完成：历史 `./ui` spec 相关非图片文件已删除，页面层已按“只组合 Liora/本地组件库、严禁原生 GPUI 布局样式”的红线重构。`crates/narya-app/src/views/app_shell.rs` 现在只负责状态快照、路由和语义组件组合；原生 GPUI 底层能力只隔离在 `crates/narya-app/src/ui_kit.rs` 本地组件库边界。
 
 ## 本次完成
 
-1. **启动行为**：删除运行面 splash，`narya-app` 启动时调用 `liora::init_liora(cx)`，随后直接 `AppShell::open(cx)`。
-2. **依赖对齐**：将工作区 GPUI 对齐到 Liora 使用的 registry `gpui = 0.2.2`，移除旧 `gpui_platform` 入口，改用 `gpui::Application::new()`。
-3. **项目组件边界**：新增 `crates/narya-app/src/ui_kit.rs`，集中封装 Narya 专属 `NaryaPage/NaryaCard/NaryaButton/NaryaMetric` 和状态标签/进度条工具，避免页面直接散落设计系统细节。
-4. **Liora 主窗口**：重写 `crates/narya-app/src/views/app_shell.rs`，用 Liora 组件组合侧边栏、顶部栏、底部状态栏和 Dashboard/Nodes/Subscriptions/Config/Connections/Rules/Logs/Tools/Settings 主要内容面。
-5. **回归契约**：新增 `crates/narya-contract-tests`，用不依赖 GPUI test harness 的静态契约测试锁定：无 splash、Liora 初始化、GPUI 版本对齐、项目组件边界、关键红线修复。
-6. **红线修复**：主 UI 连接按钮已接入 `AppState::toggle_proxy/connect_node`；IPC request 会忽略先到通知直到匹配 response；daemon `GetKernelStatus` 不再先发通知；`InstallKernel` app/daemon 双侧 fail-closed；运行时 socket/config 改到 per-user runtime dir；sing-box config 生成 unsupported protocol fail-closed，Shadowsocks 明确拆分 `method:password`，不再使用假密码或 direct proxy fallback；app 只有在 daemon response 无 error 时才更新 connected state。
-7. **旧运行面隔离**：旧 raw 页面文件仍保留为迁移参考，但已从 `views/mod.rs` 移出编译面；当前编译/运行 UI 面只保留 Liora AppShell。
+1. **清理错误 spec**：删除 `ui/specs/**` 以及 `ui/**/*.spec.json` 等 spec 相关非图片文件；`ui` 下剩余视觉真源均为图片。
+2. **红线契约测试**：`narya-contract-tests` 新增 `ui_specs_are_image_only_and_page_layer_has_no_raw_gpui_layout`，自动检查：spec 相关非图片不存在，页面层不出现 `use gpui::`、`div()`、`.flex()`、`.bg()`、`.border_color()`、`.text_color()`、`.padding_` 等原生 GPUI 布局/样式 token。
+3. **页面层重做**：删除旧 raw GPUI 页面模块和旧 `components.rs/theme.rs`；`views/app_shell.rs` 改为 Liora 组件 + `narya_ui` 本地组件库的语义组合。
+4. **本地组件库边界**：`ui_kit.rs` 承担 ShellFrame、Sidebar、HeaderBar、FooterBar、NaryaPage、NaryaCard、NaryaMetric、NodeCardData、订阅项、设置行、图表卡等可复用组件；必要 GPUI 底层封装集中于此，作为未来反哺 Liora 的候选。
+5. **视觉方向**：主骨架按 1536×1024 图片真源重建：约 264px 左侧栏、108px 头部、68px 底栏、冷白背景、蓝紫激活态、圆角卡片、Dashboard/Nodes/Subscriptions/Settings 等页面的高密度卡片布局和图表/状态块。
+6. **旧功能红线保留**：无 splash、Liora 初始化、连接按钮接线、IPC error 检查、kernel install fail-closed、runtime path、config generator fail-closed 等契约继续通过。
 
 ## 验证证据
 
-最新验证命令均已运行：
+已运行：
 
 ```bash
 cargo fmt --all -- --check
@@ -31,10 +30,10 @@ cargo clippy -p narya-app --lib -- -D warnings
 timeout 8s cargo run -p narya-app
 ```
 
-结果：fmt/check/test/分段 clippy 均退出 0；`cargo test --workspace` 包含 `narya-contract-tests` 4/4 通过，以及 daemon config/subscription Shadowsocks 回归测试通过；`cargo run -p narya-app` 成功编译并启动 GUI 进程，保持运行直到 8 秒 timeout（退出 124 为预期烟测截断）。独立 code-reviewer 复核 review blockers 后 APPROVED。
+结果：fmt/check/test/分段 clippy 均退出 0；`narya-contract-tests` 5/5 通过；GUI run 成功进入 `target/debug/narya-app` 并保持运行到 8 秒 timeout，退出 124 为预期烟测截断。
 
 ## 已知限制
 
-- `cargo clippy --workspace --all-targets` 若包含 `narya-app` test target，会在 GPUI/Liora 宏 test 编译路径长时间卡住/栈风险；已通过 `narya-app` `[lib] test = false`、独立 `narya-contract-tests` 和 `cargo clippy -p narya-app --lib` 规避并记录。
-- 新主窗口已使用 Liora 组件搭建可运行产品面，但尚未完成逐 PNG 的截图级 1:1 视觉验收。
-- 真实内核安装器、真实测速、订阅添加/导入、配置编辑、工具箱动作仍未实现；相关按钮已禁用或保留为后续入口，避免假成功。
+- 当前完成的是“红线架构重做 + 主视觉骨架重建”，尚未做真实截图与源 PNG 的像素级 diff，因此不能宣称最终 1:1 验收完成。
+- 下一轮需要在有显示/截图能力的环境中逐页截图，对照 `ui/*.png` 继续校准具体间距、图标、曲线、卡片高度、字体大小和页面子状态。
+- 真实 kernel installer、订阅添加/导入、测速、工具箱动作和 framed IPC codec 仍是后续实现项。

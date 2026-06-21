@@ -2,27 +2,27 @@
 
 ## 当前可接手状态
 
-本轮完成 Liora UI 重建的可运行主切片，并修复独立 review 提出的集成红线。启动命令：
+Liora UI 第二轮红线重做已完成。启动命令：
 
 ```bash
 cargo run -p narya-app
 ```
 
-应用会直接进入主窗口，不再显示 splash。主窗口由 `crates/narya-app/src/views/app_shell.rs` 组合，组件边界在 `crates/narya-app/src/ui_kit.rs`。
+当前应用直接进入主窗口，不显示 splash。页面层在 `crates/narya-app/src/views/app_shell.rs`，但该文件只做状态/路由/语义组件组合；原生 GPUI 底层能力只允许在 `crates/narya-app/src/ui_kit.rs` 本地组件库边界出现。
+
+## 关键约束
+
+- `ui` 下历史 spec 相关非图片文件已删除，后续不得恢复或依赖旧 spec。
+- UI 视觉真源是 `ui/**/*.png` 等图片。
+- 页面/业务 UI 代码严禁直接写原生 GPUI 布局/样式。
+- Liora 不足时，先封装本地低耦合组件，后续作为反哺 Liora 候选。
 
 ## 关键文件
 
-- `Cargo.toml` / `Cargo.lock`：GPUI 0.2.2 registry + Liora 0.1.5 依赖对齐。
-- `crates/narya-app/src/lib.rs`：Liora 初始化和直接主窗口入口。
-- `crates/narya-app/src/ui_kit.rs`：项目 Liora wrapper。
-- `crates/narya-app/src/views/app_shell.rs`：当前主 UI 运行路径；连接按钮已接入 AppState；未实现动作显式禁用。
-- `crates/narya-app/src/state.rs`：代理开关只在 daemon response 无 error 后更新状态；kernel install 不假成功。
-- `crates/narya-app/src/ipc.rs`：`send_request` 等待匹配 `IpcResponse`，忽略先到 notification。
-- `crates/narya-ipc/src/lib.rs`：per-user runtime socket/config path。
-- `crates/narya-daemon/src/main.rs`：kernel status 通过 response 返回； InstallKernel fail-closed。
-- `crates/narya-daemon/src/config_gen.rs`：sing-box config fail-closed；Shadowsocks `method:password`。
-- `crates/narya-subscription/src/lib.rs`：Clash/SS URI 解析保留 Shadowsocks password 到 `method:password`。
-- `crates/narya-contract-tests/src/lib.rs`：架构/红线契约测试。
+- `crates/narya-app/src/views/app_shell.rs`：页面层语义组合，无原生 GPUI 布局/样式 token。
+- `crates/narya-app/src/ui_kit.rs`：本地 Narya/Liora 组件库边界。
+- `crates/narya-contract-tests/src/lib.rs`：锁定 spec 删除和页面层零 GPUI 红线。
+- `prompt.md`：已更新为图片真源和 Liora-first 规则。
 
 ## 必跑验证
 
@@ -35,12 +35,8 @@ cargo clippy -p narya-app --lib -- -D warnings
 timeout 8s cargo run -p narya-app
 ```
 
-说明：不要直接要求 `cargo clippy --workspace --all-targets` 覆盖 `narya-app` test target；GPUI/Liora 宏在该路径会长时间卡住/有栈风险。已用 `narya-contract-tests` 替代 UI 架构测试。
-
-## 最新验证结果
-
-2026-06-21 已运行上述完整验证：fmt/check/test/分段 clippy 均退出 0；GUI run 保持运行直到 8 秒 timeout 截断；独立 code-reviewer 对 review blockers 最终 APPROVED。
+说明：`timeout 8s cargo run -p narya-app` 退出 124 是预期烟测截断，只要输出显示进入 `Running target/debug/narya-app` 且无崩溃即可。
 
 ## 下一步推荐
 
-从 `ui/dashboard.png`、`ui/nodes.png`、`ui/subscriptions.png` 和 `ui/specs/main_window_spec_detailed.md` 开始做 Liora 组件细化。先抽 Sidebar/TopBar/StatusCard/NodeCard 等项目组件，再迁移旧页面逻辑，最后删除旧 raw GPUI 页面模块。真实 kernel installer、订阅添加/导入、测速、工具箱动作和 framed IPC codec 仍是后续重点。
+下一轮不要再写 spec。直接打开源图片和运行截图做像素级对照，从 `dashboard.png`、`nodes.png`、`subscriptions.png`、`settings.png` 开始校准。优先拆分 `ui_kit.rs` 为 `ui_kit/shell.rs`、`cards.rs`、`nodes.rs`、`subscriptions.rs`、`settings.rs` 等模块，降低后续反哺 Liora 的成本。

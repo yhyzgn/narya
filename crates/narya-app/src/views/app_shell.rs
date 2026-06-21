@@ -1,11 +1,13 @@
 use crate::state::AppState;
+use crate::ui_kit as narya_ui;
 use crate::ui_kit::{
-    color, narya_tag, progress, NaryaButton, NaryaCard, NaryaMetric, NaryaPage, NaryaStatus, BG,
-    BORDER, BRAND, MUTED, SUCCESS, SURFACE, TEXT, WARNING,
+    NaryaButton, NaryaCard, NaryaMetric, NaryaPage, NaryaStatus, NavTarget, PageKind,
 };
 use crate::views::ActiveView;
-use gpui::{prelude::*, *};
-use liora::components::{Button, Flex, Space, Tag, Text};
+use liora::components::{Flex, Text};
+use narya_ui::{
+    App, Context, NaryaAppContext, NaryaEntity as Entity, NaryaIntoElement, Render, Window,
+};
 
 pub struct AppShell {
     pub(super) active_view: ActiveView,
@@ -18,855 +20,885 @@ impl AppShell {
         AppState::start_traffic_monitor(state.clone(), cx);
         AppState::fetch_kernel_status(state.clone(), cx);
 
-        let size = size(px(1536.0), px(1000.0));
-        let bounds = Bounds::centered(None, size, cx);
-        cx.open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(bounds)),
-                window_min_size: Some(size),
-                titlebar: Some(TitlebarOptions {
-                    title: Some("Narya".into()),
-                    ..Default::default()
-                }),
-                app_id: Some("narya".into()),
-                ..Default::default()
-            },
-            move |_, cx| {
-                cx.new(|_| AppShell {
-                    active_view: ActiveView::Dashboard,
-                    state,
-                })
-            },
-        )
-        .expect("failed to open Narya main window");
+        narya_ui::open_shell_window(cx, move |_, cx| {
+            cx.new(|_| AppShell {
+                active_view: ActiveView::Dashboard,
+                state,
+            })
+        });
     }
 }
 
 impl Render for AppShell {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl NaryaIntoElement {
         let view = self.active_view;
-        let state = self.state.read(cx);
-        let active_node = state
-            .active_node_id
-            .as_ref()
-            .and_then(|id| state.nodes.iter().find(|node| node.id == *id));
-        let active_node_name = active_node
-            .map(|node| node.name.clone())
-            .unwrap_or_else(|| "未连接".to_string());
-        let active_latency = active_node.and_then(|node| node.latency).unwrap_or(0);
-        let download_speed = active_node.map(|node| node.download_speed).unwrap_or(0.0);
-        let upload_speed = active_node.map(|node| node.upload_speed).unwrap_or(0.0);
-        let nodes = state.nodes.clone();
-        let subscriptions = state.subscriptions.clone();
-        let logs = state.log_lines.clone();
-        let kernels = state.kernels.clone();
-        let running = state.kernel_running;
-        let _ = state;
+        let snapshot = ShellSnapshot::from_state(self.state.clone(), cx);
+        let weak_shell = cx.entity().downgrade();
+        let on_nav = move |target: NavTarget, cx: &mut App| {
+            let _ = weak_shell.update(cx, |shell, cx| {
+                shell.active_view = ActiveView::from(target);
+                cx.notify();
+            });
+        };
 
-        Flex::new()
-            .row()
-            .size_full()
-            .bg(color(SURFACE).into())
-            .text_color(color(TEXT).into())
-            .child(sidebar(
-                view,
-                cx,
-                running,
-                active_node_name,
-                active_latency,
-                download_speed,
-                upload_speed,
-            ))
-            .child(
-                Flex::new()
-                    .column()
-                    .flex_1()
-                    .h_full()
-                    .min_h_0()
-                    .bg(color(BG).into())
-                    .child(header(view, &self.state))
-                    .child(
-                        Flex::new()
-                            .flex_1()
-                            .min_h_0()
-                            .padding_lg()
-                            .overflow_hidden()
-                            .child(route_page(
-                                view,
-                                &self.state,
-                                nodes,
-                                subscriptions,
-                                logs,
-                                kernels,
-                                running,
-                            )),
-                    )
-                    .child(footer(running)),
-            )
+        narya_ui::ShellFrame::new(
+            narya_ui::Sidebar::new(
+                NavTarget::from(view),
+                snapshot.running,
+                snapshot.active_node_name.clone(),
+                snapshot.active_latency,
+                snapshot.download_speed,
+                snapshot.upload_speed,
+                on_nav,
+            ),
+            header(view, &self.state),
+            route_page(view, &self.state, snapshot),
+            narya_ui::FooterBar,
+        )
     }
 }
 
-fn sidebar(
-    active: ActiveView,
-    cx: &mut Context<AppShell>,
-    running: bool,
-    active_node_name: String,
-    latency: u32,
-    down: f32,
-    up: f32,
-) -> impl IntoElement {
-    Flex::new()
-        .column()
-        .width_px(220.0)
-        .h_full()
-        .flex_none()
-        .justify_between()
-        .border()
-        .border_color(color(BORDER).into())
-        .bg(color(SURFACE).into())
-        .child(
-            Flex::new()
-                .column()
-                .child(
-                    Flex::new()
-                        .row()
-                        .align_center()
-                        .gap_sm()
-                        .height_px(60.0)
-                        .padding_x_px(20.0)
-                        .child(
-                            Text::new("◈")
-                                .size(px(28.0))
-                                .text_color(color(BRAND).into())
-                                .selectable(false),
-                        )
-                        .child(
-                            Flex::new()
-                                .column()
-                                .child(
-                                    Text::new("Narya")
-                                        .bold()
-                                        .text_color(color(TEXT).into())
-                                        .selectable(false),
-                                )
-                                .child(
-                                    Text::new("Liora Native")
-                                        .xs()
-                                        .text_color(color(MUTED).into())
-                                        .selectable(false),
-                                ),
-                        ),
-                )
-                .child(
-                    Flex::new()
-                        .column()
-                        .gap_sm()
-                        .padding_sm()
-                        .child(nav_button("仪表盘", ActiveView::Dashboard, active, cx))
-                        .child(nav_button("节点", ActiveView::Nodes, active, cx))
-                        .child(nav_button("配置", ActiveView::Config, active, cx))
-                        .child(nav_button("订阅", ActiveView::Subscriptions, active, cx))
-                        .child(nav_button("连接", ActiveView::Connections, active, cx))
-                        .child(nav_button("规则", ActiveView::Rules, active, cx))
-                        .child(nav_button("日志", ActiveView::Logs, active, cx))
-                        .child(nav_button("工具箱", ActiveView::Tools, active, cx))
-                        .child(nav_button("设置", ActiveView::Settings, active, cx)),
-                ),
-        )
-        .child(
-            Flex::new()
-                .column()
-                .gap_md()
-                .padding_md()
-                .child(
-                    NaryaCard::panel(
-                        Flex::new()
-                            .column()
-                            .gap_sm()
-                            .child(
-                                Space::new().gap_sm().child(status_dot(running)).child(
-                                    Text::new(if running { "已连接" } else { "待连接" })
-                                        .sm()
-                                        .bold()
-                                        .selectable(false),
-                                ),
-                            )
-                            .child(
-                                Text::new(active_node_name)
-                                    .sm()
-                                    .text_color(color(TEXT).into())
-                                    .selectable(false),
-                            )
-                            .child(narya_tag(
-                                format!("{} ms", latency),
-                                if running {
-                                    NaryaStatus::Success
-                                } else {
-                                    NaryaStatus::Info
-                                },
-                            ))
-                            .child(
-                                Space::new()
-                                    .gap_sm()
-                                    .child(
-                                        Text::new(format!("↓ {:.1} MB/s", down))
-                                            .xs()
-                                            .text_color(color(MUTED).into())
-                                            .selectable(false),
-                                    )
-                                    .child(
-                                        Text::new(format!("↑ {:.1} MB/s", up))
-                                            .xs()
-                                            .text_color(color(MUTED).into())
-                                            .selectable(false),
-                                    ),
-                            )
-                            .child(progress(if running { 72.0 } else { 8.0 })),
-                    )
-                    .no_shadow(),
-                )
-                .child(
-                    Space::new()
-                        .gap_sm()
-                        .child(NaryaButton::ghost("GitHub").small())
-                        .child(NaryaButton::ghost("Theme").small())
-                        .child(NaryaButton::ghost("Bell").small()),
-                ),
-        )
-}
-
-fn nav_button(
-    label: &'static str,
-    target: ActiveView,
-    active: ActiveView,
-    cx: &mut Context<AppShell>,
-) -> Button {
-    let weak = cx.entity().downgrade();
-    let button = if active == target {
-        Button::new(label).primary()
-    } else {
-        Button::new(label).tertiary()
-    };
-
-    button
-        .rounded_md()
-        .background(active == target)
-        .border(false)
-        .on_click(move |_, _, cx| {
-            let _ = weak.update(cx, |this, cx| {
-                this.active_view = target;
-                cx.notify();
-            });
-        })
-}
-
-fn status_dot(running: bool) -> impl IntoElement {
-    Flex::new()
-        .width_px(8.0)
-        .height_px(8.0)
-        .rounded_pill()
-        .bg(color(if running { SUCCESS } else { MUTED }).into())
-}
-
-fn header(view: ActiveView, model: &Entity<AppState>) -> impl IntoElement {
-    let model_for_connect = model.clone();
-    Flex::new()
-        .row()
-        .align_center()
-        .justify_between()
-        .height_px(64.0)
-        .w_full()
-        .flex_none()
-        .padding_x_px(20.0)
-        .bg(color(SURFACE).into())
-        .border()
-        .border_color(color(BORDER).into())
-        .child(
-            Flex::new()
-                .column()
-                .gap_px(4.0)
-                .child(
-                    Text::new(view_title(view))
-                        .size(px(18.0))
-                        .bold()
-                        .text_color(color(TEXT).into())
-                        .selectable(false),
-                )
-                .child(
-                    Text::new(view_subtitle(view))
-                        .xs()
-                        .text_color(color(MUTED).into())
-                        .selectable(false),
-                ),
-        )
-        .child(
-            Space::new()
-                .gap_sm()
-                .child(
-                    NaryaButton::primary("连接")
-                        .small()
-                        .on_click(move |_, _, cx| {
-                            AppState::toggle_proxy(model_for_connect.clone(), cx)
-                        }),
-                )
-                .child(NaryaButton::ghost("刷新全部").small())
-                .child(NaryaButton::ghost("导入").small())
-                .child(NaryaButton::ghost("导出").small()),
-        )
-}
-
-fn footer(running: bool) -> impl IntoElement {
-    Flex::new()
-        .row()
-        .align_center()
-        .justify_between()
-        .height_px(36.0)
-        .w_full()
-        .flex_none()
-        .padding_x_px(16.0)
-        .bg(color(SURFACE).into())
-        .border()
-        .border_color(color(BORDER).into())
-        .child(
-            Space::new()
-                .gap_lg()
-                .child(
-                    Text::new("内核: sing-box")
-                        .xs()
-                        .text_color(color(MUTED).into())
-                        .selectable(false),
-                )
-                .child(
-                    Text::new(if running {
-                        "状态: Active"
-                    } else {
-                        "状态: Standby"
-                    })
-                    .xs()
-                    .text_color(color(MUTED).into())
-                    .selectable(false),
-                )
-                .child(
-                    Text::new("配置: Narya Default")
-                        .xs()
-                        .text_color(color(MUTED).into())
-                        .selectable(false),
-                ),
-        )
-        .child(
-            Text::new("v0.1.0 · Liora UI")
-                .xs()
-                .text_color(color(MUTED).into())
-                .selectable(false),
-        )
-}
-
-fn route_page(
-    view: ActiveView,
-    model: &Entity<AppState>,
+#[derive(Clone)]
+struct ShellSnapshot {
     nodes: Vec<narya_core::Node>,
     subscriptions: Vec<narya_core::Subscription>,
     logs: Vec<crate::state::LogMessage>,
     kernels: Vec<narya_ipc::KernelInfo>,
     running: bool,
-) -> AnyElement {
-    match view {
-        ActiveView::Dashboard => {
-            dashboard_page(model, &nodes, &subscriptions, running).into_any_element()
+    active_node_name: String,
+    active_latency: u32,
+    download_speed: f32,
+    upload_speed: f32,
+}
+
+impl ShellSnapshot {
+    fn from_state(model: Entity<AppState>, cx: &mut Context<AppShell>) -> Self {
+        let state = model.read(cx);
+        let active_node = state
+            .active_node_id
+            .as_ref()
+            .and_then(|id| state.nodes.iter().find(|node| node.id == *id));
+        Self {
+            nodes: state.nodes.clone(),
+            subscriptions: state.subscriptions.clone(),
+            logs: state.log_lines.clone(),
+            kernels: state.kernels.clone(),
+            running: state.kernel_running,
+            active_node_name: active_node
+                .map(|node| node.name.clone())
+                .unwrap_or_else(|| "未连接".to_string()),
+            active_latency: active_node.and_then(|node| node.latency).unwrap_or(0),
+            download_speed: active_node.map(|node| node.download_speed).unwrap_or(0.0),
+            upload_speed: active_node.map(|node| node.upload_speed).unwrap_or(0.0),
         }
-        ActiveView::Nodes => nodes_page(model, nodes).into_any_element(),
-        ActiveView::Subscriptions => subscriptions_page(model, subscriptions).into_any_element(),
-        ActiveView::Config => config_page().into_any_element(),
-        ActiveView::Connections => connections_page(&nodes).into_any_element(),
-        ActiveView::Rules => rules_page().into_any_element(),
-        ActiveView::Logs => logs_page(logs).into_any_element(),
-        ActiveView::Tools => tools_page().into_any_element(),
-        ActiveView::Settings => settings_page(model, kernels).into_any_element(),
-        ActiveView::About => simple_page("关于", "Narya GPUI 客户端").into_any_element(),
     }
 }
 
-fn dashboard_page(
-    model: &Entity<AppState>,
-    nodes: &[narya_core::Node],
-    subscriptions: &[narya_core::Subscription],
-    running: bool,
-) -> impl IntoElement {
+fn header(view: ActiveView, model: &Entity<AppState>) -> impl NaryaIntoElement {
+    let page = PageKind::from(view);
     let model_for_connect = model.clone();
-    NaryaPage::new("Dashboard", "实时代理状态、流量趋势与关键动作入口。")
-        .child(
-            Flex::new()
-                .row()
-                .gap_lg()
-                .w_full()
-                .child(Flex::new().flex_1().child(NaryaMetric::card("连接状态", if running { "已连接" } else { "未连接" }, "System Proxy · Rule", color(BRAND))))
-                .child(Flex::new().flex_1().child(NaryaMetric::card("可用节点", nodes.len().to_string(), "按延迟智能选择", color(SUCCESS))))
-                .child(Flex::new().flex_1().child(NaryaMetric::card("订阅源", subscriptions.len().to_string(), "自动更新已就绪", color(WARNING))))
-                .child(Flex::new().flex_1().child(NaryaMetric::card("今日流量", "1.28 GB", "下载 1.02 / 上传 0.26", color(BRAND)))),
-        )
-        .child(
-            Flex::new()
-                .row()
-                .gap_lg()
-                .flex_1()
-                .min_h_0()
-                .child(
-                    Flex::new()
-                        .flex_1()
-                        .child(NaryaCard::titled(
-                            "快速控制",
-                            Flex::new()
-                                .column()
-                                .gap_lg()
-                                .child(Space::new().gap_md().child(NaryaButton::primary(if running { "断开连接" } else { "立即连接" }).on_click(move |_, _, cx| AppState::toggle_proxy(model_for_connect.clone(), cx))).child(NaryaButton::ghost("测速全部节点")))
-                                .child(Text::new("系统代理、TUN 智能路由、DNS 保护和规则模式都在主控面板集中呈现。").sm().text_color(color(MUTED).into()).selectable(false))
-                                .child(progress(if running { 88.0 } else { 12.0 })),
-                        )),
-                )
-                .child(
-                    Flex::new()
-                        .width_px(360.0)
-                        .flex_none()
-                        .child(NaryaCard::titled(
-                            "推荐节点",
-                            Flex::new().column().gap_md().children(nodes.iter().take(5).map(node_row)),
-                        )),
-                ),
-        )
+    let mut actions = vec![
+        NaryaButton::icon("□").into_any_element(),
+        NaryaButton::icon("▣").into_any_element(),
+        NaryaButton::icon("⚙").into_any_element(),
+        NaryaButton::icon("⋮").into_any_element(),
+    ];
+    match view {
+        ActiveView::Nodes => actions.insert(
+            0,
+            NaryaButton::primary("一键测速")
+                .on_click(move |_, _, cx| AppState::test_all_latency(model_for_connect.clone(), cx))
+                .into_any_element(),
+        ),
+        ActiveView::Subscriptions => actions.insert(
+            0,
+            NaryaButton::primary("＋ 添加订阅")
+                .disabled(true)
+                .into_any_element(),
+        ),
+        ActiveView::Dashboard => actions.insert(
+            0,
+            NaryaButton::primary("连接")
+                .on_click(move |_, _, cx| AppState::toggle_proxy(model_for_connect.clone(), cx))
+                .into_any_element(),
+        ),
+        _ => {}
+    }
+    narya_ui::HeaderBar::new(page, actions)
 }
 
-fn nodes_page(model: &Entity<AppState>, nodes: Vec<narya_core::Node>) -> impl IntoElement {
-    let model_for_test = model.clone();
-    NaryaPage::new("Nodes", "节点列表、延迟测速、协议与出口状态。")
-        .child(
-            Space::new()
-                .gap_md()
-                .child(NaryaButton::primary("一键测速").on_click(move |_, _, cx| {
-                    AppState::test_all_latency(model_for_test.clone(), cx)
-                }))
-                .child(NaryaButton::ghost("智能排序"))
-                .child(NaryaButton::ghost("筛选地区")),
-        )
-        .child(
+fn route_page(
+    view: ActiveView,
+    model: &Entity<AppState>,
+    snapshot: ShellSnapshot,
+) -> impl NaryaIntoElement {
+    match view {
+        ActiveView::Dashboard => dashboard_page(model, snapshot).into_any_element(),
+        ActiveView::Nodes => nodes_page(model, snapshot).into_any_element(),
+        ActiveView::Subscriptions => subscriptions_page(model, snapshot).into_any_element(),
+        ActiveView::Settings => settings_page(snapshot).into_any_element(),
+        ActiveView::Config => config_page().into_any_element(),
+        ActiveView::Connections => connections_page(snapshot).into_any_element(),
+        ActiveView::Rules => rules_page().into_any_element(),
+        ActiveView::Logs => logs_page(snapshot).into_any_element(),
+        ActiveView::Tools => tools_page().into_any_element(),
+        ActiveView::About => about_page().into_any_element(),
+    }
+}
+
+fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    let model_for_toggle = model.clone();
+    NaryaPage::new()
+        .row(narya_ui::page_row(vec![
+            narya_ui::hero_toggle_card(
+                "▣",
+                "系统代理",
+                "管理系统网络代理设置",
+                snapshot.running,
+                "规则模式 ›",
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            narya_ui::hero_toggle_card(
+                "☍",
+                "TUN 虚拟网卡",
+                "拦截并代理所有网络流量（推荐）",
+                snapshot.running,
+                "智能路由 ›",
+                NaryaStatus::Success,
+            )
+            .into_any_element(),
+        ]))
+        .row(narya_ui::page_columns(
+            NaryaCard::titled(
+                "快速连接",
+                Flex::new()
+                    .column()
+                    .gap_md()
+                    .children(snapshot.nodes.iter().take(4).map(|node| {
+                        narya_ui::quick_node(
+                            node.name.clone(),
+                            node.protocol.clone(),
+                            node.latency.unwrap_or(0),
+                            latency_status(node.latency.unwrap_or(0)),
+                        )
+                    })),
+            ),
+            NaryaCard::titled(
+                "网络概览",
+                Flex::new()
+                    .column()
+                    .gap_lg()
+                    .child(narya_ui::chart_card(
+                        "延迟 (ms)",
+                        latency_values(),
+                        176.0,
+                        narya_ui::SUCCESS,
+                    ))
+                    .child(narya_ui::metric_grid(vec![
+                        NaryaMetric::card(
+                            "节点延迟",
+                            format!("{} ms", snapshot.active_latency),
+                            "当前节点",
+                            "↯",
+                            NaryaStatus::Info,
+                        )
+                        .into_any_element(),
+                        NaryaMetric::card(
+                            "可用节点",
+                            format!("{} / 128", snapshot.nodes.len() * 9 + 2),
+                            "在线 / 总数",
+                            "◎",
+                            NaryaStatus::Success,
+                        )
+                        .into_any_element(),
+                    ])),
+            ),
+        ))
+        .row(narya_ui::page_row(vec![
+            NaryaCard::titled(
+                "流量使用",
+                Flex::new()
+                    .column()
+                    .gap_lg()
+                    .child(narya_ui::metric_grid(vec![
+                        NaryaMetric::card(
+                            "总流量",
+                            "1.26 GB",
+                            "↓ 842 MB  ↑ 436 MB",
+                            "⇅",
+                            NaryaStatus::Info,
+                        )
+                        .into_any_element(),
+                        NaryaMetric::card("连接数", "324", "峰值 1280", "☷", NaryaStatus::Success)
+                            .into_any_element(),
+                    ]))
+                    .child(narya_ui::chart_card(
+                        "今日",
+                        traffic_values(),
+                        128.0,
+                        narya_ui::BRAND,
+                    )),
+            )
+            .into_any_element(),
+            NaryaCard::titled(
+                "连接统计",
+                Flex::new()
+                    .column()
+                    .gap_lg()
+                    .child(narya_ui::ratio_row("Shadowsocks", 63.5, NaryaStatus::Info))
+                    .child(narya_ui::ratio_row("Vmess", 23.4, NaryaStatus::Success))
+                    .child(narya_ui::ratio_row("Trojan", 8.7, NaryaStatus::Warning))
+                    .child(narya_ui::ratio_row("Hysteria2", 4.4, NaryaStatus::Danger))
+                    .child(narya_ui::detail_field("总连接数", "324")),
+            )
+            .into_any_element(),
+            NaryaCard::titled(
+                "活动日志",
+                Flex::new()
+                    .column()
+                    .gap_md()
+                    .child(narya_ui::log_line(
+                        "17:25:21",
+                        format!("已连接到 {}", snapshot.active_node_name),
+                        NaryaStatus::Success,
+                    ))
+                    .child(narya_ui::log_line(
+                        "17:25:20",
+                        "系统代理已启用",
+                        NaryaStatus::Success,
+                    ))
+                    .child(narya_ui::log_line(
+                        "17:25:18",
+                        "TUN 模式已启用",
+                        NaryaStatus::Info,
+                    ))
+                    .child(narya_ui::log_line(
+                        "17:25:09",
+                        "正在更新 GeoIP 数据库",
+                        NaryaStatus::Info,
+                    ))
+                    .child(NaryaButton::ghost("立即连接").on_click(move |_, _, cx| {
+                        AppState::toggle_proxy(model_for_toggle.clone(), cx)
+                    })),
+            )
+            .into_any_element(),
+        ]))
+}
+
+fn nodes_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    NaryaPage::new()
+        .row(narya_ui::page_row(vec![
+            NaryaMetric::card(
+                "当前策略组",
+                "Proxy / 自动选择",
+                "38 / 128",
+                "🚀",
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "当前节点",
+                snapshot.active_node_name.clone(),
+                format!("{} ms", snapshot.active_latency),
+                "✤",
+                NaryaStatus::Success,
+            )
+            .into_any_element(),
+            NaryaMetric::card("模式", "规则模式", "智能分流", "⌘", NaryaStatus::Info)
+                .into_any_element(),
+            NaryaButton::primary("一键测速")
+                .on_click({
+                    let model = model.clone();
+                    move |_, _, cx| AppState::test_all_latency(model.clone(), cx)
+                })
+                .into_any_element(),
+        ]))
+        .row(narya_ui::toolbar(vec![
+            NaryaButton::ghost("搜索节点、地区、协议或标签").into_any_element(),
+            NaryaButton::primary("全部").into_any_element(),
+            NaryaButton::ghost("低延迟").into_any_element(),
+            NaryaButton::ghost("香港").into_any_element(),
+            NaryaButton::ghost("日本").into_any_element(),
+            NaryaButton::ghost("美国").into_any_element(),
+            NaryaButton::ghost("Shadowsocks").into_any_element(),
+            NaryaButton::ghost("按延迟排序⌄").into_any_element(),
+        ]))
+        .row(narya_ui::page_columns(
+            NaryaCard::titled(
+                "节点列表",
+                Flex::new()
+                    .row()
+                    .wrap()
+                    .gap_lg()
+                    .children(snapshot.nodes.iter().cloned().map(|node| {
+                        let id = node.id.clone();
+                        let model = model.clone();
+                        narya_ui::node_card(
+                            narya_ui::NodeCardData::new(
+                                node.name,
+                                node.protocol,
+                                node.latency.unwrap_or(0),
+                                node.usage_pct,
+                                node.download_speed,
+                                node.upload_speed,
+                                snapshot.active_node_name == id,
+                            ),
+                            Box::new(move |_, _, cx| {
+                                AppState::connect_node(model.clone(), cx, id.clone())
+                            }),
+                        )
+                    })),
+            ),
+            NaryaCard::titled(
+                "测速概览",
+                Flex::new()
+                    .column()
+                    .gap_lg()
+                    .child(NaryaMetric::card(
+                        "平均延迟",
+                        "82 ms",
+                        "最快节点：香港 · HK 01",
+                        "◴",
+                        NaryaStatus::Info,
+                    ))
+                    .child(narya_ui::detail_field("可用节点", "38 / 128"))
+                    .child(narya_ui::detail_field("失败", "3"))
+                    .child(narya_ui::detail_field("上次测速时间", "17:26:12"))
+                    .child(NaryaButton::ghost("查看测速日志")),
+            ),
+        ))
+        .row(narya_ui::page_row(vec![
+            narya_ui::chart_card("延迟趋势", latency_values(), 128.0, narya_ui::SUCCESS)
+                .into_any_element(),
+            NaryaCard::titled(
+                "节点详情（香港 · HK 01）",
+                Flex::new()
+                    .column()
+                    .gap_md()
+                    .child(narya_ui::detail_field("地址", "hkg01.narya.net:443"))
+                    .child(narya_ui::detail_field("协议", "Shadowsocks"))
+                    .child(narya_ui::detail_field("加密", "2022-blake3-aes-128-gcm"))
+                    .child(narya_ui::detail_field("UDP", "已启用"))
+                    .child(NaryaButton::ghost("设为默认")),
+            )
+            .into_any_element(),
+        ]))
+}
+
+fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    NaryaPage::new()
+        .row(narya_ui::page_row(vec![
+            NaryaMetric::card(
+                "当前订阅",
+                "机场 A",
+                "类型：远程订阅",
+                "▤",
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "节点总数",
+                "128",
+                "38 可用 / 3 失败",
+                "◎",
+                NaryaStatus::Success,
+            )
+            .into_any_element(),
+            NaryaMetric::card("剩余流量", "842 GB", "已用 436 GB", "◍", NaryaStatus::Info)
+                .into_any_element(),
+            NaryaMetric::card(
+                "到期时间",
+                "42 天",
+                "2026-06-10 到期",
+                "▣",
+                NaryaStatus::Warning,
+            )
+            .into_any_element(),
+            NaryaButton::primary("＋ 添加订阅")
+                .disabled(true)
+                .into_any_element(),
+        ]))
+        .row(narya_ui::page_columns(
+            NaryaCard::titled(
+                "订阅源列表",
+                Flex::new().column().gap_md().children(
+                    snapshot.subscriptions.iter().enumerate().map(|(idx, sub)| {
+                        let usage = if sub.traffic_total > 0.0 {
+                            ((sub.traffic_used / sub.traffic_total) * 100.0) as f32
+                        } else {
+                            0.0
+                        };
+                        narya_ui::subscription_item(
+                            sub.name.clone(),
+                            sub.url.clone(),
+                            sub.node_count,
+                            usage,
+                            idx == 0,
+                        )
+                    }),
+                ),
+            ),
+            NaryaCard::titled(
+                "更新状态",
+                Flex::new()
+                    .column()
+                    .gap_lg()
+                    .child(NaryaMetric::card(
+                        "更新成功",
+                        "128 ms",
+                        "下载时间 1.82s",
+                        "✓",
+                        NaryaStatus::Success,
+                    ))
+                    .child(narya_ui::metric_grid(vec![
+                        NaryaMetric::card("新增节点", "+4", "", "+", NaryaStatus::Success)
+                            .into_any_element(),
+                        NaryaMetric::card("移除节点", "-1", "", "−", NaryaStatus::Danger)
+                            .into_any_element(),
+                        NaryaMetric::card("未变更", "125", "", "=", NaryaStatus::Info)
+                            .into_any_element(),
+                    ]))
+                    .child(NaryaButton::ghost("查看更新日志")),
+            ),
+        ))
+        .row(narya_ui::page_row(vec![
+            narya_ui::chart_card(
+                "流量趋势（最近 30 天）",
+                traffic_values(),
+                132.0,
+                narya_ui::BRAND,
+            )
+            .into_any_element(),
+            NaryaCard::titled(
+                "订阅优先级",
+                Flex::new()
+                    .row()
+                    .gap_lg()
+                    .child(NaryaMetric::card(
+                        "1",
+                        "远程订阅",
+                        "机场 A · 128 节点",
+                        "①",
+                        NaryaStatus::Info,
+                    ))
+                    .child(NaryaMetric::card(
+                        "2",
+                        "本地覆写",
+                        "Narya Default",
+                        "②",
+                        NaryaStatus::Info,
+                    ))
+                    .child(NaryaMetric::card(
+                        "3",
+                        "UI 临时规则",
+                        "活动中",
+                        "③",
+                        NaryaStatus::Info,
+                    )),
+            )
+            .into_any_element(),
+            NaryaCard::titled(
+                "自动更新",
+                Flex::new()
+                    .column()
+                    .gap_md()
+                    .child(narya_ui::setting_row("更新间隔：每 30 分钟", true))
+                    .child(narya_ui::setting_row("启动时更新", true))
+                    .child(narya_ui::setting_row("静默失败通知", true)),
+            )
+            .into_any_element(),
+        ]))
+        .row(NaryaButton::ghost("手动刷新").on_click({
+            let model = model.clone();
+            move |_, _, cx| AppState::refresh_subscription(model.clone(), cx, "sub-1".to_string())
+        }))
+}
+
+fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    let kernel_label = snapshot
+        .kernels
+        .first()
+        .and_then(|k| k.version.clone())
+        .unwrap_or_else(|| "sing-box 1.11.x".to_string());
+    NaryaPage::new()
+        .row(narya_ui::page_row(vec![
+            NaryaMetric::card(
+                "应用版本",
+                "1.0.0",
+                "当前为最新版本",
+                "▤",
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "当前内核",
+                kernel_label,
+                "运行中",
+                "◈",
+                NaryaStatus::Success,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "系统代理",
+                "7890 / 7891",
+                "HTTP / SOCKS",
+                "▣",
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "IPv6 状态",
+                "自动 / 防泄漏",
+                "已启用",
+                "IPv6",
+                NaryaStatus::Success,
+            )
+            .into_any_element(),
+            NaryaMetric::card("更新通道", "Stable", "稳定版更新", "◉", NaryaStatus::Info)
+                .into_any_element(),
+        ]))
+        .row(narya_ui::page_columns(
+            narya_ui::page_row(vec![
+                NaryaCard::titled(
+                    "设置分类",
+                    Flex::new()
+                        .column()
+                        .gap_md()
+                        .child(narya_ui::category("常规", true))
+                        .child(narya_ui::category("外观", false))
+                        .child(narya_ui::category("网络", false))
+                        .child(narya_ui::category("IPv6", false))
+                        .child(narya_ui::category("内核", false))
+                        .child(narya_ui::category("TUN", false))
+                        .child(narya_ui::category("DNS", false))
+                        .child(narya_ui::category("安全", false))
+                        .child(narya_ui::category("通知", false))
+                        .child(narya_ui::category("更新", false))
+                        .child(narya_ui::category("高级", false)),
+                )
+                .into_any_element(),
+                NaryaCard::titled(
+                    "常规设置",
+                    Flex::new()
+                        .column()
+                        .gap_lg()
+                        .child(narya_ui::setting_row("开机自启", false))
+                        .child(narya_ui::setting_row("启动后最小化", false))
+                        .child(narya_ui::setting_row("关闭到托盘", true))
+                        .child(narya_ui::setting_row("启动时恢复代理", true))
+                        .child(narya_ui::detail_field("语言", "简体中文⌄"))
+                        .child(narya_ui::detail_field("时区", "Asia/Shanghai⌄"))
+                        .child(narya_ui::detail_field("HTTP 端口", "7890"))
+                        .child(narya_ui::detail_field("SOCKS 端口", "7891"))
+                        .child(narya_ui::detail_field("API 端口", "9090")),
+                )
+                .into_any_element(),
+            ]),
             Flex::new()
                 .column()
-                .gap_md()
-                .overflow_y_scroll()
-                .children(nodes.into_iter().map(|node| node_card(model, node))),
-        )
-}
-
-fn subscriptions_page(
-    model: &Entity<AppState>,
-    subscriptions: Vec<narya_core::Subscription>,
-) -> impl IntoElement {
-    NaryaPage::new("Subscriptions", "订阅导入、更新、流量与节点同步。")
-        .child(
-            Space::new()
-                .gap_md()
-                .child(NaryaButton::primary("添加订阅").disabled(true))
-                .child(NaryaButton::ghost("从剪贴板导入").disabled(true)),
-        )
-        .child(
-            Flex::new().row().wrap().gap_lg().children(
-                subscriptions
-                    .into_iter()
-                    .map(|sub| subscription_card(model, sub)),
-            ),
-        )
-}
-
-fn config_page() -> impl IntoElement {
-    simple_page("Config", "可视化链式代理、YAML 编辑器与配置预览。").child(NaryaCard::titled(
-        "配置草案",
-        Flex::new()
-            .column()
-            .gap_md()
-            .child(
-                Text::new(
-                    "当前阶段保留核心配置生成入口，后续可把 sing-box JSON 合成器接入此面板。",
-                )
-                .sm()
-                .text_color(color(MUTED).into())
-                .selectable(false),
+                .gap_lg()
+                .child(NaryaCard::titled(
+                    "内核管理",
+                    Flex::new()
+                        .column()
+                        .gap_md()
+                        .children(snapshot.kernels.into_iter().map(|k| {
+                            narya_ui::detail_field(
+                                k.name,
+                                if k.installed {
+                                    "已安装"
+                                } else {
+                                    "未安装"
+                                },
+                            )
+                        }))
+                        .child(NaryaButton::primary("安装未实现").disabled(true)),
+                ))
+                .child(NaryaCard::titled(
+                    "权限状态",
+                    Flex::new()
+                        .column()
+                        .gap_md()
+                        .child(narya_ui::setting_row("系统代理权限", true))
+                        .child(narya_ui::setting_row("TUN 权限", true))
+                        .child(narya_ui::setting_row("通知权限", true))
+                        .child(narya_ui::setting_row("开机自启权限", false)),
+                ))
+                .child(NaryaCard::titled(
+                    "安全与隐私",
+                    Flex::new()
+                        .column()
+                        .gap_md()
+                        .child(narya_ui::setting_row("日志脱敏", true))
+                        .child(narya_ui::setting_row("本地 API Token", true))
+                        .child(narya_ui::setting_row("配置文件加密", false)),
+                )),
+        ))
+        .row(narya_ui::page_row(vec![
+            NaryaCard::titled(
+                "外观预览",
+                Flex::new()
+                    .row()
+                    .gap_lg()
+                    .child(NaryaButton::primary("浅色"))
+                    .child(NaryaButton::ghost("深色"))
+                    .child(NaryaButton::ghost("跟随系统")),
             )
-            .child(NaryaButton::ghost("打开 YAML 编辑器").disabled(true)),
-    ))
+            .into_any_element(),
+            NaryaCard::titled(
+                "更新设置",
+                Flex::new()
+                    .column()
+                    .gap_lg()
+                    .child(narya_ui::setting_row("自动检查更新", true))
+                    .child(narya_ui::detail_field("更新通道", "Stable⌄"))
+                    .child(NaryaButton::primary("检查更新")),
+            )
+            .into_any_element(),
+        ]))
 }
 
-fn connections_page(nodes: &[narya_core::Node]) -> impl IntoElement {
-    NaryaPage::new("Connections", "活跃连接、目标地址、规则命中和出口链路。").child(
+fn config_page() -> impl NaryaIntoElement {
+    NaryaPage::new()
+        .row(narya_ui::page_row(vec![
+            NaryaMetric::card(
+                "当前配置",
+                "Narya Default",
+                "规则模式",
+                "▤",
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "链式代理",
+                "未启用",
+                "可视化编排",
+                "⇄",
+                NaryaStatus::Warning,
+            )
+            .into_any_element(),
+            NaryaMetric::card("YAML", "只读预览", "编辑器待接入", "{}", NaryaStatus::Info)
+                .into_any_element(),
+        ]))
+        .row(NaryaCard::titled(
+            "配置工作台",
+            Flex::new()
+                .row()
+                .gap_lg()
+                .child(NaryaButton::ghost("可视化编辑").disabled(true))
+                .child(NaryaButton::ghost("YAML 编辑器").disabled(true))
+                .child(NaryaButton::ghost("链式代理").disabled(true)),
+        ))
+}
+
+fn connections_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    NaryaPage::new().row(narya_ui::page_columns(
         NaryaCard::titled(
             "近期连接",
             Flex::new()
                 .column()
-                .gap_sm()
-                .children(nodes.iter().take(6).enumerate().map(|(idx, node)| {
-                    Flex::new()
-                        .row()
-                        .align_center()
-                        .justify_between()
-                        .padding_sm()
-                        .border()
-                        .border_color(color(BORDER).into())
-                        .rounded_md()
-                        .child(
-                            Text::new(format!("10.0.0.{} → {}", idx + 10, node.details.address))
-                                .sm()
-                                .selectable(false),
-                        )
-                        .child(narya_tag(node.protocol.clone(), NaryaStatus::Info))
-                })),
+                .gap_md()
+                .children(
+                    snapshot
+                        .nodes
+                        .iter()
+                        .take(8)
+                        .enumerate()
+                        .map(|(idx, node)| {
+                            narya_ui::detail_field(
+                                format!("10.0.0.{} → {}", idx + 10, node.details.address),
+                                node.protocol.clone(),
+                            )
+                        }),
+                ),
         ),
-    )
+        NaryaCard::titled(
+            "连接摘要",
+            Flex::new()
+                .column()
+                .gap_lg()
+                .child(NaryaMetric::card(
+                    "活跃连接",
+                    "324",
+                    "TCP / UDP",
+                    "⇄",
+                    NaryaStatus::Info,
+                ))
+                .child(NaryaMetric::card(
+                    "规则命中",
+                    "12,840",
+                    "DIRECT 62%",
+                    "☷",
+                    NaryaStatus::Success,
+                )),
+        ),
+    ))
 }
 
-fn rules_page() -> impl IntoElement {
-    simple_page("Rules", "规则分流、规则模拟器与命中统计。").child(
-        Flex::new()
-            .row()
-            .gap_lg()
-            .child(Flex::new().flex_1().child(NaryaMetric::card(
-                "规则集",
-                "8",
-                "GeoSite / GeoIP",
-                color(BRAND),
-            )))
-            .child(Flex::new().flex_1().child(NaryaMetric::card(
+fn rules_page() -> impl NaryaIntoElement {
+    NaryaPage::new()
+        .row(narya_ui::metric_grid(vec![
+            NaryaMetric::card("规则集", "8", "GeoSite / GeoIP", "☷", NaryaStatus::Info)
+                .into_any_element(),
+            NaryaMetric::card(
                 "今日命中",
                 "12,840",
                 "DIRECT 62% · PROXY 38%",
-                color(SUCCESS),
-            )))
-            .child(Flex::new().flex_1().child(NaryaMetric::card(
+                "◎",
+                NaryaStatus::Success,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
                 "最后更新",
                 "2 天前",
                 "可手动刷新",
-                color(WARNING),
-            ))),
-    )
+                "↻",
+                NaryaStatus::Warning,
+            )
+            .into_any_element(),
+        ]))
+        .row(NaryaCard::titled(
+            "规则模拟器",
+            Flex::new()
+                .column()
+                .gap_md()
+                .child(narya_ui::detail_field("apple.com", "DIRECT"))
+                .child(narya_ui::detail_field("github.com", "PROXY"))
+                .child(narya_ui::detail_field("openai.com", "PROXY")),
+        ))
 }
 
-fn logs_page(logs: Vec<crate::state::LogMessage>) -> impl IntoElement {
-    let log_rows: Vec<AnyElement> = if logs.is_empty() {
+fn logs_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    let rows: Vec<_> = if snapshot.logs.is_empty() {
         vec![
-            Text::new("Daemon 尚未推送日志，启动 narya-daemon 后这里会实时刷新。")
-                .sm()
-                .text_color(color(MUTED).into())
+            narya_ui::log_line("--:--:--", "Daemon 尚未推送日志", NaryaStatus::Info)
                 .into_any_element(),
         ]
     } else {
-        logs.into_iter()
+        snapshot
+            .logs
+            .into_iter()
             .rev()
             .take(18)
             .map(|log| {
-                Flex::new()
-                    .row()
-                    .gap_md()
-                    .padding_sm()
-                    .border()
-                    .border_color(color(BORDER).into())
-                    .rounded_md()
-                    .child(
-                        Text::new(log.time)
-                            .xs()
-                            .text_color(color(MUTED).into())
-                            .selectable(false),
-                    )
-                    .child(narya_tag(log.level, NaryaStatus::Info))
-                    .child(Text::new(log.content).sm().text_color(color(TEXT).into()))
-                    .into_any_element()
+                narya_ui::log_line(log.time, log.content, NaryaStatus::Info).into_any_element()
             })
             .collect()
     };
-
-    NaryaPage::new("Logs", "内核日志、诊断导出与错误追踪。").child(NaryaCard::titled(
+    NaryaPage::new().row(NaryaCard::titled(
         "实时日志",
-        Flex::new().column().gap_sm().children(log_rows),
+        Flex::new().column().gap_md().children(rows),
     ))
 }
 
-fn tools_page() -> impl IntoElement {
-    NaryaPage::new("Tools", "Ping、DNS 查询、MTR、端口检查与报告导出。").child(
-        Flex::new()
-            .row()
-            .gap_lg()
-            .child(tool_card("Ping 测试", "检测主机可达性与往返延迟"))
-            .child(tool_card("DNS 查询", "查看解析链路与污染风险"))
-            .child(tool_card("Speed Test", "按出口节点测试吞吐")),
-    )
-}
-
-fn settings_page(
-    model: &Entity<AppState>,
-    kernels: Vec<narya_ipc::KernelInfo>,
-) -> impl IntoElement {
-    NaryaPage::new("Settings", "内核、网络、DNS、外观和安全策略。")
-        .child(NaryaCard::titled(
-            "代理内核",
-            Flex::new()
-                .column()
-                .gap_md()
-                .children(kernels.into_iter().map(|kernel| kernel_row(model, kernel))),
-        ))
-        .child(
-            Flex::new()
-                .row()
-                .gap_lg()
-                .child(Flex::new().flex_1().child(NaryaMetric::card(
-                    "DNS",
-                    "增强模式",
-                    "DoH · FakeIP",
-                    color(BRAND),
-                )))
-                .child(Flex::new().flex_1().child(NaryaMetric::card(
-                    "安全",
-                    "严格",
-                    "证书/权限提示启用",
-                    color(SUCCESS),
-                )))
-                .child(Flex::new().flex_1().child(NaryaMetric::card(
-                    "更新",
-                    "自动",
-                    "每日检查",
-                    color(WARNING),
-                ))),
+fn tools_page() -> impl NaryaIntoElement {
+    NaryaPage::new().row(narya_ui::grid_two(vec![
+        NaryaMetric::card(
+            "Ping 测试",
+            "就绪",
+            "检测主机可达性",
+            "↯",
+            NaryaStatus::Info,
         )
-}
-
-fn simple_page(title: &'static str, subtitle: &'static str) -> NaryaPage {
-    NaryaPage::new(title, subtitle)
-}
-
-fn node_card(model: &Entity<AppState>, node: narya_core::Node) -> impl IntoElement {
-    let node_id = node.id.clone();
-    let model_for_connect = model.clone();
-    NaryaCard::panel(
-        Flex::new()
-            .row()
-            .align_center()
-            .justify_between()
-            .gap_lg()
-            .child(
-                Flex::new()
-                    .column()
-                    .gap_sm()
-                    .child(
-                        Text::new(node.name.clone())
-                            .bold()
-                            .text_color(color(TEXT).into())
-                            .selectable(false),
-                    )
-                    .child(
-                        Space::new()
-                            .gap_sm()
-                            .child(narya_tag(node.protocol.clone(), NaryaStatus::Info))
-                            .child(
-                                Text::new(node.details.address.clone())
-                                    .xs()
-                                    .text_color(color(MUTED).into())
-                                    .selectable(false),
-                            ),
-                    ),
-            )
-            .child(
-                Space::new()
-                    .gap_md()
-                    .child(latency_tag(node.latency))
-                    .child(
-                        NaryaButton::primary("连接")
-                            .small()
-                            .on_click(move |_, _, cx| {
-                                AppState::connect_node(
-                                    model_for_connect.clone(),
-                                    cx,
-                                    node_id.clone(),
-                                )
-                            }),
-                    ),
-            ),
-    )
-    .no_shadow()
-}
-
-fn node_row(node: &narya_core::Node) -> impl IntoElement {
-    Flex::new()
-        .row()
-        .align_center()
-        .justify_between()
-        .padding_sm()
-        .border()
-        .border_color(color(BORDER).into())
-        .rounded_md()
-        .child(
-            Text::new(node.name.clone())
-                .sm()
-                .text_color(color(TEXT).into())
-                .selectable(false),
+        .into_any_element(),
+        NaryaMetric::card(
+            "DNS 查询",
+            "就绪",
+            "查看解析链路",
+            "◎",
+            NaryaStatus::Success,
         )
-        .child(latency_tag(node.latency))
+        .into_any_element(),
+        NaryaMetric::card(
+            "MTR Trace",
+            "就绪",
+            "追踪链路质量",
+            "⇄",
+            NaryaStatus::Warning,
+        )
+        .into_any_element(),
+        NaryaMetric::card("端口检查", "就绪", "验证远端端口", "▣", NaryaStatus::Info)
+            .into_any_element(),
+    ]))
 }
 
-fn subscription_card(model: &Entity<AppState>, sub: narya_core::Subscription) -> impl IntoElement {
-    let id = sub.id.clone();
-    let model = model.clone();
-    let usage = if sub.traffic_total > 0.0 {
-        ((sub.traffic_used / sub.traffic_total) * 100.0).clamp(0.0, 100.0) as f32
-    } else {
-        0.0
-    };
-
-    NaryaCard::panel(
-        Flex::new()
-            .column()
-            .gap_md()
-            .width_px(330.0)
-            .child(
-                Flex::new()
-                    .row()
-                    .align_center()
-                    .justify_between()
-                    .child(
-                        Text::new(sub.name)
-                            .bold()
-                            .text_color(color(TEXT).into())
-                            .selectable(false),
-                    )
-                    .child(narya_tag(sub.status, NaryaStatus::Success)),
-            )
-            .child(Text::new(sub.url).xs().text_color(color(MUTED).into()))
-            .child(progress(usage))
-            .child(
-                Text::new(format!(
-                    "{:.1} / {:.1} GB · {} 节点",
-                    sub.traffic_used, sub.traffic_total, sub.node_count
-                ))
-                .xs()
-                .text_color(color(MUTED).into())
-                .selectable(false),
-            )
-            .child(
-                NaryaButton::ghost("手动刷新")
-                    .small()
-                    .on_click(move |_, _, cx| {
-                        AppState::refresh_subscription(model.clone(), cx, id.clone())
-                    }),
-            ),
-    )
-    .no_shadow()
-}
-
-fn tool_card(title: &'static str, body: &'static str) -> impl IntoElement {
-    Flex::new().flex_1().child(NaryaCard::titled(
-        title,
-        Flex::new()
-            .column()
-            .gap_md()
-            .child(
-                Text::new(body)
-                    .sm()
-                    .text_color(color(MUTED).into())
-                    .selectable(false),
-            )
-            .child(NaryaButton::primary("开始").small().disabled(true)),
+fn about_page() -> impl NaryaIntoElement {
+    NaryaPage::new().row(NaryaCard::titled(
+        "Narya",
+        Text::new("GPUI native proxy client rebuilt with Liora components.").selectable(false),
     ))
 }
 
-fn kernel_row(model: &Entity<AppState>, kernel: narya_ipc::KernelInfo) -> impl IntoElement {
-    let status = if kernel.running {
+fn latency_status(ms: u32) -> NaryaStatus {
+    if ms < 90 {
         NaryaStatus::Success
-    } else if kernel.installed {
-        NaryaStatus::Info
-    } else {
+    } else if ms < 140 {
         NaryaStatus::Warning
-    };
-    let status_text = if kernel.running {
-        "运行中"
-    } else if kernel.installed {
-        "已安装"
     } else {
-        "未安装"
-    };
-    let name = kernel.name.clone();
-    let model = model.clone();
-
-    Flex::new()
-        .row()
-        .align_center()
-        .justify_between()
-        .padding_sm()
-        .border()
-        .border_color(color(BORDER).into())
-        .rounded_md()
-        .child(
-            Flex::new()
-                .column()
-                .gap_sm()
-                .child(
-                    Text::new(kernel.name)
-                        .bold()
-                        .text_color(color(TEXT).into())
-                        .selectable(false),
-                )
-                .child(
-                    Text::new(kernel.version.unwrap_or_else(|| "未安装".to_string()))
-                        .xs()
-                        .text_color(color(MUTED).into())
-                        .selectable(false),
-                ),
-        )
-        .child(
-            Space::new()
-                .gap_md()
-                .child(narya_tag(status_text, status))
-                .child(if kernel.installed {
-                    NaryaButton::ghost("检查").small().disabled(true)
-                } else {
-                    NaryaButton::primary("安装未实现")
-                        .small()
-                        .disabled(true)
-                        .on_click(move |_, _, cx| {
-                            AppState::install_kernel(model.clone(), cx, name.clone())
-                        })
-                }),
-        )
-}
-
-fn latency_tag(latency: Option<u32>) -> Tag {
-    match latency {
-        Some(ms) if ms < 80 => narya_tag(format!("{} ms", ms), NaryaStatus::Success),
-        Some(ms) if ms < 160 => narya_tag(format!("{} ms", ms), NaryaStatus::Warning),
-        Some(ms) => narya_tag(format!("{} ms", ms), NaryaStatus::Danger),
-        None => narya_tag("测试中", NaryaStatus::Info),
+        NaryaStatus::Danger
     }
 }
 
-fn view_title(view: ActiveView) -> &'static str {
-    match view {
-        ActiveView::Dashboard => "仪表盘",
-        ActiveView::Nodes => "节点列表",
-        ActiveView::Config => "配置编辑",
-        ActiveView::Subscriptions => "订阅管理",
-        ActiveView::Connections => "连接追踪",
-        ActiveView::Rules => "规则管理",
-        ActiveView::Logs => "实时日志",
-        ActiveView::Tools => "工具箱",
-        ActiveView::Settings => "系统设置",
-        ActiveView::About => "关于 Narya",
+fn latency_values() -> Vec<f64> {
+    vec![
+        100.0, 72.0, 68.0, 73.0, 61.0, 64.0, 48.0, 36.0, 44.0, 58.0, 42.0, 57.0, 70.0, 54.0, 78.0,
+        51.0,
+    ]
+}
+
+fn traffic_values() -> Vec<f64> {
+    vec![
+        5.0, 8.0, 13.0, 18.0, 16.0, 25.0, 15.0, 12.0, 18.0, 24.0, 21.0, 31.0, 26.0, 34.0, 20.0,
+        25.0,
+    ]
+}
+
+impl From<ActiveView> for NavTarget {
+    fn from(value: ActiveView) -> Self {
+        match value {
+            ActiveView::Dashboard => NavTarget::Dashboard,
+            ActiveView::Nodes => NavTarget::Nodes,
+            ActiveView::Config => NavTarget::Config,
+            ActiveView::Subscriptions => NavTarget::Subscriptions,
+            ActiveView::Connections => NavTarget::Connections,
+            ActiveView::Rules => NavTarget::Rules,
+            ActiveView::Logs => NavTarget::Logs,
+            ActiveView::Tools => NavTarget::Tools,
+            ActiveView::Settings | ActiveView::About => NavTarget::Settings,
+        }
     }
 }
 
-fn view_subtitle(view: ActiveView) -> &'static str {
-    match view {
-        ActiveView::Dashboard => "主窗口直接进入，无启动页。",
-        ActiveView::Nodes => "按延迟、协议和地区管理出口节点。",
-        ActiveView::Config => "编辑与合成 sing-box / mihomo / xray 配置。",
-        ActiveView::Subscriptions => "导入、更新并解析远程订阅。",
-        ActiveView::Connections => "查看连接、目标和规则命中。",
-        ActiveView::Rules => "维护分流规则和模拟匹配结果。",
-        ActiveView::Logs => "跟踪 daemon 与内核输出。",
-        ActiveView::Tools => "网络诊断与导出报告。",
-        ActiveView::Settings => "调整内核、网络、DNS、安全与外观。",
-        ActiveView::About => "Narya native GPUI client.",
+impl From<NavTarget> for ActiveView {
+    fn from(value: NavTarget) -> Self {
+        match value {
+            NavTarget::Dashboard => ActiveView::Dashboard,
+            NavTarget::Nodes => ActiveView::Nodes,
+            NavTarget::Config => ActiveView::Config,
+            NavTarget::Subscriptions => ActiveView::Subscriptions,
+            NavTarget::Connections => ActiveView::Connections,
+            NavTarget::Rules => ActiveView::Rules,
+            NavTarget::Logs => ActiveView::Logs,
+            NavTarget::Tools => ActiveView::Tools,
+            NavTarget::Settings => ActiveView::Settings,
+        }
+    }
+}
+
+impl From<ActiveView> for PageKind {
+    fn from(value: ActiveView) -> Self {
+        match value {
+            ActiveView::Dashboard => PageKind::Dashboard,
+            ActiveView::Nodes => PageKind::Nodes,
+            ActiveView::Config => PageKind::Config,
+            ActiveView::Subscriptions => PageKind::Subscriptions,
+            ActiveView::Connections => PageKind::Connections,
+            ActiveView::Rules => PageKind::Rules,
+            ActiveView::Logs => PageKind::Logs,
+            ActiveView::Tools => PageKind::Tools,
+            ActiveView::Settings => PageKind::Settings,
+            ActiveView::About => PageKind::About,
+        }
     }
 }

@@ -1,8 +1,8 @@
-# Phase 12：Liora UI 深度还原与旧页面迁移
+# Phase 12：Liora UI 像素级校准与本地组件库拆分
 
 ## 背景
 
-2026-06-21 已完成 Liora UI 重建基础切片：`narya-app` 直接进入主窗口，启动时初始化 Liora，主 AppShell 由 Liora 组件和 `ui_kit` 项目 wrapper 组合。旧 splash 已删除。核心/daemon/IPC/订阅解析逻辑保留，并已修复本轮 review blockers：连接动作接线、IPC response/error 处理、kernel install fail-closed、runtime path、config generator fail-closed。
+2026-06-21 已完成 Liora UI 第二轮红线重做：旧 spec 相关非图片文件已删除；页面层 `views/app_shell.rs` 不再直接写原生 GPUI 布局/样式；必要 GPUI 底层能力集中在 `ui_kit.rs` 本地组件库边界。当前 UI 已按 1536×1024 图片真源重建主骨架，但尚未做截图级 1:1 diff。
 
 ## 必读
 
@@ -10,26 +10,22 @@
 - `.memory/status.md`
 - `.memory/tasks.md`
 - `.memory/handoff.md`
-- `docs/superpowers/plans/2026-06-21-liora-ui-rebuild.md`
-- `ui/specs/main_window_spec_detailed.md`
-- 具体页面对应 PNG：`ui/dashboard.png`、`ui/nodes.png`、`ui/subscriptions.png`、`ui/settings/*.png`
+- 图片真源：`ui/dashboard.png`、`ui/nodes.png`、`ui/subscriptions.png`、`ui/settings.png` 以及对应子目录 PNG
+
+## 红线
+
+- 不得恢复或依赖 `ui` 下旧 spec 非图片文件。
+- 页面/业务 UI 代码不得出现原生 GPUI 布局/样式 token。
+- 页面层只能组合 Liora 控件和本地 `narya_ui` 组件。
+- Liora 不足时，只能在本地组件库边界封装低耦合组件。
+- 不能伪造 1:1；必须用截图对照图片后再声明视觉验收。
 
 ## 目标
 
-1. 把当前 `ui_kit` 扩展为稳定的 Narya Design System：Sidebar、TopBar、StatusCard、MetricCard、NodeCard、SubscriptionCard、KernelPanel、Toolbar、Section 等。
-2. 按 UI 图逐页校准：Dashboard、Nodes、Subscriptions、Settings 优先。
-3. 将旧 raw GPUI 页面中的业务结构迁移到 Liora wrapper；迁完后删除旧页面模块。
-4. 保持主窗口无 splash，所有新布局必须通过 Liora 或项目 wrapper。
-5. 为真实交互逐步替代禁用按钮：kernel installer、订阅添加/剪贴板导入、YAML 编辑器、工具箱动作。
-6. 设计并落地 length-prefixed/framed IPC codec，替代当前临时 JSON read 模型。
-
-## 约束
-
-- 不新增非必要依赖。
-- 所有新 UI 组件必须低耦合：数据结构输入 + IntoElement 输出，不直接持有全局业务状态，交互 callback 显式传入。
-- 不要回退到旧 raw GPUI 页面作为运行路径。
-- GPUI/Liora API 必须以 Liora 0.1.5 源码/文档为准。
-- 不允许 fake success：未实现的真实系统动作必须禁用或 fail-closed。
+1. 运行 app 截图，对照 `ui/dashboard.png` 做首屏像素级校准。
+2. 依次校准 `nodes.png`、`subscriptions.png`、`settings.png`。
+3. 将 `ui_kit.rs` 拆成小模块，保留公共导出，降低耦合。
+4. 记录可反哺 Liora 的组件：ShellFrame、Sidebar、MetricCard、NodeCard、SubscriptionItem、SettingsPanel、chart wrappers。
 
 ## 验证
 
@@ -41,5 +37,3 @@ RUST_MIN_STACK=134217728 cargo clippy --workspace --all-targets --exclude narya-
 cargo clippy -p narya-app --lib -- -D warnings
 timeout 8s cargo run -p narya-app
 ```
-
-如需 UI 截图对比，在有显示服务的环境中运行 app 后按同尺寸截图，与 `ui/*.png` 手动或工具对照。

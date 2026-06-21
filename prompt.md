@@ -20,7 +20,7 @@
    - `./.prompt/README.md`
    - `./.prompt/` 中编号最新或用户指定的阶段 Prompt
    - `./architecture/narya-gpui-architecture-design.md`
-   - UI 任务必须额外读取：`./ui/specs/README.md`、`./ui/specs/_global-design-system.spec.md`、`./ui/specs/_page-component-matrix.spec.md`、对应 PNG 的 `*.spec.md`
+   - UI 任务必须额外读取并直接对照：`./ui` 下对应 PNG/JPG/WebP 图片。`./ui` 中历史 spec 非图片文件已判定为错误并删除，不得依赖旧 spec。
 2. **UI 实现必须严格参考 `./ui` 资源库**，不得自由发挥导致风格漂移；PNG 是最终视觉真源，`./ui/specs` 是 Gemini/Codex 的实现规格手册。组件必须在 GPUI 中按照 1:1 的视觉还原度自研，不能依赖前端组件库（无 Element Plus）。
 3. **每次任务完成后必须更新记忆库 `./.memory`**，并为下一阶段在 `./.prompt` 写入可接力 Prompt。
 4. **每次开发推进后必须编译、测试、运行验证**。只有全部通过后，才允许提交代码。
@@ -111,7 +111,7 @@ UI 效果图位于：
 ./ui
 ```
 
-这是开发 UI 时的视觉真源（Visual Source of Truth）。实现页面时必须逐张对照，在 GPUI 中自研所有组件（卡片、开关、表单、图表），不得使用任何现成的 Web 组件库。
+这是开发 UI 时的唯一视觉真源（Visual Source of Truth）。实现页面时必须逐张对照图片。当前 UI 层必须优先使用 Liora 组件；页面/业务 UI 代码严禁直接写原生 GPUI 布局或样式。若 Liora 缺少必要能力，只允许在本项目本地组件库边界中封装可复用、低耦合组件，作为后续反哺 Liora 的候选。
 
 ### 2.1 全局设计风格
 
@@ -127,32 +127,15 @@ UI 效果图位于：
 
 ---
 
-## 3. UI Specs 工作规范（Gemini / Codex 必须遵守）
+## 3. UI 图片工作规范（Gemini / Codex 必须遵守）
 
-为降低“看图猜 UI”的成本，`ui/specs/` 已为 `ui/` 下所有 PNG 生成文字化规格。**PNG 仍是最终视觉真源，spec 是实现手册，不是替代品。**
-
-必须优先读取：
-
-```text
-ui/specs/README.md
-ui/specs/_global-design-system.spec.md
-ui/specs/_page-component-matrix.spec.md
-ui/specs/gemini-handoff.json
-ui/specs/spec-index.json
-```
-
-开发具体页面时，还必须读取同名 spec：
-```text
-ui/dashboard.png                  -> ui/specs/dashboard.spec.md
-ui/settings/appearance.png        -> ui/specs/settings/appearance.spec.md
-```
+`ui/` 下图片是唯一视觉真源。历史 spec 相关非图片文件已判定为错误并删除，后续 UI 工作不得恢复或依赖旧 spec。
 
 执行顺序：
-1. 先打开源 PNG，确认视觉目标。
-2. 再读取对应 `*.spec.md`，提取画布尺寸、页面用途、颜色、边界线索、组件清单。
-3. 对照 `_page-component-matrix.spec.md` 确认交互控件。
-4. 使用 GPUI 的原生能力自研组件并组合。
-5. 实现后必须按源 PNG 同尺寸截图对比。
+1. 先打开源 PNG/JPG/WebP，确认视觉目标、布局比例、控件密度、颜色和状态。
+2. 页面层只允许组合 Liora 控件或项目本地组件库，不得直接写原生 GPUI 布局/样式代码。
+3. Liora 不足时，先在本项目本地组件库中封装低耦合组件，保持可迁移、可反哺 Liora。
+4. 实现后必须按源图片同尺寸截图对比；不能伪造 1:1 验收。
 
 ---
 
