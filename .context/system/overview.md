@@ -7,7 +7,7 @@
 - 领域模型：`crates/narya-core/src/lib.rs` 目前仅有 `Node`、`Subscription` 等基础结构。
 - 控制面：`crates/narya-daemon/src/main.rs` 通过 Unix socket 接收 JSON IPC；`crates/narya-ipc/src/lib.rs` 定义请求、响应、通知和运行目录。
 - 内核：`crates/narya-daemon/src/kernel.rs` 管理单个活动子进程，并通过 `installer.rs` 支持带 SHA-256 校验的本地/HTTPS 内核安装和升级；注册表可发现托管内核并区分安装、运行和健康状态。
-- 代理：`crates/narya-daemon/src/proxy.rs` 当前只有 Linux GNOME gsettings 与 macOS Wi‑Fi networksetup 后端；未覆盖 TUN、Windows 或代理状态回滚。
+- 代理：`crates/narya-daemon/src/proxy.rs` 支持 Linux GNOME gsettings 事务和 Linux TUN 前置检查；macOS/Windows 完整 backend 仍未实现。
 - 配置：`crates/narya-daemon/src/config_gen.rs` 生成 sing-box Shadowsocks + 统一 `RoutingConfig`；system proxy/TUN 共用 route 顺序，DNS resolver/direct/proxy/outbound 和 TUN hijack 参数显式生成，未匹配流量 block。
 - 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256 校验和 fail-closed 决策，已接入 daemon sing-box 编译器。
 - 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。
@@ -17,7 +17,7 @@
 
 - `../../lib/liora` 本地源码与 crates.io 0.1.5 的版本关系尚未确认；当前生产清单仍使用 crates.io 版本。
 - Karing 的具体规则格式、内核适配和平台 TUN 权限尚未完成源码级对照；在接入前必须以其公开实现与各内核官方配置文档为证据。
-- 系统代理恢复、TUN 生命周期、签名信任根、mihomo/xray 配置编译和跨平台安装策略尚未实现。
+- 系统代理恢复已覆盖 Linux，TUN 生命周期由 sing-box inbound + daemon 模式互斥管理；签名信任根、mihomo/xray 配置编译和跨平台安装策略尚未实现。
 
 ## Karing 对照证据（2026-08-22）
 

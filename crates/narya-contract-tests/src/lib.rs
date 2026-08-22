@@ -104,8 +104,9 @@ mod tests {
             daemon.contains("read_frame")
                 && daemon.contains("write_frame")
                 && daemon.contains("SetRoutingMode")
-                && daemon.contains("TUN backend is not available"),
-            "daemon IPC must use framing and fail closed for unsupported routing modes"
+                && daemon.contains("GetRoutingStatus")
+                && daemon.contains("preflight_tun"),
+            "daemon IPC must use framing and expose validated routing mode state"
         );
 
         let config_gen = workspace_file("crates/narya-daemon/src/config_gen.rs");

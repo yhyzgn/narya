@@ -8,7 +8,7 @@ use crate::proxy::{LinuxGSettings, MacOSNetworkSetup, ProxyBackend, SystemProxy}
 use anyhow::{Context, Result};
 use narya_ipc::{decode_frame, encode_frame, IpcRequest, IpcResponse};
 use narya_kernel::KernelId;
-use narya_platform::{ProxyMode, SystemProxyPlan, SystemProxyState};
+use narya_platform::{ProxyMode, RoutingPlan, SystemProxyPlan, SystemProxyState};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -21,6 +21,8 @@ struct DaemonState {
     proxy: ProxyBackend,
     log_tx: broadcast::Sender<String>,
     proxy_snapshot: Option<SystemProxyState>,
+    configured_routing: Option<RoutingPlan>,
+    active_mode: ProxyMode,
 }
 
 #[tokio::main]
@@ -57,6 +59,8 @@ async fn main() -> Result<()> {
         proxy,
         log_tx: log_tx.clone(),
         proxy_snapshot: None,
+        configured_routing: None,
+        active_mode: ProxyMode::Disabled,
     }));
 
     loop {
@@ -194,13 +198,19 @@ async fn handle_request_inner(
             Ok(serde_json::json!({"mode": mode.as_str()}))
         }
         "StartKernel" => {
-            let (kernel_id, node) = parse_start_params(&request.params)?;
+            let (kernel_id, node, routing) = parse_start_params(&request.params)?;
             if kernel_id != KernelId::SingBox {
                 anyhow::bail!(
                     "configuration generation for kernel {kernel_id} is not available yet"
                 );
             }
-            let config_json = crate::config_gen::ConfigGenerator::generate_json(&node)?;
+            let generated = crate::config_gen::RoutingConfig {
+                mode: routing.mode,
+                plan: routing,
+                ..crate::config_gen::RoutingConfig::default()
+            };
+            let config_json =
+                crate::config_gen::ConfigGenerator::generate_json_with_config(&node, &generated)?;
             let config_path = narya_ipc::kernel_config_path();
             write_private_config(&config_path, &config_json)?;
             let log_tx = state.log_tx.clone();
@@ -208,12 +218,14 @@ async fn handle_request_inner(
                 .kernel
                 .start(kernel_id, config_path.to_string_lossy().as_ref(), log_tx)
                 .await?;
+            state.configured_routing = Some(generated.plan.clone());
             let healthy = state.kernel.records().into_iter().any(|record| {
                 record.id == kernel_id
                     && record.healthy
                     && record.state == narya_kernel::KernelState::Running
             });
             if !healthy {
+                state.configured_routing = None;
                 anyhow::bail!("kernel {kernel_id} started without a healthy process");
             }
             Ok(serde_json::json!({"kernel": kernel_id, "healthy": true}))
@@ -223,9 +235,21 @@ async fn handle_request_inner(
             // first would leave traffic in an unknown routing state.
             apply_proxy_mode(&mut state, ProxyMode::Disabled).await?;
             state.kernel.stop().await?;
+            state.configured_routing = None;
+            state.active_mode = ProxyMode::Disabled;
             Ok(serde_json::json!(true))
         }
         "GetKernelStatus" => Ok(serde_json::to_value(kernel_status(&mut state.kernel))?),
+        "GetRoutingStatus" => Ok(serde_json::json!({
+            "configured_mode": state
+                .configured_routing
+                .as_ref()
+                .map(|plan| plan.mode.as_str()),
+            "active_mode": state.active_mode.as_str(),
+            "kernel_healthy": state.kernel.records().into_iter().any(|record| {
+                record.healthy && record.state == narya_kernel::KernelState::Running
+            })
+        })),
         "InstallKernel" | "UpgradeKernel" => {
             let artifact: installer::KernelArtifactRequest =
                 serde_json::from_value(request.params.clone())
@@ -250,12 +274,19 @@ async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()
     match mode {
         ProxyMode::Disabled => {
             if let Some(snapshot) = state.proxy_snapshot.take() {
-                state.proxy.restore(&snapshot).await
+                state.proxy.restore(&snapshot).await?
             } else {
-                state.proxy.set_enabled(false).await
+                state.proxy.set_enabled(false).await?
             }
+            state.active_mode = ProxyMode::Disabled;
+            Ok(())
         }
         ProxyMode::SystemProxy => {
+            if state.active_mode == ProxyMode::Tun {
+                anyhow::bail!(
+                    "cannot switch from TUN to system proxy without restarting the kernel configuration"
+                );
+            }
             let snapshot = state.proxy.capture().await?;
             let plan = SystemProxyPlan {
                 http_host: "127.0.0.1".into(),
@@ -273,22 +304,57 @@ async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()
                 };
             }
             state.proxy_snapshot = Some(snapshot);
+            state.active_mode = ProxyMode::SystemProxy;
             Ok(())
         }
-        ProxyMode::Tun => anyhow::bail!("TUN backend is not available on this platform yet"),
+        ProxyMode::Tun => {
+            let tun = state.configured_routing.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("TUN mode requires a running kernel configuration")
+            })?;
+            let tun = tun
+                .tun
+                .as_ref()
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("TUN mode requires an explicit TUN plan"))?;
+            state.proxy.preflight_tun(&tun).await?;
+            let healthy =
+                state.kernel.records().into_iter().any(|record| {
+                    record.healthy && record.state == narya_kernel::KernelState::Running
+                });
+            if !healthy {
+                anyhow::bail!("TUN mode requires a healthy kernel process");
+            }
+            if let Some(snapshot) = state.proxy_snapshot.take() {
+                state.proxy.restore(&snapshot).await?;
+            }
+            state.active_mode = ProxyMode::Tun;
+            Ok(())
+        }
     }
 }
 
-fn parse_start_params(params: &serde_json::Value) -> Result<(KernelId, narya_core::Node)> {
+fn parse_start_params(
+    params: &serde_json::Value,
+) -> Result<(KernelId, narya_core::Node, RoutingPlan)> {
     if let Some(node) = params.get("node") {
         let kernel = params
             .get("kernel")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("sing-box")
             .parse()?;
-        return Ok((kernel, serde_json::from_value(node.clone())?));
+        let routing = params
+            .get("routing")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?
+            .unwrap_or_else(|| crate::config_gen::RoutingConfig::default().plan);
+        return Ok((kernel, serde_json::from_value(node.clone())?, routing));
     }
-    Ok((KernelId::SingBox, serde_json::from_value(params.clone())?))
+    Ok((
+        KernelId::SingBox,
+        serde_json::from_value(params.clone())?,
+        crate::config_gen::RoutingConfig::default().plan,
+    ))
 }
 
 fn write_private_config(path: &Path, config_json: &serde_json::Value) -> Result<()> {

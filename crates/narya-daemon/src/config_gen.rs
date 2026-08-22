@@ -91,11 +91,6 @@ impl Default for RoutingConfig {
 pub struct ConfigGenerator;
 
 impl ConfigGenerator {
-    /// Compatibility entry point for the existing Shadowsocks flow.
-    pub fn generate_json(node: &Node) -> Result<Value> {
-        Self::generate_json_with_config(node, &RoutingConfig::default())
-    }
-
     /// Compile a node and the shared routing model for sing-box.
     pub fn generate_json_with_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
         if config.mode != config.plan.mode {
@@ -474,7 +469,11 @@ mod tests {
 
     #[test]
     fn shadowsocks_uses_distinct_method_and_password() {
-        let config = ConfigGenerator::generate_json(&node("ss", "aes-256-gcm:secret")).unwrap();
+        let config = ConfigGenerator::generate_json_with_config(
+            &node("ss", "aes-256-gcm:secret"),
+            &RoutingConfig::default(),
+        )
+        .unwrap();
         let outbound = &config["outbounds"][0];
         assert_eq!(outbound["method"], "aes-256-gcm");
         assert_eq!(outbound["password"], "secret");
@@ -580,13 +579,21 @@ mod tests {
 
     #[test]
     fn shadowsocks_missing_password_fails_closed() {
-        let err = ConfigGenerator::generate_json(&node("ss", "aes-256-gcm")).unwrap_err();
+        let err = ConfigGenerator::generate_json_with_config(
+            &node("ss", "aes-256-gcm"),
+            &RoutingConfig::default(),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("method:password"));
     }
 
     #[test]
     fn unsupported_protocol_fails_closed() {
-        let err = ConfigGenerator::generate_json(&node("vmess", "auto")).unwrap_err();
+        let err = ConfigGenerator::generate_json_with_config(
+            &node("vmess", "auto"),
+            &RoutingConfig::default(),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("unsupported proxy protocol"));
     }
 }

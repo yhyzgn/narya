@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use narya_platform::{SystemProxyPlan, SystemProxyState};
+use narya_platform::{SystemProxyPlan, SystemProxyState, TunPlan};
 use tokio::process::Command;
 
 pub trait SystemProxy: Send + Sync {
@@ -137,6 +137,32 @@ pub enum ProxyBackend {
 }
 
 impl ProxyBackend {
+    pub async fn preflight_tun(&self, plan: &TunPlan) -> Result<()> {
+        if plan.interface_name.trim().is_empty() || plan.address.trim().is_empty() {
+            anyhow::bail!("TUN interface name and address are required");
+        }
+        match self {
+            Self::Linux(_) => {
+                let tun_device = std::path::Path::new("/dev/net/tun");
+                if !tun_device.exists() {
+                    anyhow::bail!("TUN device {} is unavailable", tun_device.display());
+                }
+                if Command::new("ip")
+                    .arg("-V")
+                    .output()
+                    .await?
+                    .status
+                    .success()
+                {
+                    Ok(())
+                } else {
+                    anyhow::bail!("iproute2 is required for Linux TUN mode")
+                }
+            }
+            Self::MacOS(_) => anyhow::bail!("macOS TUN backend is not available safely yet"),
+        }
+    }
+
     pub async fn capture(&self) -> Result<SystemProxyState> {
         match self {
             Self::Linux(backend) => backend.capture().await,
