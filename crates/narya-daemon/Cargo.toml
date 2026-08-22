@@ -12,3 +12,4 @@ narya-ipc = { path = "../narya-ipc" }
 narya-core = { path = "../narya-core" }
 narya-kernel = { path = "../narya-kernel" }
 narya-platform = { path = "../narya-platform" }
+narya-rules = { path = "../narya-rules" }

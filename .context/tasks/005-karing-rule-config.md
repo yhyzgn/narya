@@ -1,6 +1,6 @@
 # 任务 005：Karing 对照的规则与 DNS 配置生成
 
-- 状态：待开始
+- 状态：已完成
 - 计划：`.context/plans/002-runtime-foundation.md`
 - 规模：大
 - 依赖：`.context/tasks/004-proxy-tun-transaction.md`
@@ -37,6 +37,14 @@
 - 未支持的条件或内核能力 fail-closed，并带规则 ID/能力信息。
 - golden fixtures 可离线重放并验证配置无污染字段。
 
+## 完成记录
+
+- `narya-rules` 增加可序列化 `RuleSet`、规则集来源元数据和 SHA-256/版本完整性校验。
+- `narya-daemon::config_gen` 增加统一 `RoutingConfig`：system proxy/TUN 共用排序后的 route AST，TUN 显式生成 `auto_route`、`strict_route`、排除路由和 DNS 劫持。
+- resolver/direct/proxy/outbound DNS 独立生成，DNS 动作进入 `dns.rules`，未匹配流量使用 `route.final=block`，禁止静默 direct fallback。
+- 未支持的出站、DNS 条件、规则集字段和模式不一致均带规则 ID/能力信息 fail-closed。
+- 离线测试覆盖 system proxy/TUN 规则顺序、DNS 路径、TUN 参数、规则集摘要和错误路径。
+
 ## 验证
 
 ```bash
@@ -50,7 +58,3 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 - 风险：Karing 上游和内核配置 schema 变化；锁定提交、版本和 fixture 摘要。
 - 回滚：保留现有 Shadowsocks fail-closed 生成器，不启用未经 golden 验证的新路径。
-
-## 完成记录
-
-- 待开始。

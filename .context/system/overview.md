@@ -8,8 +8,8 @@
 - 控制面：`crates/narya-daemon/src/main.rs` 通过 Unix socket 接收 JSON IPC；`crates/narya-ipc/src/lib.rs` 定义请求、响应、通知和运行目录。
 - 内核：`crates/narya-daemon/src/kernel.rs` 当前只管理单个子进程；`main.rs` 的状态探测硬编码 sing-box、mihomo、xray，安装接口仍返回未实现错误。
 - 代理：`crates/narya-daemon/src/proxy.rs` 当前只有 Linux GNOME gsettings 与 macOS Wi‑Fi networksetup 后端；未覆盖 TUN、Windows 或代理状态回滚。
-- 配置：`crates/narya-daemon/src/config_gen.rs` 当前只生成 sing-box Shadowsocks 配置，未知协议 fail-closed。
-- 规则：`crates/narya-rules/src/lib.rs` 已建立 `RuleSet`、条件/动作模型、确定性优先级排序和 fail-closed 决策；尚未接入 daemon 的内核配置生成。
+- 配置：`crates/narya-daemon/src/config_gen.rs` 生成 sing-box Shadowsocks + 统一 `RoutingConfig`；system proxy/TUN 共用 route 顺序，DNS resolver/direct/proxy/outbound 和 TUN hijack 参数显式生成，未匹配流量 block。
+- 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256 校验和 fail-closed 决策，已接入 daemon sing-box 编译器。
 - 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。
 - 外部依赖：仓库扫描未发现数据库、缓存或消息队列；`narya-subscription` 依赖 `reqwest`，真实网络访问需由明确测试场景隔离。
 

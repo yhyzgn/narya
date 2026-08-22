@@ -3978,6 +3978,7 @@ dependencies = [
  "narya-ipc",
  "narya-kernel",
  "narya-platform",
+ "narya-rules",
  "serde",
  "serde_json",
  "tokio",

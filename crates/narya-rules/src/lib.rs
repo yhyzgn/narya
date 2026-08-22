@@ -45,9 +45,44 @@ pub struct Decision {
     pub explanation: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuleSet {
     rules: Vec<Rule>,
+}
+
+/// Immutable metadata for an externally supplied binary ruleset.
+///
+/// A source is only descriptive here; downloading is deliberately kept out
+/// of the compiler. Consumers must verify `sha256` before making a ruleset
+/// available to a kernel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuleSetSource {
+    pub id: String,
+    pub source: String,
+    pub version: String,
+    pub sha256: String,
+}
+
+impl RuleSetSource {
+    pub fn validate(&self) -> Result<(), RuleError> {
+        if self.id.trim().is_empty() || self.source.trim().is_empty() {
+            return Err(RuleError::EmptyValue {
+                rule_id: self.id.clone(),
+            });
+        }
+        if self.version.trim().is_empty() || self.sha256.trim().is_empty() {
+            return Err(RuleError::EmptyValue {
+                rule_id: self.id.clone(),
+            });
+        }
+        if self.sha256.len() != 64 || !self.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(RuleError::InvalidChecksum {
+                rule_id: self.id.clone(),
+                reason: "sha256 must be 64 hexadecimal characters".into(),
+            });
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +95,10 @@ pub enum RuleError {
         rule_id: String,
     },
     InvalidCidr {
+        rule_id: String,
+        reason: String,
+    },
+    InvalidChecksum {
         rule_id: String,
         reason: String,
     },
@@ -80,6 +119,9 @@ impl fmt::Display for RuleError {
             Self::InvalidCidr { rule_id, reason } => {
                 write!(f, "rule {rule_id} has invalid CIDR: {reason}")
             }
+            Self::InvalidChecksum { rule_id, reason } => {
+                write!(f, "ruleset {rule_id} has invalid checksum: {reason}")
+            }
             Self::NoMatch { domain, ip } => {
                 write!(f, "no rule matched domain={domain:?} ip={ip:?}")
             }
@@ -90,6 +132,10 @@ impl fmt::Display for RuleError {
 impl std::error::Error for RuleError {}
 
 impl RuleSet {
+    pub fn empty() -> Self {
+        Self { rules: Vec::new() }
+    }
+
     pub fn compile(mut rules: Vec<Rule>) -> Result<Self, RuleError> {
         for rule in &rules {
             validate_rule(rule)?;
