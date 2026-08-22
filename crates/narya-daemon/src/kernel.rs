@@ -1,6 +1,7 @@
 use crate::installer::{self, InstalledKernel, KernelArtifactRequest};
 use anyhow::{anyhow, Result};
 use narya_kernel::{KernelId, KernelRecord, KernelRegistry, KernelState};
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -11,6 +12,7 @@ pub struct KernelManager {
     registry: KernelRegistry,
     child: Option<Child>,
     active: Option<KernelId>,
+    active_config: Option<(PathBuf, Vec<u8>)>,
 }
 
 impl KernelManager {
@@ -21,6 +23,7 @@ impl KernelManager {
             registry,
             child: None,
             active: None,
+            active_config: None,
         }
     }
 
@@ -135,7 +138,52 @@ impl KernelManager {
         config_path: &str,
         log_tx: broadcast::Sender<String>,
     ) -> Result<()> {
-        self.stop().await?;
+        let config_path = Path::new(config_path).to_path_buf();
+        let config_bytes = tokio::fs::read(&config_path)
+            .await
+            .map_err(|error| anyhow!("failed to read kernel configuration: {error}"))?;
+        let previous = self.active.zip(self.active_config.clone());
+        if self.active.is_some() {
+            self.stop().await?;
+        }
+
+        match self
+            .start_process(id, &config_path, config_bytes, log_tx.clone())
+            .await
+        {
+            Ok(()) => Ok(()),
+            Err(start_error) => {
+                let Some((old_id, (old_path, old_config))) = previous else {
+                    return Err(start_error);
+                };
+                tokio::fs::write(&old_path, &old_config)
+                    .await
+                    .map_err(|restore_error| {
+                        anyhow!(
+                            "kernel switch failed: {start_error}; restoring previous configuration failed: {restore_error}"
+                        )
+                    })?;
+                self.start_process(old_id, &old_path, old_config, log_tx)
+                    .await
+                    .map_err(|restore_error| {
+                        anyhow!(
+                            "kernel switch failed: {start_error}; previous kernel restoration failed: {restore_error}"
+                        )
+                    })?;
+                Err(anyhow!(
+                    "kernel switch failed: {start_error}; previous kernel restored"
+                ))
+            }
+        }
+    }
+
+    async fn start_process(
+        &mut self,
+        id: KernelId,
+        config_path: &Path,
+        config_bytes: Vec<u8>,
+        log_tx: broadcast::Sender<String>,
+    ) -> Result<()> {
         let record = self
             .registry
             .require_installed(id)
@@ -144,7 +192,6 @@ impl KernelManager {
             .binary_path
             .clone()
             .ok_or_else(|| anyhow!("kernel {id} has no executable path"))?;
-        let config_path = std::path::Path::new(config_path);
         if let Err(error) = installer::verify_installed(&binary_path).await {
             self.registry
                 .set_state(id, KernelState::Failed, false, Some(error.to_string()));
@@ -193,6 +240,7 @@ impl KernelManager {
 
         self.child = Some(child);
         self.active = Some(id);
+        self.active_config = Some((config_path.to_path_buf(), config_bytes));
         self.registry
             .set_state(id, KernelState::Running, false, None);
         // Give the child a bounded readiness window before reporting it as a
@@ -218,6 +266,7 @@ impl KernelManager {
     pub async fn stop(&mut self) -> Result<()> {
         let Some(id) = self.active.take() else {
             self.child = None;
+            self.active_config = None;
             return Ok(());
         };
         self.registry
@@ -232,6 +281,7 @@ impl KernelManager {
         }
         self.registry
             .set_state(id, KernelState::Installed, false, None);
+        self.active_config = None;
         Ok(())
     }
 
@@ -262,6 +312,7 @@ impl KernelManager {
                 );
                 self.active = None;
                 self.child = None;
+                self.active_config = None;
             }
             Err(error) => {
                 self.registry
