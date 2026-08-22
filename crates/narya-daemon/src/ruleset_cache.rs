@@ -177,6 +177,7 @@ mod tests {
             source: source_path.to_string_lossy().into_owned(),
             version: "1".into(),
             sha256: format!("{:x}", Sha256::digest(bytes)),
+            enabled: true,
             signature: hex(signing.sign(bytes).to_bytes()),
             public_key: hex(signing.verifying_key().to_bytes()),
         };

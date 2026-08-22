@@ -171,6 +171,14 @@ fn read_routing_bundle(path: &str) -> Result<RoutingBundle, String> {
                 if !rule_set_ids.contains(id.as_str()) {
                     return Err(format!("规则 {} 引用了未知规则集 {}", rule.id, id));
                 }
+                if bundle
+                    .rule_sets
+                    .iter()
+                    .find(|source| source.id == *id)
+                    .is_some_and(|source| !source.enabled)
+                {
+                    return Err(format!("规则 {} 引用了已禁用规则集 {}", rule.id, id));
+                }
             }
         }
         if let narya_rules::Action::Proxy(target) = &rule.action {
@@ -570,6 +578,7 @@ impl AppState {
                 source: state.rule_set_draft_source.trim().to_string(),
                 version: state.rule_set_draft_version.trim().to_string(),
                 sha256: state.rule_set_draft_sha256.trim().to_string(),
+                enabled: true,
                 signature: state.rule_set_draft_signature.trim().to_string(),
                 public_key: state.rule_set_draft_public_key.trim().to_string(),
             }
@@ -683,6 +692,37 @@ impl AppState {
             state.rule_set_error = None;
             state.save();
             cx.notify();
+        });
+    }
+
+    pub fn set_rule_set_enabled(
+        model: Entity<Self>,
+        cx: &mut App,
+        rule_set_id: String,
+        enabled: bool,
+    ) {
+        model.update(cx, |state, cx| {
+            if !enabled
+                && state.rules.iter().any(|rule| {
+                    rule.conditions.iter().any(
+                        |condition| matches!(condition, narya_rules::Condition::RuleSet(id) if id == &rule_set_id),
+                    )
+                })
+            {
+                state.rule_set_error = Some(format!(
+                    "规则集 {} 仍被规则引用，不能禁用；请先修改这些规则",
+                    rule_set_id
+                ));
+                cx.notify();
+                return;
+            }
+            if let Some(source) = state.rule_sets.iter_mut().find(|source| source.id == rule_set_id)
+            {
+                source.enabled = enabled;
+                state.rule_set_error = None;
+                state.save();
+                cx.notify();
+            }
         });
     }
 

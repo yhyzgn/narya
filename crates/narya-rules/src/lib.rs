@@ -121,10 +121,16 @@ pub struct RuleSetSource {
     pub source: String,
     pub version: String,
     pub sha256: String,
+    #[serde(default = "default_rule_set_enabled")]
+    pub enabled: bool,
     #[serde(default)]
     pub signature: String,
     #[serde(default)]
     pub public_key: String,
+}
+
+fn default_rule_set_enabled() -> bool {
+    true
 }
 
 impl RuleSetSource {
@@ -504,6 +510,18 @@ mod tests {
             url_test.validate(),
             Err(RuleError::EmptyValue { .. })
         ));
+    }
+
+    #[test]
+    fn ruleset_enabled_defaults_true_for_existing_configs() {
+        let source: RuleSetSource = serde_json::from_value(serde_json::json!({
+            "id": "legacy",
+            "source": "/tmp/legacy.db",
+            "version": "1",
+            "sha256": "aa".repeat(32)
+        }))
+        .unwrap();
+        assert!(source.enabled);
     }
 
     #[test]

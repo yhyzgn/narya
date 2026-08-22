@@ -228,7 +228,7 @@ async fn handle_request_inner(
             }
             generated.rule_sets = rule_sets;
             for source in &generated.rule_sets {
-                if source.source.starts_with("https://") {
+                if source.enabled && source.source.starts_with("https://") {
                     ruleset_cache::ensure_cached(source).await?;
                 }
             }

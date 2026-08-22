@@ -4,7 +4,7 @@ use crate::ui_kit::{
     NaryaButton, NaryaCard, NaryaMetric, NaryaPage, NaryaStatus, NavTarget, PageKind,
 };
 use crate::views::ActiveView;
-use liora::components::{Flex, Input, Select, Text};
+use liora::components::{Flex, Input, Select, Switch, Text};
 use liora_icons_lucide::IconName;
 use narya_ui::{
     px, App, Context, NaryaAppContext, NaryaEntity as Entity, NaryaFluentBuilder, NaryaIntoElement,
@@ -1321,6 +1321,11 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                             source.sha256.chars().take(12).collect::<String>()
                         )))
                         .child(Text::new(source.source))
+                        .child(RuleSetToggle {
+                            model: model.clone(),
+                            rule_set_id: source_id.clone(),
+                            enabled: source.enabled,
+                        })
                         .child(NaryaButton::ghost("删除").on_click(move |_, _, cx| {
                             AppState::remove_rule_set(remove_model.clone(), cx, source_id.clone())
                         }))
@@ -1381,6 +1386,32 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                         }),
                 ),
         ))
+}
+
+struct RuleSetToggle {
+    model: Entity<AppState>,
+    rule_set_id: String,
+    enabled: bool,
+}
+
+impl NaryaRenderOnce for RuleSetToggle {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let model = self.model;
+        let rule_set_id = self.rule_set_id;
+        cx.new(|cx| {
+            Switch::new(self.enabled, cx).on_change(move |enabled, _, app| {
+                AppState::set_rule_set_enabled(model.clone(), app, rule_set_id.clone(), enabled)
+            })
+        })
+    }
+}
+
+impl NaryaIntoElement for RuleSetToggle {
+    type Element = NaryaViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        NaryaViewElement::new(self)
+    }
 }
 
 struct RuleIoControls {

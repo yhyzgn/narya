@@ -9,7 +9,7 @@
 - 内核：`crates/narya-daemon/src/kernel.rs` 管理单个活动子进程，并通过 `installer.rs` 支持本地/HTTPS 内核安装和升级；所有工件必须有 SHA-256，HTTPS 工件还需匹配本地固定 Ed25519 信任根验证过的发布清单（内核、版本、平台、架构、来源、摘要、工件签名/公钥）；注册表区分安装、运行和健康状态，启动健康还要求生成配置中的本地 HTTP/SOCKS 监听可连接。
 - 代理：`crates/narya-daemon/src/proxy.rs` 支持 Linux GNOME gsettings 事务和 Linux TUN 前置检查；macOS/Windows 完整 backend 仍未实现。
 - 配置：`crates/narya-daemon/src/config_gen.rs` 以统一 `RoutingConfig` 生成 sing-box、mihomo、xray-core 配置；system proxy/TUN 共用规则语义，DNS resolver/direct/proxy/outbound、分流组和 TUN 参数显式生成，未匹配流量 block。
-- 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256/Ed25519 元数据和 fail-closed 决策；daemon 通过规则集缓存管理器下载、验证并原子缓存 HTTPS 源，`StartKernel` 只消费启动前复验的缓存，再编译到 sing-box、mihomo、xray-core；Liora 规则页支持搜索、新增、删除、多条件 AND、目标模式、分流组编辑、本地/HTTPS 规则集导入和 JSON 配置导入导出。
+- 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256/Ed25519 元数据、持久化启停和 fail-closed 决策；daemon 通过规则集缓存管理器下载、验证并原子缓存 HTTPS 源，`StartKernel` 只消费启用且启动前复验的缓存，再编译到 sing-box、mihomo、xray-core；Liora 规则页支持搜索、新增、删除、多条件 AND、目标模式、分流组编辑、规则集启停、本地/HTTPS 规则集导入和 JSON 配置导入导出。
 - 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。
 - 外部依赖：仓库扫描未发现数据库、缓存或消息队列；`narya-subscription` 依赖 `reqwest`，真实网络访问需由明确测试场景隔离。
 

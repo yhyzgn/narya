@@ -141,8 +141,9 @@ mod tests {
             app_state.contains("export_rules")
                 && app_state.contains("import_rules")
                 && app_state.contains("set_rule_condition")
-                && app_state.contains("set_group_strategy"),
-            "routing workbench must support validated import/export, AND conditions, and group strategies"
+                && app_state.contains("set_group_strategy")
+                && app_state.contains("set_rule_set_enabled"),
+            "routing workbench must support validated import/export, AND conditions, group strategies, and ruleset lifecycle"
         );
         assert!(
             app_state.contains("仍被规则引用") && app_state.contains("仍被规则引用，请先修改"),
@@ -159,6 +160,14 @@ mod tests {
                 && ruleset_cache.contains("fs::rename")
                 && ruleset_cache.contains("Signature"),
             "remote rulesets must be verified and atomically cached by the daemon"
+        );
+        let rules = workspace_file("crates/narya-rules/src/lib.rs");
+        let app_shell = workspace_file("crates/narya-app/src/views/app_shell.rs");
+        assert!(
+            rules.contains("default_rule_set_enabled")
+                && app_shell.contains("RuleSetToggle")
+                && app_shell.contains("Switch"),
+            "ruleset enablement must be persisted in the shared model and exposed through Liora Switch"
         );
         let catalog = workspace_file("crates/narya-daemon/src/kernel_catalog.rs");
         let daemon = workspace_file("crates/narya-daemon/src/main.rs");

@@ -103,6 +103,9 @@ pub fn validate_rule_set_sources(rule_sets: &[RuleSetSource]) -> Result<()> {
         source
             .validate()
             .map_err(|error| anyhow!("ruleset {} is invalid: {error}", source.id))?;
+        if !source.enabled {
+            continue;
+        }
         let path = if source.source.starts_with("https://") {
             narya_ipc::ruleset_cache_dir()
                 .join(&source.id)
@@ -211,7 +214,7 @@ impl ConfigGenerator {
             "final": "block",
             "auto_detect_interface": config.mode == ProxyMode::Tun
         });
-        if !config.rule_sets.is_empty() {
+        if config.rule_sets.iter().any(|source| source.enabled) {
             route["rule_set"] = rule_set_metadata(&config.rule_sets)?;
         }
         root.insert("route".into(), route);
@@ -448,6 +451,7 @@ fn effective_dns_config(config: &RoutingConfig) -> DnsConfig {
 fn validate_rule_set_references(rules: &RuleSet, sources: &[RuleSetSource]) -> Result<()> {
     let known = sources
         .iter()
+        .filter(|source| source.enabled)
         .map(|source| source.id.as_str())
         .collect::<std::collections::HashSet<_>>();
     for rule in rules.rules() {
@@ -728,6 +732,7 @@ fn tun_inbound(plan: &narya_platform::TunPlan) -> Result<Value> {
 fn rule_set_metadata(rule_sets: &[RuleSetSource]) -> Result<Value> {
     let values = rule_sets
         .iter()
+        .filter(|source| source.enabled)
         .map(|source| {
             source
                 .validate()
@@ -922,6 +927,7 @@ mod tests {
             source: "https://rules.invalid/geosite-cn.srs".into(),
             version: "2026-08-22".into(),
             sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            enabled: true,
             signature: "11".repeat(64),
             public_key: "22".repeat(32),
         }];
@@ -929,6 +935,36 @@ mod tests {
             ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
                 .unwrap();
         assert_eq!(generated["route"]["rule_set"][0]["version"], "2026-08-22");
+    }
+
+    #[test]
+    fn disabled_ruleset_is_excluded_and_referenced_disable_fails_closed() {
+        let mut config = routing(ProxyMode::SystemProxy);
+        config.rule_sets = vec![RuleSetSource {
+            id: "disabled-set".into(),
+            source: "/tmp/disabled-set.db".into(),
+            version: "1".into(),
+            sha256: "aa".repeat(32),
+            enabled: false,
+            signature: String::new(),
+            public_key: String::new(),
+        }];
+        let generated =
+            ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
+                .unwrap();
+        assert!(generated["route"].get("rule_set").is_none());
+
+        config.rules = RuleSet::compile(vec![Rule {
+            id: "uses-disabled".into(),
+            priority: 1,
+            conditions: vec![Condition::RuleSet("disabled-set".into())],
+            action: Action::Block,
+        }])
+        .unwrap();
+        let error =
+            ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
+                .unwrap_err();
+        assert!(error.to_string().contains("unknown ruleset"));
     }
 
     #[test]
@@ -1023,6 +1059,7 @@ mod tests {
             source: "https://example.invalid/geoip.db".into(),
             version: "1".into(),
             sha256: "a".repeat(64),
+            enabled: true,
             signature: "11".repeat(64),
             public_key: "22".repeat(32),
         };
