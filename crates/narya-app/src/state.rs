@@ -74,6 +74,18 @@ pub struct PersistedState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KernelCatalogOption {
+    pub kernel: String,
+    pub version: String,
+    pub platform: String,
+    pub architecture: String,
+    pub source: String,
+    pub sha256: String,
+    pub signature: String,
+    pub public_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct RoutingBundle {
     version: u32,
     rules: Vec<narya_rules::Rule>,
@@ -204,6 +216,10 @@ pub struct AppState {
     pub kernel_artifact_public_key: String,
     pub kernel_operation: Option<String>,
     pub kernel_error: Option<String>,
+    pub kernel_catalog_source: String,
+    pub kernel_catalog_trusted_key: String,
+    pub kernel_catalog_status: Option<String>,
+    pub kernel_catalog_entries: Vec<KernelCatalogOption>,
     pub rule_set_draft_id: String,
     pub rule_set_draft_source: String,
     pub rule_set_draft_version: String,
@@ -410,6 +426,85 @@ impl AppState {
         cx.notify();
     }
 
+    pub fn set_kernel_catalog_source(&mut self, source: String, cx: &mut Context<Self>) {
+        self.kernel_catalog_source = source;
+        self.kernel_catalog_status = None;
+        cx.notify();
+    }
+
+    pub fn set_kernel_catalog_trusted_key(&mut self, key: String, cx: &mut Context<Self>) {
+        self.kernel_catalog_trusted_key = key;
+        self.kernel_catalog_status = None;
+        cx.notify();
+    }
+
+    pub fn refresh_kernel_catalog(model: Entity<Self>, cx: &mut App) {
+        let (source, trusted_key) = {
+            let state = model.read(cx);
+            (
+                state.kernel_catalog_source.trim().to_string(),
+                state.kernel_catalog_trusted_key.trim().to_string(),
+            )
+        };
+        if source.is_empty() || trusted_key.is_empty() {
+            model.update(cx, |state, cx| {
+                state.kernel_catalog_status = Some("清单来源和信任根公钥均为必填项".into());
+                cx.notify();
+            });
+            return;
+        }
+        model.update(cx, |state, cx| {
+            state.kernel_catalog_status = Some("正在验证内核发布清单…".into());
+            cx.notify();
+        });
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            async move {
+                let result = async {
+                    let mut client = IpcClient::connect_default().await?;
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 61,
+                            method: "RefreshKernelCatalog".into(),
+                            params: serde_json::json!({
+                                "source": source,
+                                "trusted_key": trusted_key,
+                            }),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    let result = response.result.unwrap_or_default();
+                    let entries: Vec<KernelCatalogOption> =
+                        serde_json::from_value(result.get("entries").cloned().unwrap_or_default())?;
+                    let digest = result
+                        .get("digest")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("unknown")
+                        .to_string();
+                    Ok::<(Vec<KernelCatalogOption>, String), anyhow::Error>((entries, digest))
+                }
+                .await;
+                model.update(&mut cx, |state, cx| {
+                    match result {
+                        Ok((entries, digest)) => {
+                            state.kernel_catalog_entries = entries;
+                            state.kernel_catalog_status = Some(format!("清单已验证 · {digest}"));
+                        }
+                        Err(error) => {
+                            state.kernel_catalog_status = Some(format!("清单验证失败：{error}"));
+                            state.kernel_catalog_entries.clear();
+                        }
+                    }
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
+    }
+
     pub fn set_rule_set_draft_id(&mut self, value: String, cx: &mut Context<Self>) {
         self.rule_set_draft_id = value;
         self.rule_set_error = None;
@@ -571,20 +666,41 @@ impl AppState {
     }
 
     pub fn install_kernel(model: Entity<Self>, cx: &mut App) {
-        let (kernel, version, source, sha256, signature, public_key, upgrade) = {
+        let (
+            kernel,
+            version,
+            source,
+            sha256,
+            signature,
+            public_key,
+            catalog_platform,
+            catalog_architecture,
+            upgrade,
+        ) = {
             let state = model.read(cx);
             let kernel = state.kernel_artifact_kernel.trim().to_string();
+            let version = state.kernel_artifact_version.trim().to_string();
+            let source = state.kernel_artifact_source.trim().to_string();
+            let catalog = state.kernel_catalog_entries.iter().find(|entry| {
+                entry.kernel == kernel && entry.version == version && entry.source == source
+            });
             let upgrade = state
                 .kernels
                 .iter()
                 .any(|installed| installed.name == kernel && installed.installed);
             (
                 kernel,
-                state.kernel_artifact_version.trim().to_string(),
-                state.kernel_artifact_source.trim().to_string(),
+                version,
+                source,
                 state.kernel_artifact_sha256.trim().to_string(),
                 state.kernel_artifact_signature.trim().to_string(),
                 state.kernel_artifact_public_key.trim().to_string(),
+                catalog
+                    .map(|entry| entry.platform.clone())
+                    .unwrap_or_default(),
+                catalog
+                    .map(|entry| entry.architecture.clone())
+                    .unwrap_or_default(),
                 upgrade,
             )
         };
@@ -628,6 +744,9 @@ impl AppState {
                                 "sha256": sha256,
                                 "signature": signature,
                                 "public_key": public_key,
+                                "catalog_version": version,
+                                "catalog_platform": catalog_platform,
+                                "catalog_architecture": catalog_architecture,
                             }),
                         })
                         .await?;
@@ -1367,6 +1486,10 @@ impl AppState {
                 kernel_artifact_public_key: String::new(),
                 kernel_operation: None,
                 kernel_error: None,
+                kernel_catalog_source: String::new(),
+                kernel_catalog_trusted_key: String::new(),
+                kernel_catalog_status: None,
+                kernel_catalog_entries: Vec::new(),
                 rule_set_draft_id: String::new(),
                 rule_set_draft_source: String::new(),
                 rule_set_draft_version: String::new(),
@@ -1595,6 +1718,10 @@ impl AppState {
             kernel_artifact_public_key: String::new(),
             kernel_operation: None,
             kernel_error: None,
+            kernel_catalog_source: String::new(),
+            kernel_catalog_trusted_key: String::new(),
+            kernel_catalog_status: None,
+            kernel_catalog_entries: Vec::new(),
             rule_set_draft_id: String::new(),
             rule_set_draft_source: String::new(),
             rule_set_draft_version: String::new(),

@@ -158,6 +158,16 @@ mod tests {
                 && ruleset_cache.contains("Signature"),
             "remote rulesets must be verified and atomically cached by the daemon"
         );
+        let catalog = workspace_file("crates/narya-daemon/src/kernel_catalog.rs");
+        let daemon = workspace_file("crates/narya-daemon/src/main.rs");
+        assert!(
+            catalog.contains("canonical_payload")
+                && catalog.contains("local trust root")
+                && catalog.contains("find_entry")
+                && daemon.contains("RefreshKernelCatalog")
+                && daemon.contains("GetKernelCatalog"),
+            "kernel HTTPS installs must be constrained by a verified signed catalog"
+        );
 
         let ipc = workspace_file("crates/narya-ipc/src/lib.rs");
         assert!(

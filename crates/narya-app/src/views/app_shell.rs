@@ -84,6 +84,10 @@ struct ShellSnapshot {
     kernel_artifact_public_key: String,
     kernel_operation: Option<String>,
     kernel_error: Option<String>,
+    kernel_catalog_source: String,
+    kernel_catalog_trusted_key: String,
+    kernel_catalog_status: Option<String>,
+    kernel_catalog_entries: Vec<crate::state::KernelCatalogOption>,
     rule_set_draft_id: String,
     rule_set_draft_source: String,
     rule_set_draft_version: String,
@@ -131,6 +135,10 @@ impl ShellSnapshot {
             kernel_artifact_public_key: state.kernel_artifact_public_key.clone(),
             kernel_operation: state.kernel_operation.clone(),
             kernel_error: state.kernel_error.clone(),
+            kernel_catalog_source: state.kernel_catalog_source.clone(),
+            kernel_catalog_trusted_key: state.kernel_catalog_trusted_key.clone(),
+            kernel_catalog_status: state.kernel_catalog_status.clone(),
+            kernel_catalog_entries: state.kernel_catalog_entries.clone(),
             rule_set_draft_id: state.rule_set_draft_id.clone(),
             rule_set_draft_source: state.rule_set_draft_source.clone(),
             rule_set_draft_version: state.rule_set_draft_version.clone(),
@@ -737,7 +745,17 @@ fn settings_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nary
                             public_key: snapshot.kernel_artifact_public_key,
                             operation: snapshot.kernel_operation,
                             error: snapshot.kernel_error,
+                            catalog_entries: snapshot.kernel_catalog_entries,
                         }),
+                ))
+                .child(NaryaCard::titled(
+                    "官方内核发布清单",
+                    KernelCatalogForm {
+                        model: model.clone(),
+                        source: snapshot.kernel_catalog_source,
+                        trusted_key: snapshot.kernel_catalog_trusted_key,
+                        status: snapshot.kernel_catalog_status,
+                    },
                 ))
                 .child(NaryaCard::titled(
                     "权限状态",
@@ -788,6 +806,7 @@ struct KernelArtifactForm {
     public_key: String,
     operation: Option<String>,
     error: Option<String>,
+    catalog_entries: Vec<crate::state::KernelCatalogOption>,
 }
 
 impl NaryaRenderOnce for KernelArtifactForm {
@@ -810,6 +829,12 @@ impl NaryaRenderOnce for KernelArtifactForm {
         let signature = self.signature;
         let public_key = self.public_key;
         let selected_kernel = self.selected_kernel;
+        let catalog_entries = self
+            .catalog_entries
+            .iter()
+            .filter(|entry| entry.kernel == selected_kernel)
+            .cloned()
+            .collect::<Vec<_>>();
         let operation = self.operation;
         let error = self.error;
         let installed = self
@@ -846,6 +871,40 @@ impl NaryaRenderOnce for KernelArtifactForm {
                     });
                 })
             }))
+            .when(!catalog_entries.is_empty(), |element| {
+                let labels = catalog_entries
+                    .iter()
+                    .map(|entry| {
+                        format!(
+                            "{} · {} {}",
+                            entry.version, entry.platform, entry.architecture
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let model = self.model.clone();
+                element.child(cx.new(|cx| {
+                    Select::new(labels, Some(0), cx).width(px(300.0)).on_change(
+                        move |index, _, app| {
+                            let Some(entry) = catalog_entries.get(index) else {
+                                return;
+                            };
+                            model.update(app, |state, state_cx| {
+                                state.set_kernel_artifact_version(entry.version.clone(), state_cx);
+                                state.set_kernel_artifact_source(entry.source.clone(), state_cx);
+                                state.set_kernel_artifact_sha256(entry.sha256.clone(), state_cx);
+                                state.set_kernel_artifact_signature(
+                                    entry.signature.clone(),
+                                    state_cx,
+                                );
+                                state.set_kernel_artifact_public_key(
+                                    entry.public_key.clone(),
+                                    state_cx,
+                                );
+                            });
+                        },
+                    )
+                }))
+            })
             .child(cx.new(|cx| {
                 Input::new(version, cx)
                     .placeholder("版本，例如 1.11.0")
@@ -909,6 +968,61 @@ impl NaryaRenderOnce for KernelArtifactForm {
 }
 
 impl NaryaIntoElement for KernelArtifactForm {
+    type Element = NaryaViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        NaryaViewElement::new(self)
+    }
+}
+
+struct KernelCatalogForm {
+    model: Entity<AppState>,
+    source: String,
+    trusted_key: String,
+    status: Option<String>,
+}
+
+impl NaryaRenderOnce for KernelCatalogForm {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let model_source = self.model.clone();
+        let model_key = self.model.clone();
+        let model_refresh = self.model.clone();
+        Flex::new()
+            .column()
+            .gap_sm()
+            .child(Text::new("HTTPS 内核只能从本地信任根验证过的清单中选择"))
+            .child(cx.new(|cx| {
+                Input::new(self.source, cx)
+                    .placeholder("清单绝对路径或 HTTPS URL")
+                    .width(px(440.0))
+                    .on_change(move |value, input_cx| {
+                        model_source.update(input_cx, |state, state_cx| {
+                            state.set_kernel_catalog_source(value.to_string(), state_cx)
+                        });
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(self.trusted_key, cx)
+                    .placeholder("固定信任根 Ed25519 公钥")
+                    .width(px(440.0))
+                    .on_change(move |value, input_cx| {
+                        model_key.update(input_cx, |state, state_cx| {
+                            state.set_kernel_catalog_trusted_key(value.to_string(), state_cx)
+                        });
+                    })
+            }))
+            .child(
+                NaryaButton::primary("刷新并验证清单").on_click(move |_, _, app| {
+                    AppState::refresh_kernel_catalog(model_refresh.clone(), app)
+                }),
+            )
+            .when_some(self.status, |element, status| {
+                element.child(Text::new(status))
+            })
+    }
+}
+
+impl NaryaIntoElement for KernelCatalogForm {
     type Element = NaryaViewElement<Self>;
 
     fn into_element(self) -> Self::Element {

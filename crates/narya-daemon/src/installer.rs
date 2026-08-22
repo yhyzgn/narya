@@ -18,6 +18,12 @@ pub struct KernelArtifactRequest {
     pub signature: String,
     #[serde(default)]
     pub public_key: String,
+    #[serde(default)]
+    pub catalog_version: String,
+    #[serde(default)]
+    pub catalog_platform: String,
+    #[serde(default)]
+    pub catalog_architecture: String,
 }
 
 #[derive(Debug, Clone)]
@@ -305,6 +311,9 @@ mod tests {
             sha256: checksum.clone(),
             signature: String::new(),
             public_key: String::new(),
+            catalog_version: String::new(),
+            catalog_platform: String::new(),
+            catalog_architecture: String::new(),
         };
         let installed = install(&request, &root.join("kernels"), false)
             .await
@@ -345,6 +354,9 @@ mod tests {
             sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             signature: String::new(),
             public_key: String::new(),
+            catalog_version: String::new(),
+            catalog_platform: String::new(),
+            catalog_architecture: String::new(),
         };
         assert!(install(&request, &root.join("kernels"), true)
             .await
@@ -369,6 +381,9 @@ mod tests {
             sha256: format!("{:x}", Sha256::digest(bytes)),
             signature: hex_bytes(signature.to_bytes()),
             public_key: hex_bytes(signing.verifying_key().to_bytes()),
+            catalog_version: String::new(),
+            catalog_platform: String::new(),
+            catalog_architecture: String::new(),
         };
         let installed = install(&request, &root.join("kernels"), false)
             .await
@@ -401,6 +416,9 @@ mod tests {
             sha256: format!("{:x}", Sha256::digest(b"new-kernel")),
             signature: String::new(),
             public_key: String::new(),
+            catalog_version: String::new(),
+            catalog_platform: String::new(),
+            catalog_architecture: String::new(),
         };
 
         assert!(install(&request, &root.join("kernels"), true)
@@ -445,6 +463,9 @@ mod tests {
             sha256: "a".repeat(64),
             signature: String::new(),
             public_key: String::new(),
+            catalog_version: String::new(),
+            catalog_platform: String::new(),
+            catalog_architecture: String::new(),
         };
         assert!(validate_request(&request)
             .unwrap_err()

@@ -40,6 +40,42 @@ impl KernelManager {
                 request.kernel
             );
         }
+        if request.source.starts_with("https://") {
+            let trusted_key = std::env::var("NARYA_KERNEL_CATALOG_PUBLIC_KEY")
+                .or_else(|_| {
+                    std::fs::read_to_string(
+                        narya_ipc::kernel_catalog_dir().join("trusted-public-key"),
+                    )
+                })
+                .map_err(|_| {
+                    anyhow!("HTTPS kernel artifacts require a configured catalog trust root")
+                })?;
+            let catalog = crate::kernel_catalog::load_verified(trusted_key.trim()).await?;
+            let platform = if request.catalog_platform.trim().is_empty() {
+                crate::kernel_catalog::default_platform()
+            } else {
+                request.catalog_platform.trim()
+            };
+            let architecture = if request.catalog_architecture.trim().is_empty() {
+                crate::kernel_catalog::default_architecture()
+            } else {
+                request.catalog_architecture.trim()
+            };
+            let entry = crate::kernel_catalog::find_entry(
+                &catalog,
+                request.kernel,
+                request.catalog_version.trim(),
+                platform,
+                architecture,
+            )?;
+            if entry.source != request.source
+                || !entry.sha256.eq_ignore_ascii_case(&request.sha256)
+                || entry.signature != request.signature
+                || entry.public_key != request.public_key
+            {
+                anyhow::bail!("kernel artifact does not match the verified catalog entry");
+            }
+        }
         if !requested_upgrade && upgrading {
             anyhow::bail!(
                 "kernel {} is already installed; use UpgradeKernel to replace it",

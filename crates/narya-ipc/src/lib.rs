@@ -188,6 +188,14 @@ pub fn ruleset_cache_dir() -> PathBuf {
     base.join("narya").join("rulesets")
 }
 
+pub fn kernel_catalog_dir() -> PathBuf {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        .unwrap_or_else(|| std::env::temp_dir().join("narya-config"));
+    base.join("narya").join("kernel-catalog")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

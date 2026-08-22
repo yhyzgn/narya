@@ -1,6 +1,7 @@
 mod config_gen;
 mod installer;
 mod kernel;
+mod kernel_catalog;
 mod proxy;
 mod ruleset_cache;
 
@@ -311,6 +312,37 @@ async fn handle_request_inner(
                 "version": installed.version,
                 "binary_path": installed.binary_path,
                 "operation": request.method.to_ascii_lowercase()
+            }))
+        }
+        "RefreshKernelCatalog" => {
+            let source = request
+                .params
+                .get("source")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("catalog source is required"))?;
+            let trusted_key = request
+                .params
+                .get("trusted_key")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("catalog trusted key is required"))?;
+            let catalog = kernel_catalog::fetch_and_store(source, trusted_key).await?;
+            Ok(serde_json::json!({
+                "schema": catalog.schema,
+                "entries": catalog.entries,
+                "digest": kernel_catalog::catalog_digest(&catalog)?,
+            }))
+        }
+        "GetKernelCatalog" => {
+            let trusted_key = request
+                .params
+                .get("trusted_key")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("catalog trusted key is required"))?;
+            let catalog = kernel_catalog::load_verified(trusted_key).await?;
+            Ok(serde_json::json!({
+                "schema": catalog.schema,
+                "entries": catalog.entries,
+                "digest": kernel_catalog::catalog_digest(&catalog)?,
             }))
         }
         _ => anyhow::bail!("Unknown method: {}", request.method),
