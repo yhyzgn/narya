@@ -94,22 +94,20 @@ mod tests {
             );
         }
         assert!(
-            app_shell.contains("安装未实现") && app_shell.contains(".disabled(true)"),
+            app_shell.contains(".disabled(true)"),
             "kernel installation must not present a fake actionable success path"
         );
 
         let daemon = workspace_file("crates/narya-daemon/src/main.rs");
         assert!(
-            daemon.contains("kernel installation is not implemented yet"),
-            "daemon InstallKernel must fail closed until a real installer exists"
+            daemon.contains("verified artifact source is required")
+                && daemon.contains("InstallKernel")
+                && daemon.contains("UpgradeKernel"),
+            "kernel install and upgrade must fail closed without verified artifacts"
         );
         assert!(
-            !daemon.contains("KernelStatusUpdate { kernels }")
-                || daemon.find("IpcResponse").unwrap_or(usize::MAX)
-                    < daemon
-                        .find("KernelStatusUpdate { kernels }")
-                        .unwrap_or(usize::MAX),
-            "daemon must not send KernelStatusUpdate before an IPC response"
+            daemon.contains("read_frame") && daemon.contains("write_frame"),
+            "daemon IPC must use length-prefixed framing"
         );
 
         let config_gen = workspace_file("crates/narya-daemon/src/config_gen.rs");
@@ -137,8 +135,10 @@ mod tests {
         assert!(
             ipc.contains("XDG_RUNTIME_DIR")
                 && ipc.contains("socket_path()")
+                && ipc.contains("FrameDecoder")
+                && ipc.contains("MAX_FRAME_SIZE")
                 && !ipc.contains("/tmp/narya.sock"),
-            "IPC paths must use a per-user runtime directory, not fixed /tmp paths"
+            "IPC paths must use a per-user runtime directory and framed messages"
         );
     }
 

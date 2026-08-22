@@ -1,0 +1,3241 @@
+{
+  "version": 2,
+  "status": "finalized",
+  "sources": [
+    {
+      "path": ".memory/README.md",
+      "sha256": "b8d510a2956bf926a551e0817d282de2986069d7efc7d090875fc86a82464a9f",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-23c3c0a5f8df-01",
+          "line_start": 1,
+          "line_end": 3,
+          "sha256": "23c3c0a5f8df9d85731c90d7f5d48dd84d9a105b0a7aa784dc81dfca28f225a9",
+          "payload_sha256": "23c3c0a5f8df9d85731c90d7f5d48dd84d9a105b0a7aa784dc81dfca28f225a9",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-1f6c71a2340a-01",
+          "line_start": 5,
+          "line_end": 14,
+          "sha256": "1f6c71a2340a51f08e7c9e95e929dec643584d221514dffbaa6a98ce212c1889",
+          "payload_sha256": "1f6c71a2340a51f08e7c9e95e929dec643584d221514dffbaa6a98ce212c1889",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-4f73fce79e21-01",
+          "line_start": 16,
+          "line_end": 25,
+          "sha256": "4f73fce79e2142f1741bffb848d347f524b40e09ba1df39365508db6a0a2cea6",
+          "payload_sha256": "4f73fce79e2142f1741bffb848d347f524b40e09ba1df39365508db6a0a2cea6",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/README.md"
+    },
+    {
+      "path": ".memory/changelog.md",
+      "sha256": "de280e932af1e6981ed623c0420ebd90e13d37f8d84e2063260c6c02cb984844",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-6fe2089ad1f1-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "6fe2089ad1f1df0ff53ed290994bbd2c5719a150c233ee204e5fe07224c2fb4e",
+          "payload_sha256": "6fe2089ad1f1df0ff53ed290994bbd2c5719a150c233ee204e5fe07224c2fb4e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ff4e9ca0ede8-01",
+          "line_start": 3,
+          "line_end": 3,
+          "sha256": "ff4e9ca0ede8310a32b19b73ec7f6aaa4e3934603cfa6987486627e608ea6991",
+          "payload_sha256": "ff4e9ca0ede8310a32b19b73ec7f6aaa4e3934603cfa6987486627e608ea6991",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-1341202006bd-01",
+          "line_start": 5,
+          "line_end": 11,
+          "sha256": "1341202006bddab9c404716d4513c7eeb0933bc2b8cce129ba4d78fc0309a284",
+          "payload_sha256": "1341202006bddab9c404716d4513c7eeb0933bc2b8cce129ba4d78fc0309a284",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-35a92ea1a70b-01",
+          "line_start": 13,
+          "line_end": 22,
+          "sha256": "35a92ea1a70b442759906b3c8d95f8e92292fad9ed6589747bf50aab7c1a630a",
+          "payload_sha256": "35a92ea1a70b442759906b3c8d95f8e92292fad9ed6589747bf50aab7c1a630a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-6001899e907b-01",
+          "line_start": 24,
+          "line_end": 25,
+          "sha256": "6001899e907bb8776395a0495d73e8e5644eb9e78f2383e0b287714ca4a1d752",
+          "payload_sha256": "6001899e907bb8776395a0495d73e8e5644eb9e78f2383e0b287714ca4a1d752",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-43debfbb568d-01",
+          "line_start": 27,
+          "line_end": 27,
+          "sha256": "43debfbb568dc8b8b9eb64a743c34f4d75754eb38d6a3bcd2e0e1a3f557e5e0a",
+          "payload_sha256": "43debfbb568dc8b8b9eb64a743c34f4d75754eb38d6a3bcd2e0e1a3f557e5e0a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-97fcfa8107fe-01",
+          "line_start": 29,
+          "line_end": 34,
+          "sha256": "97fcfa8107fe2ccb91215031cc77529ac52607619272c158bc1d3de204685eb8",
+          "payload_sha256": "97fcfa8107fe2ccb91215031cc77529ac52607619272c158bc1d3de204685eb8",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-e4827d5e78ec-01",
+          "line_start": 36,
+          "line_end": 40,
+          "sha256": "e4827d5e78ec210497ec6c8e24e934d913a37604ae58d16d6b2519cdb6936a74",
+          "payload_sha256": "e4827d5e78ec210497ec6c8e24e934d913a37604ae58d16d6b2519cdb6936a74",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-4111ba6dbcd4-01",
+          "line_start": 42,
+          "line_end": 43,
+          "sha256": "4111ba6dbcd48564dfc0adc9a609f8406e6aad9fcb727cb658247f80be3fcd1a",
+          "payload_sha256": "4111ba6dbcd48564dfc0adc9a609f8406e6aad9fcb727cb658247f80be3fcd1a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-3cdc5dea426c-01",
+          "line_start": 50,
+          "line_end": 61,
+          "sha256": "3cdc5dea426c1ffdbc07e79c2e0f22c94a7bf10d3d8b21e15045b347d8448f7a",
+          "payload_sha256": "3cdc5dea426c1ffdbc07e79c2e0f22c94a7bf10d3d8b21e15045b347d8448f7a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-e24ef6ec55a4-01",
+          "line_start": 63,
+          "line_end": 70,
+          "sha256": "e24ef6ec55a45bf4758b5dd0e95933094a45c5fda166e6d173545039adf75f98",
+          "payload_sha256": "e24ef6ec55a45bf4758b5dd0e95933094a45c5fda166e6d173545039adf75f98",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-bf17b56a9b90-01",
+          "line_start": 72,
+          "line_end": 79,
+          "sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "payload_sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-4bada30ddb13-01",
+          "line_start": 81,
+          "line_end": 85,
+          "sha256": "4bada30ddb13309d4172aa2ccf5fd8087505de79b19b0d85c6b6e281a2e323f4",
+          "payload_sha256": "4bada30ddb13309d4172aa2ccf5fd8087505de79b19b0d85c6b6e281a2e323f4",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-cb046e716557-01",
+          "line_start": 87,
+          "line_end": 94,
+          "sha256": "cb046e716557072f1a7e4b20a186c3207ffccb31014cce95f3f988bff89253c4",
+          "payload_sha256": "cb046e716557072f1a7e4b20a186c3207ffccb31014cce95f3f988bff89253c4",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-82fc4528b1b1-01",
+          "line_start": 96,
+          "line_end": 103,
+          "sha256": "82fc4528b1b14da0b33ed48e982f81c0f586c21e2c30e014e4681934ac91f30d",
+          "payload_sha256": "82fc4528b1b14da0b33ed48e982f81c0f586c21e2c30e014e4681934ac91f30d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/changelog.md"
+    },
+    {
+      "path": ".memory/commands.md",
+      "sha256": "4e6069eacc20ccd6c4427f98a8cf116f40dfef9b26ffafd9f6487aae35c8f60b",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-cd9c73f7a793-01",
+          "line_start": 1,
+          "line_end": 3,
+          "sha256": "cd9c73f7a793b2af06782ef51c64a7612304846a414cbde79ea375f341214d0a",
+          "payload_sha256": "cd9c73f7a793b2af06782ef51c64a7612304846a414cbde79ea375f341214d0a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-17ff590b97e8-01",
+          "line_start": 5,
+          "line_end": 12,
+          "sha256": "17ff590b97e858a1da5fc49f9e4e091dbfa6b060d45dc3cd882638ee6aedc2fb",
+          "payload_sha256": "17ff590b97e858a1da5fc49f9e4e091dbfa6b060d45dc3cd882638ee6aedc2fb",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-32464ab01314-01",
+          "line_start": 14,
+          "line_end": 24,
+          "sha256": "32464ab01314f2d4b44c150be8efd24ef2c5c5492e0be2fcc14ffe3e709da47e",
+          "payload_sha256": "32464ab01314f2d4b44c150be8efd24ef2c5c5492e0be2fcc14ffe3e709da47e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-004160218bb4-01",
+          "line_start": 26,
+          "line_end": 34,
+          "sha256": "004160218bb4d325f78725237764e49248364186fd234e4b67acef519b0b3bab",
+          "payload_sha256": "004160218bb4d325f78725237764e49248364186fd234e4b67acef519b0b3bab",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-05262b088393-01",
+          "line_start": 36,
+          "line_end": 43,
+          "sha256": "05262b0883934fea11726f281e9d3a2f3800005012406a55d8efb515fb737ff7",
+          "payload_sha256": "05262b0883934fea11726f281e9d3a2f3800005012406a55d8efb515fb737ff7",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-6b0fe33353bd-01",
+          "line_start": 45,
+          "line_end": 51,
+          "sha256": "6b0fe33353bda119635363fdbc8a8bcb300ed05eb35524b8e7841aab7f471958",
+          "payload_sha256": "6b0fe33353bda119635363fdbc8a8bcb300ed05eb35524b8e7841aab7f471958",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-90cfdcceeaeb-01",
+          "line_start": 53,
+          "line_end": 62,
+          "sha256": "90cfdcceeaebfbf2cc9992f267cd6c7fc6783e72306f476dd140d70f22ae521f",
+          "payload_sha256": "90cfdcceeaebfbf2cc9992f267cd6c7fc6783e72306f476dd140d70f22ae521f",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/commands.md"
+    },
+    {
+      "path": ".memory/decisions.md",
+      "sha256": "626d78d163e61f92b3ac2fe33d758f3a0d2e6a9d38680793992f70c9ef655fcc",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-e511059d2660-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "e511059d26609c4b199b523707125070327e8fea0520b7207179812362f4712d",
+          "payload_sha256": "e511059d26609c4b199b523707125070327e8fea0520b7207179812362f4712d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ea7e26e9141d-01",
+          "line_start": 3,
+          "line_end": 7,
+          "sha256": "ea7e26e9141d734a0fcc4f079e0a2c2915f8c61e40fbfbcf3ea70c2ee6757992",
+          "payload_sha256": "ea7e26e9141d734a0fcc4f079e0a2c2915f8c61e40fbfbcf3ea70c2ee6757992",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-4be67c1fd15f-01",
+          "line_start": 9,
+          "line_end": 13,
+          "sha256": "4be67c1fd15f32a58433cbd3b8ea680c8189953844e170e3742bb77064501f75",
+          "payload_sha256": "4be67c1fd15f32a58433cbd3b8ea680c8189953844e170e3742bb77064501f75",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-2fd67501a76f-01",
+          "line_start": 15,
+          "line_end": 17,
+          "sha256": "2fd67501a76f7da2de99c0622bcffb0159b56a6e5a2fb5b3909c577a407fbbd8",
+          "payload_sha256": "2fd67501a76f7da2de99c0622bcffb0159b56a6e5a2fb5b3909c577a407fbbd8",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-526aa5017445-01",
+          "line_start": 19,
+          "line_end": 22,
+          "sha256": "526aa5017445af99fb820a8768e6c9190667f86c84a4207788d855d2fa6d9ea3",
+          "payload_sha256": "526aa5017445af99fb820a8768e6c9190667f86c84a4207788d855d2fa6d9ea3",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-451548e9eafd-01",
+          "line_start": 24,
+          "line_end": 27,
+          "sha256": "451548e9eafdb12916712ccc9f10dae1d0b3911ec33c2f42de6b9aa6031cd670",
+          "payload_sha256": "451548e9eafdb12916712ccc9f10dae1d0b3911ec33c2f42de6b9aa6031cd670",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-7a469a82230b-01",
+          "line_start": 29,
+          "line_end": 33,
+          "sha256": "7a469a82230ba0e4bc9353d63e1d8b69f42a3ba29602fa78649b5768fca28a0b",
+          "payload_sha256": "7a469a82230ba0e4bc9353d63e1d8b69f42a3ba29602fa78649b5768fca28a0b",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ae5eac73bad3-01",
+          "line_start": 35,
+          "line_end": 38,
+          "sha256": "ae5eac73bad38938270830018ea85f0a9bd96613ddbfea37e9a8a32ae1c810c0",
+          "payload_sha256": "ae5eac73bad38938270830018ea85f0a9bd96613ddbfea37e9a8a32ae1c810c0",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0a9cd0edc9e6-01",
+          "line_start": 40,
+          "line_end": 44,
+          "sha256": "0a9cd0edc9e6f6cceaadd6b0549c3b77bad79ec078012f9387ead1667421efcb",
+          "payload_sha256": "0a9cd0edc9e6f6cceaadd6b0549c3b77bad79ec078012f9387ead1667421efcb",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/decisions.md"
+    },
+    {
+      "path": ".memory/handoff.md",
+      "sha256": "8553c580f85d2bb4d785950fce113ff56c236f7aa6bafbf396d2ccb95f0155f5",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-b12a9729efc6-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "b12a9729efc6ea19244ba64c70aea53a86430b2c12717dd7680b0d543ba882af",
+          "payload_sha256": "b12a9729efc6ea19244ba64c70aea53a86430b2c12717dd7680b0d543ba882af",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-9353caf84ab3-01",
+          "line_start": 3,
+          "line_end": 11,
+          "sha256": "9353caf84ab364f388621ce35fdad31052d0d4ce6e5e2572b1eede6ed1172015",
+          "payload_sha256": "9353caf84ab364f388621ce35fdad31052d0d4ce6e5e2572b1eede6ed1172015",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c512a01270d1-01",
+          "line_start": 13,
+          "line_end": 18,
+          "sha256": "c512a01270d1f111f1af3f2bc6bf9482b0fa19df113a5204a3a3cfde5ac47329",
+          "payload_sha256": "c512a01270d1f111f1af3f2bc6bf9482b0fa19df113a5204a3a3cfde5ac47329",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-f2477f4df662-01",
+          "line_start": 20,
+          "line_end": 25,
+          "sha256": "f2477f4df662b47a8adf2521f724cead17ac1a0edee3d35b017c0350aa8b2e5c",
+          "payload_sha256": "f2477f4df662b47a8adf2521f724cead17ac1a0edee3d35b017c0350aa8b2e5c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-e42698ab1534-01",
+          "line_start": 27,
+          "line_end": 38,
+          "sha256": "e42698ab15349f10497385f6b9a3a4af401565348d8ec1054efbca5bdd8aa7ff",
+          "payload_sha256": "e42698ab15349f10497385f6b9a3a4af401565348d8ec1054efbca5bdd8aa7ff",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-cc61d86fa55a-01",
+          "line_start": 40,
+          "line_end": 42,
+          "sha256": "cc61d86fa55ae40b6bf0501a6444db2703646ca13533d82a26b8eab187b2379c",
+          "payload_sha256": "cc61d86fa55ae40b6bf0501a6444db2703646ca13533d82a26b8eab187b2379c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-bf17b56a9b90-01",
+          "line_start": 44,
+          "line_end": 51,
+          "sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "payload_sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-9e97c1ca7a5f-01",
+          "line_start": 53,
+          "line_end": 56,
+          "sha256": "9e97c1ca7a5fd32506b7af0b937e6e9e0cc263e6eb87e7f6e639ead08c6548fd",
+          "payload_sha256": "9e97c1ca7a5fd32506b7af0b937e6e9e0cc263e6eb87e7f6e639ead08c6548fd",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-5d90c6dda57f-01",
+          "line_start": 58,
+          "line_end": 60,
+          "sha256": "5d90c6dda57fc0d110ec2363fb34ccb1f8380cd7d23a9b748011364119d291f9",
+          "payload_sha256": "5d90c6dda57fc0d110ec2363fb34ccb1f8380cd7d23a9b748011364119d291f9",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-9d66303965cf-01",
+          "line_start": 62,
+          "line_end": 71,
+          "sha256": "9d66303965cf1213ef07ca45b2dcb6b87f2291d217dfc7f6bf9cdf40b3030487",
+          "payload_sha256": "9d66303965cf1213ef07ca45b2dcb6b87f2291d217dfc7f6bf9cdf40b3030487",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/handoff.md"
+    },
+    {
+      "path": ".memory/project.md",
+      "sha256": "ac6968b0a3ccd00ec414f3e6272636653e35fc06e1a259111487beacfbdd6da3",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-65b4c180d6b5-01",
+          "line_start": 1,
+          "line_end": 3,
+          "sha256": "65b4c180d6b57a4502b4768028516e75f9c3032e910599a2c8b382ab3e7d0114",
+          "payload_sha256": "65b4c180d6b57a4502b4768028516e75f9c3032e910599a2c8b382ab3e7d0114",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-7d8aa9fe3dcf-01",
+          "line_start": 5,
+          "line_end": 9,
+          "sha256": "7d8aa9fe3dcf387903a68f77035077a1d0c82b1ca316421a0f25fe526fb2081d",
+          "payload_sha256": "7d8aa9fe3dcf387903a68f77035077a1d0c82b1ca316421a0f25fe526fb2081d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-246b912f6c65-01",
+          "line_start": 11,
+          "line_end": 14,
+          "sha256": "246b912f6c654a860f539d28500845207b1fa1fd702f806f5dc9dff798ebbabc",
+          "payload_sha256": "246b912f6c654a860f539d28500845207b1fa1fd702f806f5dc9dff798ebbabc",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/project.md"
+    },
+    {
+      "path": ".memory/status.md",
+      "sha256": "103c40c79af6e03bd72fadb961749736a7e4f6bf457101f453bfed32aba9c61b",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-f90ddd963337-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "f90ddd963337c3731143e6a73d944eee970097c23adf2acf0082107bd8b424f2",
+          "payload_sha256": "f90ddd963337c3731143e6a73d944eee970097c23adf2acf0082107bd8b424f2",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-122e6d1061f2-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "122e6d1061f206923a2d1ca18cd0debcc748e7e556cfd587c61ea9b45392b554",
+          "payload_sha256": "122e6d1061f206923a2d1ca18cd0debcc748e7e556cfd587c61ea9b45392b554",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-bb2f491059fe-01",
+          "line_start": 7,
+          "line_end": 9,
+          "sha256": "bb2f491059feda8538494f5768ca74d463f6a4b96097fcab8f547aba1b57d57a",
+          "payload_sha256": "bb2f491059feda8538494f5768ca74d463f6a4b96097fcab8f547aba1b57d57a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-aa7e4c50d2f4-01",
+          "line_start": 11,
+          "line_end": 18,
+          "sha256": "aa7e4c50d2f4ba4e728a5218a42be369f55abbb4a52294cd2507aee738a6cb99",
+          "payload_sha256": "aa7e4c50d2f4ba4e728a5218a42be369f55abbb4a52294cd2507aee738a6cb99",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-9f55a6a354a3-01",
+          "line_start": 20,
+          "line_end": 33,
+          "sha256": "9f55a6a354a387786e28e7f340b78a01cc4e660d8b92f01ccc4d9dab315a0422",
+          "payload_sha256": "9f55a6a354a387786e28e7f340b78a01cc4e660d8b92f01ccc4d9dab315a0422",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-604434748fbd-01",
+          "line_start": 35,
+          "line_end": 39,
+          "sha256": "604434748fbd7b17219c49433765769dde8eb091f63c53aea7b070eaafb35466",
+          "payload_sha256": "604434748fbd7b17219c49433765769dde8eb091f63c53aea7b070eaafb35466",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-bf17b56a9b90-01",
+          "line_start": 41,
+          "line_end": 48,
+          "sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "payload_sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-694322186e2d-01",
+          "line_start": 50,
+          "line_end": 54,
+          "sha256": "694322186e2d9312eebee351b2cbeb34c62a06b793cdbdbc658989809ca1be56",
+          "payload_sha256": "694322186e2d9312eebee351b2cbeb34c62a06b793cdbdbc658989809ca1be56",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-42e23016699e-01",
+          "line_start": 56,
+          "line_end": 68,
+          "sha256": "42e23016699ee66e1692b8ebf720ffbccb2f0c67ecc9e23b3b08cb6c5e34325e",
+          "payload_sha256": "42e23016699ee66e1692b8ebf720ffbccb2f0c67ecc9e23b3b08cb6c5e34325e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-06cc6468e625-01",
+          "line_start": 70,
+          "line_end": 81,
+          "sha256": "06cc6468e6256718533a7651ff20baef72698a56a8a615571e90f66f3823b3e5",
+          "payload_sha256": "06cc6468e6256718533a7651ff20baef72698a56a8a615571e90f66f3823b3e5",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/status.md"
+    },
+    {
+      "path": ".memory/tasks.md",
+      "sha256": "711ec645b99d48a052e3de6d509c0c9cb9a907a491d7c8b7dc9e338ff9d99204",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-c6557a24b0bb-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "c6557a24b0bb6cf216ae8a8170fd7498af62b8f5b7211ddaca4c93b35100e773",
+          "payload_sha256": "c6557a24b0bb6cf216ae8a8170fd7498af62b8f5b7211ddaca4c93b35100e773",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-54b77479219f-01",
+          "line_start": 3,
+          "line_end": 13,
+          "sha256": "54b77479219f360b7c42bada2385484dc693e929f342af1affd45456625362e3",
+          "payload_sha256": "54b77479219f360b7c42bada2385484dc693e929f342af1affd45456625362e3",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-5c31fe3c04c1-01",
+          "line_start": 15,
+          "line_end": 22,
+          "sha256": "5c31fe3c04c1d5361f1be2fec762a6d1396870d49f7c54cfcabc94562e5d08fe",
+          "payload_sha256": "5c31fe3c04c1d5361f1be2fec762a6d1396870d49f7c54cfcabc94562e5d08fe",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-bf17b56a9b90-01",
+          "line_start": 24,
+          "line_end": 31,
+          "sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "payload_sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0b4b2ad99dbe-01",
+          "line_start": 33,
+          "line_end": 37,
+          "sha256": "0b4b2ad99dbe8c8694ff50316aa618b26d998f393f782403467e0d8829c0a22d",
+          "payload_sha256": "0b4b2ad99dbe8c8694ff50316aa618b26d998f393f782403467e0d8829c0a22d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-e8490eda4ac8-01",
+          "line_start": 39,
+          "line_end": 46,
+          "sha256": "e8490eda4ac824da59f2501a1b8e21d151d918db5cb7983dc51aa404b7b0134e",
+          "payload_sha256": "e8490eda4ac824da59f2501a1b8e21d151d918db5cb7983dc51aa404b7b0134e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-df769746a7a0-01",
+          "line_start": 48,
+          "line_end": 58,
+          "sha256": "df769746a7a0fdccf58577271db51b2ce2efe19cc31401cc4ca7e3d92b2174a2",
+          "payload_sha256": "df769746a7a0fdccf58577271db51b2ce2efe19cc31401cc4ca7e3d92b2174a2",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/tasks.md"
+    },
+    {
+      "path": ".memory/ui-assets.md",
+      "sha256": "bfc7703ad806f7ee10fb0488a5b15edd4b577267b0d0be5afb8455b2cb20c844",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-d84e7f3faaaa-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "d84e7f3faaaa9ecb28a4371c2228e33999ab71372e4c715f0c7fc18a835b5132",
+          "payload_sha256": "d84e7f3faaaa9ecb28a4371c2228e33999ab71372e4c715f0c7fc18a835b5132",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-cb700d4f1afb-01",
+          "line_start": 3,
+          "line_end": 7,
+          "sha256": "cb700d4f1afb4ea2b698660a3cf8f0ed664f312055cba64b775ac32834449b80",
+          "payload_sha256": "cb700d4f1afb4ea2b698660a3cf8f0ed664f312055cba64b775ac32834449b80",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-5001a3c114e6-01",
+          "line_start": 9,
+          "line_end": 22,
+          "sha256": "5001a3c114e6c6d9e4de3db18f68983ca4089e81fd05812508583c6d299dabcb",
+          "payload_sha256": "5001a3c114e6c6d9e4de3db18f68983ca4089e81fd05812508583c6d299dabcb",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-102d3beaa959-01",
+          "line_start": 24,
+          "line_end": 34,
+          "sha256": "102d3beaa95905eda0b99252e53943aeec2a6dfed4bce42f02bf12aa810f97c9",
+          "payload_sha256": "102d3beaa95905eda0b99252e53943aeec2a6dfed4bce42f02bf12aa810f97c9",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0309a2d77a35-01",
+          "line_start": 36,
+          "line_end": 43,
+          "sha256": "0309a2d77a3528db33602e7008777846f6cd53d1984332eab518d6c3dc1c5d23",
+          "payload_sha256": "0309a2d77a3528db33602e7008777846f6cd53d1984332eab518d6c3dc1c5d23",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c356854b148c-01",
+          "line_start": 46,
+          "line_end": 51,
+          "sha256": "c356854b148cc91fec3b4eeece0c77378fdb56f11b2f6f95ab0740135eee801d",
+          "payload_sha256": "c356854b148cc91fec3b4eeece0c77378fdb56f11b2f6f95ab0740135eee801d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-260a5cace797-01",
+          "line_start": 54,
+          "line_end": 64,
+          "sha256": "260a5cace797b90907c9003abdedb835739650bbd976ffcf7cf1839271ec9bfc",
+          "payload_sha256": "260a5cace797b90907c9003abdedb835739650bbd976ffcf7cf1839271ec9bfc",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.memory/ui-assets.md"
+    },
+    {
+      "path": ".prompt/001-phase-0-gpui-bootstrap.md",
+      "sha256": "8d22afeba70cc243712a2996b68bd466a4a6493103ca8cc600cdc837c0a69326",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-facf431f266e-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "facf431f266ed0252f7f187fa29d6d9a732d4c7bf409e55854d2b063e082621f",
+          "payload_sha256": "facf431f266ed0252f7f187fa29d6d9a732d4c7bf409e55854d2b063e082621f",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-d5d26aaadd7c-01",
+          "line_start": 3,
+          "line_end": 6,
+          "sha256": "d5d26aaadd7caddbf83f0f7148c53883bec4c69620f7331375c76666843173c5",
+          "payload_sha256": "d5d26aaadd7caddbf83f0f7148c53883bec4c69620f7331375c76666843173c5",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-6337c5e0e173-01",
+          "line_start": 8,
+          "line_end": 12,
+          "sha256": "6337c5e0e173dbe323781872633e0cdf5972b3aa1d57b03072c5590931a6641c",
+          "payload_sha256": "6337c5e0e173dbe323781872633e0cdf5972b3aa1d57b03072c5590931a6641c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ebb069eae460-01",
+          "line_start": 14,
+          "line_end": 20,
+          "sha256": "ebb069eae460ca7a19cf520d2b4f19363954df5a48ec2a1615ad144611b6d19d",
+          "payload_sha256": "ebb069eae460ca7a19cf520d2b4f19363954df5a48ec2a1615ad144611b6d19d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-3cafddbf232a-01",
+          "line_start": 22,
+          "line_end": 26,
+          "sha256": "3cafddbf232abc26383990701351a850872627bf2aac48c3c3ff15cc732eb9d6",
+          "payload_sha256": "3cafddbf232abc26383990701351a850872627bf2aac48c3c3ff15cc732eb9d6",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-b34384ff0067-01",
+          "line_start": 28,
+          "line_end": 32,
+          "sha256": "b34384ff006772c28b5a70f01e280659e226a2f093521a2355058903d145e66b",
+          "payload_sha256": "b34384ff006772c28b5a70f01e280659e226a2f093521a2355058903d145e66b",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-cbf45587d71f-01",
+          "line_start": 34,
+          "line_end": 39,
+          "sha256": "cbf45587d71f6ebdd692886950a6fbf413e97b395c854a99e266c643c264b107",
+          "payload_sha256": "cbf45587d71f6ebdd692886950a6fbf413e97b395c854a99e266c643c264b107",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-625e808a7cd5-01",
+          "line_start": 41,
+          "line_end": 58,
+          "sha256": "625e808a7cd55173d3e57e9f82fd5ef3039f6b5a5a4a20890d52f8c2affefa84",
+          "payload_sha256": "625e808a7cd55173d3e57e9f82fd5ef3039f6b5a5a4a20890d52f8c2affefa84",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/001-phase-0-gpui-bootstrap.md"
+    },
+    {
+      "path": ".prompt/002-phase-1-gpui-design-system.md",
+      "sha256": "ea985bf9190726be78a3d3eb70f957ff0f4cf25094dce449f491599ce770b153",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-484effd368ae-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "484effd368ae990183c291167be14ae7ee2bde18f703723c15d48f5a3f256846",
+          "payload_sha256": "484effd368ae990183c291167be14ae7ee2bde18f703723c15d48f5a3f256846",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-3f6d5817e9e2-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "3f6d5817e9e283b68a1cbfd043b78b0a544d511a2796a3e77897a427d5ab593d",
+          "payload_sha256": "3f6d5817e9e283b68a1cbfd043b78b0a544d511a2796a3e77897a427d5ab593d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-6dd910db97b6-01",
+          "line_start": 7,
+          "line_end": 11,
+          "sha256": "6dd910db97b6eeabbe8070564e8e0ebb7fa62882399444fcade46c5e9a58b232",
+          "payload_sha256": "6dd910db97b6eeabbe8070564e8e0ebb7fa62882399444fcade46c5e9a58b232",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-5d670d0d2c30-01",
+          "line_start": 13,
+          "line_end": 19,
+          "sha256": "5d670d0d2c3059bf07eaea8913b12d3c4fe97e304067db3a2605d51bdf407534",
+          "payload_sha256": "5d670d0d2c3059bf07eaea8913b12d3c4fe97e304067db3a2605d51bdf407534",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ed64ab495a5c-01",
+          "line_start": 21,
+          "line_end": 25,
+          "sha256": "ed64ab495a5c4ce5b12289377057088090a739856de05ffd2ce1f6c98020e808",
+          "payload_sha256": "ed64ab495a5c4ce5b12289377057088090a739856de05ffd2ce1f6c98020e808",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-13e4b0c716f1-01",
+          "line_start": 27,
+          "line_end": 30,
+          "sha256": "13e4b0c716f18e3ca6b902e2cf42d875305eb049c7920bfcbebf5dd9af2979f3",
+          "payload_sha256": "13e4b0c716f18e3ca6b902e2cf42d875305eb049c7920bfcbebf5dd9af2979f3",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-47640b3aba41-01",
+          "line_start": 32,
+          "line_end": 37,
+          "sha256": "47640b3aba41ce5fa29b7e93f135baeb4f5647871c1fccc6529f64355b01782c",
+          "payload_sha256": "47640b3aba41ce5fa29b7e93f135baeb4f5647871c1fccc6529f64355b01782c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c983eac76bd3-01",
+          "line_start": 39,
+          "line_end": 41,
+          "sha256": "c983eac76bd392fa926784df21f262996df898a2ee11517dcf54598b3085e1d4",
+          "payload_sha256": "c983eac76bd392fa926784df21f262996df898a2ee11517dcf54598b3085e1d4",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/002-phase-1-gpui-design-system.md"
+    },
+    {
+      "path": ".prompt/003-phase-2-splash-dashboard.md",
+      "sha256": "fe94c486e38c1522fbbc1ffc4c1526c5c8b176848d437af9d5b830f5485f76a7",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-d87c51ca29a0-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "d87c51ca29a04e752948eb01d3253161200b919fdedb4df4204a6043f59797ea",
+          "payload_sha256": "d87c51ca29a04e752948eb01d3253161200b919fdedb4df4204a6043f59797ea",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-a64c7ae277e9-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "a64c7ae277e94d92f12371e4ff5974df7405052c2504a281ff9bf883cfd4fb4c",
+          "payload_sha256": "a64c7ae277e94d92f12371e4ff5974df7405052c2504a281ff9bf883cfd4fb4c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-cc795e2b97e6-01",
+          "line_start": 7,
+          "line_end": 11,
+          "sha256": "cc795e2b97e66ba4b322a9c20a0efc04e27b2a2dc482024c87f60e7f3a80a40b",
+          "payload_sha256": "cc795e2b97e66ba4b322a9c20a0efc04e27b2a2dc482024c87f60e7f3a80a40b",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-2660cce3b369-01",
+          "line_start": 13,
+          "line_end": 23,
+          "sha256": "2660cce3b36993c64a2e38e2632f95dc28e074336e3d15611e4091e7614070e9",
+          "payload_sha256": "2660cce3b36993c64a2e38e2632f95dc28e074336e3d15611e4091e7614070e9",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c0e8cf532d20-01",
+          "line_start": 25,
+          "line_end": 29,
+          "sha256": "c0e8cf532d20dc560c2fd0d34e3d25b1245df6a5b26560f7412b25aa14b63561",
+          "payload_sha256": "c0e8cf532d20dc560c2fd0d34e3d25b1245df6a5b26560f7412b25aa14b63561",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-1b967d5c3a11-01",
+          "line_start": 31,
+          "line_end": 35,
+          "sha256": "1b967d5c3a1126aaf528cf043df015434d37f87a2ed87c5d15c3870b34f34b84",
+          "payload_sha256": "1b967d5c3a1126aaf528cf043df015434d37f87a2ed87c5d15c3870b34f34b84",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-2d3c067596af-01",
+          "line_start": 37,
+          "line_end": 42,
+          "sha256": "2d3c067596afd5e9538bf2387f4ccbf0bb90f70cec138ce92b40b4e964937876",
+          "payload_sha256": "2d3c067596afd5e9538bf2387f4ccbf0bb90f70cec138ce92b40b4e964937876",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-661b237aaa25-01",
+          "line_start": 44,
+          "line_end": 46,
+          "sha256": "661b237aaa2524af5b648910fa6236b47c6ff068feffc49facaefb0f1c622e00",
+          "payload_sha256": "661b237aaa2524af5b648910fa6236b47c6ff068feffc49facaefb0f1c622e00",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/003-phase-2-splash-dashboard.md"
+    },
+    {
+      "path": ".prompt/004-phase-3-business-pages.md",
+      "sha256": "f0197c7ee1ab3af9948b371bf31b77e1ef35a03b5fe4d96ab3b014c33cf6f04a",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-6bc67e1f2181-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "6bc67e1f21813ee93f0a309a1d5d0423e9dda4cc11aa77cb364fe3907a455a78",
+          "payload_sha256": "6bc67e1f21813ee93f0a309a1d5d0423e9dda4cc11aa77cb364fe3907a455a78",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-e44e3ba907d7-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "e44e3ba907d77f852f297d298f800bfe4d47dac6f9ce9a78f2df8c0fba04928c",
+          "payload_sha256": "e44e3ba907d77f852f297d298f800bfe4d47dac6f9ce9a78f2df8c0fba04928c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-18e89843e909-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "18e89843e909aea881c765de2e359b1b258b7f274ac9f73597a7b207a8399403",
+          "payload_sha256": "18e89843e909aea881c765de2e359b1b258b7f274ac9f73597a7b207a8399403",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-07aa061728c4-01",
+          "line_start": 14,
+          "line_end": 28,
+          "sha256": "07aa061728c4347151383ac67aac6305133d563bc01856bb0344c358c9d55b30",
+          "payload_sha256": "07aa061728c4347151383ac67aac6305133d563bc01856bb0344c358c9d55b30",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-5b041fbddc55-01",
+          "line_start": 30,
+          "line_end": 34,
+          "sha256": "5b041fbddc5594374a8a5d8f1af39aad3f98f8920fe6545aff0eee65fdc74977",
+          "payload_sha256": "5b041fbddc5594374a8a5d8f1af39aad3f98f8920fe6545aff0eee65fdc74977",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-cca5bb63b264-01",
+          "line_start": 36,
+          "line_end": 39,
+          "sha256": "cca5bb63b2640cd401788a9ae11697f3988cb9c60a7e03527523a799807d85a7",
+          "payload_sha256": "cca5bb63b2640cd401788a9ae11697f3988cb9c60a7e03527523a799807d85a7",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-aa58cef5d692-01",
+          "line_start": 41,
+          "line_end": 46,
+          "sha256": "aa58cef5d6922675e4913528041c1432e1a6c381e5fd64ebaf6130792fdedc9a",
+          "payload_sha256": "aa58cef5d6922675e4913528041c1432e1a6c381e5fd64ebaf6130792fdedc9a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-de373f789811-01",
+          "line_start": 48,
+          "line_end": 50,
+          "sha256": "de373f789811d14254a836a7609321e7db3483c9070db3cc00ae4163d5b77cde",
+          "payload_sha256": "de373f789811d14254a836a7609321e7db3483c9070db3cc00ae4163d5b77cde",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/004-phase-3-business-pages.md"
+    },
+    {
+      "path": ".prompt/005-phase-4-core-logic-integration.md",
+      "sha256": "d0eaaf7e1bf0e92d10fdf7b5186d99e044122161a2d7faa45688ac27782dafbd",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-ed5f13204982-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "ed5f132049823fe31ace26969ed3e77065582596e26644fc5ccde79bf03d76ea",
+          "payload_sha256": "ed5f132049823fe31ace26969ed3e77065582596e26644fc5ccde79bf03d76ea",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-48c42c6b2aea-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "48c42c6b2aeaa9bbc5ab8c684b8a70e71da0e84eae5056d71f8958c4d8589954",
+          "payload_sha256": "48c42c6b2aeaa9bbc5ab8c684b8a70e71da0e84eae5056d71f8958c4d8589954",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-095dcd7c8afc-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "095dcd7c8afc00246538a5b2bfedc05074667d8ff02f73e37aad8597cf20cbae",
+          "payload_sha256": "095dcd7c8afc00246538a5b2bfedc05074667d8ff02f73e37aad8597cf20cbae",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ac47ad8edc70-01",
+          "line_start": 14,
+          "line_end": 25,
+          "sha256": "ac47ad8edc70ab586a9eb3e5c7e2d63decd62fc1cd93066dd74cb1c8dbb78163",
+          "payload_sha256": "ac47ad8edc70ab586a9eb3e5c7e2d63decd62fc1cd93066dd74cb1c8dbb78163",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-a4655cb95d41-01",
+          "line_start": 27,
+          "line_end": 31,
+          "sha256": "a4655cb95d41dd35bd48c0672e99f6b9147b553e36bc42292349e54522f5fe55",
+          "payload_sha256": "a4655cb95d41dd35bd48c0672e99f6b9147b553e36bc42292349e54522f5fe55",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-a85119979140-01",
+          "line_start": 33,
+          "line_end": 36,
+          "sha256": "a8511997914041c593cd8c1a4806813af46adf0c2aa18c9e33bb9c94c7bab523",
+          "payload_sha256": "a8511997914041c593cd8c1a4806813af46adf0c2aa18c9e33bb9c94c7bab523",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-86723fa35e46-01",
+          "line_start": 38,
+          "line_end": 43,
+          "sha256": "86723fa35e467759588dea1b872c1349d46482de6d62d023a4fdeff0211135ce",
+          "payload_sha256": "86723fa35e467759588dea1b872c1349d46482de6d62d023a4fdeff0211135ce",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-551d4442b35a-01",
+          "line_start": 45,
+          "line_end": 47,
+          "sha256": "551d4442b35a10e4ddca84a12091a65db7f8844055c9428bf7e14f47bf53c093",
+          "payload_sha256": "551d4442b35a10e4ddca84a12091a65db7f8844055c9428bf7e14f47bf53c093",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/005-phase-4-core-logic-integration.md"
+    },
+    {
+      "path": ".prompt/006-phase-5-advanced-features.md",
+      "sha256": "10d0a27637be6771df838c4310ac68dbe8abc1ee2f412083b2325adeec6efbd3",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-146be4586d37-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "146be4586d3794073ec6062651ce8ef781104bf64ee8eac1169cad4f804eb6a0",
+          "payload_sha256": "146be4586d3794073ec6062651ce8ef781104bf64ee8eac1169cad4f804eb6a0",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-d60fc712ea4a-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "d60fc712ea4a36d7f4ed25e1397d995d8917e8eb3449409b002511ce6a8c3c87",
+          "payload_sha256": "d60fc712ea4a36d7f4ed25e1397d995d8917e8eb3449409b002511ce6a8c3c87",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-6639988a1aac-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "6639988a1aacc0b884785c2c5849b66f7c049b3dd27475600a77257bb3ad1f28",
+          "payload_sha256": "6639988a1aacc0b884785c2c5849b66f7c049b3dd27475600a77257bb3ad1f28",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-95947dabbf5d-01",
+          "line_start": 14,
+          "line_end": 26,
+          "sha256": "95947dabbf5d32897e8d1fe8088937c9a70c1ec4d021fc0129d16f49272586f3",
+          "payload_sha256": "95947dabbf5d32897e8d1fe8088937c9a70c1ec4d021fc0129d16f49272586f3",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-d85650afc182-01",
+          "line_start": 28,
+          "line_end": 32,
+          "sha256": "d85650afc182441a313cb8c82dd67cec44ae343e1bf78e27675ca6c6f708930d",
+          "payload_sha256": "d85650afc182441a313cb8c82dd67cec44ae343e1bf78e27675ca6c6f708930d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-f445a3b951a6-01",
+          "line_start": 34,
+          "line_end": 37,
+          "sha256": "f445a3b951a624ee0c705f2c785949e8f12395e91b300f984c6c4f06d4fff4a2",
+          "payload_sha256": "f445a3b951a624ee0c705f2c785949e8f12395e91b300f984c6c4f06d4fff4a2",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0a45edeeb7a0-01",
+          "line_start": 39,
+          "line_end": 44,
+          "sha256": "0a45edeeb7a0d8dbcc01ffe2083c38693b77697d1c38fdab6881622225e36b43",
+          "payload_sha256": "0a45edeeb7a0d8dbcc01ffe2083c38693b77697d1c38fdab6881622225e36b43",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c9c278e5a11c-01",
+          "line_start": 46,
+          "line_end": 48,
+          "sha256": "c9c278e5a11c2cf86d3ebb150a8d43d08211bc6ed3a540d9f4552b749e0abdcd",
+          "payload_sha256": "c9c278e5a11c2cf86d3ebb150a8d43d08211bc6ed3a540d9f4552b749e0abdcd",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/006-phase-5-advanced-features.md"
+    },
+    {
+      "path": ".prompt/007-phase-6-kernel-integration.md",
+      "sha256": "b22f7a5903c5e0bf8c26aae30974150e04d53eeecc5ad87752319a045c7573f4",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-02a81e08397d-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "02a81e08397d2ee1088f87d8bc051567cdd98fc2912f60bb7ff678b7e9fa8766",
+          "payload_sha256": "02a81e08397d2ee1088f87d8bc051567cdd98fc2912f60bb7ff678b7e9fa8766",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-6438eb341347-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "6438eb34134703651f93e3421f4a5f0c0433005547e196b220571ea7590d14a5",
+          "payload_sha256": "6438eb34134703651f93e3421f4a5f0c0433005547e196b220571ea7590d14a5",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-7d3461c7c81f-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "7d3461c7c81f50e886cc242ce980163b252486799abfba466da7cce435d85229",
+          "payload_sha256": "7d3461c7c81f50e886cc242ce980163b252486799abfba466da7cce435d85229",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c15af539c511-01",
+          "line_start": 14,
+          "line_end": 26,
+          "sha256": "c15af539c511e3f769ea3024f6090d20cc1f0be254a3c84a2831c3c7f52090f6",
+          "payload_sha256": "c15af539c511e3f769ea3024f6090d20cc1f0be254a3c84a2831c3c7f52090f6",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-997e557b121f-01",
+          "line_start": 28,
+          "line_end": 32,
+          "sha256": "997e557b121f462d9403a53e66cad1022ca4ded9a2aedd07ccfa09f9c67f63f8",
+          "payload_sha256": "997e557b121f462d9403a53e66cad1022ca4ded9a2aedd07ccfa09f9c67f63f8",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-911d1d94dc50-01",
+          "line_start": 34,
+          "line_end": 37,
+          "sha256": "911d1d94dc50654a2828b1a551f25d0ee2d3c36467b0132f7c54a966d5ca9d3a",
+          "payload_sha256": "911d1d94dc50654a2828b1a551f25d0ee2d3c36467b0132f7c54a966d5ca9d3a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-14f5ef32e6bd-01",
+          "line_start": 39,
+          "line_end": 43,
+          "sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "payload_sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-090271456b86-01",
+          "line_start": 45,
+          "line_end": 47,
+          "sha256": "090271456b86f1e818f3f10d6c4f4429f56679bb0c244feb59fcd0759bb233ec",
+          "payload_sha256": "090271456b86f1e818f3f10d6c4f4429f56679bb0c244feb59fcd0759bb233ec",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/007-phase-6-kernel-integration.md"
+    },
+    {
+      "path": ".prompt/008-phase-7-kernel-orchestration.md",
+      "sha256": "b13aa95a065026bb36795f9025fc39efa3a21f5011dacf599fc47637866cb5c8",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-c650106f6f90-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "c650106f6f90908e76774103a798a8f0ebb475e67f45ad5cee72140f9e2205b2",
+          "payload_sha256": "c650106f6f90908e76774103a798a8f0ebb475e67f45ad5cee72140f9e2205b2",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0a53429152c6-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "0a53429152c6e3d4dbf5baa0ad32ca38b2cf8b5a31b47ffc525f879cabae7d70",
+          "payload_sha256": "0a53429152c6e3d4dbf5baa0ad32ca38b2cf8b5a31b47ffc525f879cabae7d70",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0436a9c65cf9-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "0436a9c65cf9dc896aa40a821be30a5a76a24f7851d0021506faea83ab55494d",
+          "payload_sha256": "0436a9c65cf9dc896aa40a821be30a5a76a24f7851d0021506faea83ab55494d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-2c42d887e575-01",
+          "line_start": 14,
+          "line_end": 27,
+          "sha256": "2c42d887e575842ba39bd874914bdecaff4d3e05b3eb3d3d171439e853149bfa",
+          "payload_sha256": "2c42d887e575842ba39bd874914bdecaff4d3e05b3eb3d3d171439e853149bfa",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-2ecca171497b-01",
+          "line_start": 29,
+          "line_end": 33,
+          "sha256": "2ecca171497bfdf52fed9f71a46b55e91abc002c3a39e7f3a71cca027465771c",
+          "payload_sha256": "2ecca171497bfdf52fed9f71a46b55e91abc002c3a39e7f3a71cca027465771c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c2f159ec2c4c-01",
+          "line_start": 35,
+          "line_end": 38,
+          "sha256": "c2f159ec2c4c4f656be5281c04b05f56e3b446a804b28417f3b7c2450c655f01",
+          "payload_sha256": "c2f159ec2c4c4f656be5281c04b05f56e3b446a804b28417f3b7c2450c655f01",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-14f5ef32e6bd-01",
+          "line_start": 40,
+          "line_end": 44,
+          "sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "payload_sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-f7d74981776a-01",
+          "line_start": 46,
+          "line_end": 48,
+          "sha256": "f7d74981776a568bc8d9fdc9e20360f3147afc01df86d3a2cbd43b2853513f0a",
+          "payload_sha256": "f7d74981776a568bc8d9fdc9e20360f3147afc01df86d3a2cbd43b2853513f0a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/008-phase-7-kernel-orchestration.md"
+    },
+    {
+      "path": ".prompt/009-phase-8-real-integration.md",
+      "sha256": "e3ad19b7c79ff03f405ee4ba951882c6707282f63bc55fba7340025b270ff81b",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-37b55b25f832-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "37b55b25f832295d54bb09c0e5586ee3a26d78e675b950b06ba7166dc598521e",
+          "payload_sha256": "37b55b25f832295d54bb09c0e5586ee3a26d78e675b950b06ba7166dc598521e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-d9acdd158a9d-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "d9acdd158a9d55c9008ad79c3906155288fd387caa9ef30bbf6d9a61d3cb24a8",
+          "payload_sha256": "d9acdd158a9d55c9008ad79c3906155288fd387caa9ef30bbf6d9a61d3cb24a8",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-785dfaf7d81a-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "785dfaf7d81a4211456335ea5ba2d6c7bfffb7dd31db78af9f4d22061a3a345e",
+          "payload_sha256": "785dfaf7d81a4211456335ea5ba2d6c7bfffb7dd31db78af9f4d22061a3a345e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-e9e92e583144-01",
+          "line_start": 14,
+          "line_end": 26,
+          "sha256": "e9e92e58314406cb29e197c886dffa7a4ba20089994953cd18c2dd8dcdfe89cb",
+          "payload_sha256": "e9e92e58314406cb29e197c886dffa7a4ba20089994953cd18c2dd8dcdfe89cb",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-fed12c9eb1f6-01",
+          "line_start": 28,
+          "line_end": 32,
+          "sha256": "fed12c9eb1f6bdd20cc926dddb2bd9ad8dd740dac7ac3781571944be7a4e8b0d",
+          "payload_sha256": "fed12c9eb1f6bdd20cc926dddb2bd9ad8dd740dac7ac3781571944be7a4e8b0d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-4875911cb3ee-01",
+          "line_start": 34,
+          "line_end": 38,
+          "sha256": "4875911cb3ee38035336d7a47388d172cfcdb324e9ef797c565241b107b8a4a9",
+          "payload_sha256": "4875911cb3ee38035336d7a47388d172cfcdb324e9ef797c565241b107b8a4a9",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-14f5ef32e6bd-01",
+          "line_start": 40,
+          "line_end": 44,
+          "sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "payload_sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-1b4aa25cd3c3-01",
+          "line_start": 46,
+          "line_end": 48,
+          "sha256": "1b4aa25cd3c31df6ec1b0442ed9e37f707e07c4419a75e10a7d9844b1df8a865",
+          "payload_sha256": "1b4aa25cd3c31df6ec1b0442ed9e37f707e07c4419a75e10a7d9844b1df8a865",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/009-phase-8-real-integration.md"
+    },
+    {
+      "path": ".prompt/010-phase-9-polish-ux.md",
+      "sha256": "78725904c9048ae4b03abe626a090d4ff7c5fe59cf4f9b02b0fdfb6753d464d6",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-4e70a83da548-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "4e70a83da548740f5b68481fc421787634dbe95e61a6c8906cb4bab2ea32b44e",
+          "payload_sha256": "4e70a83da548740f5b68481fc421787634dbe95e61a6c8906cb4bab2ea32b44e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-8cf31a7eaef0-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "8cf31a7eaef06607c83ed38681ccc35998f40d0fec932fe19da7faa24f3274d8",
+          "payload_sha256": "8cf31a7eaef06607c83ed38681ccc35998f40d0fec932fe19da7faa24f3274d8",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-b4e1417fecf1-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "b4e1417fecf1a6da4f02838824c656af96200d919b1d7b4d35fa99f7d58d16d8",
+          "payload_sha256": "b4e1417fecf1a6da4f02838824c656af96200d919b1d7b4d35fa99f7d58d16d8",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ce878745e994-01",
+          "line_start": 14,
+          "line_end": 26,
+          "sha256": "ce878745e994c528b45afb2f3b4a42ee918476ae28225081ea9f060e4c879102",
+          "payload_sha256": "ce878745e994c528b45afb2f3b4a42ee918476ae28225081ea9f060e4c879102",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-55078161a05b-01",
+          "line_start": 28,
+          "line_end": 32,
+          "sha256": "55078161a05b54b6a346ecfd70e646804d0ae017c7c9024f4bbd073d2c7adb3f",
+          "payload_sha256": "55078161a05b54b6a346ecfd70e646804d0ae017c7c9024f4bbd073d2c7adb3f",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-4b310f27c8c7-01",
+          "line_start": 34,
+          "line_end": 37,
+          "sha256": "4b310f27c8c74f8134285e242cc48cec5d5afeb1a8c7298618d8e6ea2d024353",
+          "payload_sha256": "4b310f27c8c74f8134285e242cc48cec5d5afeb1a8c7298618d8e6ea2d024353",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-14f5ef32e6bd-01",
+          "line_start": 39,
+          "line_end": 43,
+          "sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "payload_sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-36ec2e9c23e6-01",
+          "line_start": 45,
+          "line_end": 47,
+          "sha256": "36ec2e9c23e653b41a230eddc13bbcd48e908b89b78ea180fce2866a647b6f43",
+          "payload_sha256": "36ec2e9c23e653b41a230eddc13bbcd48e908b89b78ea180fce2866a647b6f43",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/010-phase-9-polish-ux.md"
+    },
+    {
+      "path": ".prompt/011-phase-10-production-polish.md",
+      "sha256": "a7293ace5736a336cf338a1486199d6d170a08babe97f2b8f4dc2ffb2cd805d5",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-b267a9d9b388-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "b267a9d9b3887e9a3f7d5404ed01408542d87fdba6ecdeed5643bc0a65d005e5",
+          "payload_sha256": "b267a9d9b3887e9a3f7d5404ed01408542d87fdba6ecdeed5643bc0a65d005e5",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-6451647f1746-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "6451647f1746636295797fa2ce091d3b9dd251d62f4b3a6bc4f011315e467268",
+          "payload_sha256": "6451647f1746636295797fa2ce091d3b9dd251d62f4b3a6bc4f011315e467268",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-c81da552ec99-01",
+          "line_start": 7,
+          "line_end": 12,
+          "sha256": "c81da552ec997fb489ae167a4a6a5a77939b3860e2055ed95ea7dca195fac420",
+          "payload_sha256": "c81da552ec997fb489ae167a4a6a5a77939b3860e2055ed95ea7dca195fac420",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-d7b036081ebe-01",
+          "line_start": 14,
+          "line_end": 26,
+          "sha256": "d7b036081ebe098fd66233abb94c6864f630c762ab1598f30aa7d900709a79ae",
+          "payload_sha256": "d7b036081ebe098fd66233abb94c6864f630c762ab1598f30aa7d900709a79ae",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-ce1f439e6afd-01",
+          "line_start": 28,
+          "line_end": 32,
+          "sha256": "ce1f439e6afd5a458299ec70ebe10a1e9d04276b4756fecbc3bbccfd05569bf5",
+          "payload_sha256": "ce1f439e6afd5a458299ec70ebe10a1e9d04276b4756fecbc3bbccfd05569bf5",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0b664788a4b0-01",
+          "line_start": 34,
+          "line_end": 37,
+          "sha256": "0b664788a4b09a7e4b94612eeb1b80051b4ea90ed4d75691db6f96c4e3d58502",
+          "payload_sha256": "0b664788a4b09a7e4b94612eeb1b80051b4ea90ed4d75691db6f96c4e3d58502",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-14f5ef32e6bd-01",
+          "line_start": 39,
+          "line_end": 43,
+          "sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "payload_sha256": "14f5ef32e6bd6e65b33839e3b2c06a4af4924ae3150bdd5fe9f86baa7e3f15c7",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-7c0bb6513a5b-01",
+          "line_start": 45,
+          "line_end": 47,
+          "sha256": "7c0bb6513a5bf301b7247024356b874e21cc6b8944d436dad61d069f558c6489",
+          "payload_sha256": "7c0bb6513a5bf301b7247024356b874e21cc6b8944d436dad61d069f558c6489",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/011-phase-10-production-polish.md"
+    },
+    {
+      "path": ".prompt/012-liora-ui-rebuild-followup.md",
+      "sha256": "de349f47a0cb58385565b6224a1d06b724c36b056b225de2d58fed7d7f94d7bf",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-45a58ba8d4de-01",
+          "line_start": 1,
+          "line_end": 1,
+          "sha256": "45a58ba8d4de346282d6a00051b03ccaaa4f01e90e5148d5bd70436f4041d7bd",
+          "payload_sha256": "45a58ba8d4de346282d6a00051b03ccaaa4f01e90e5148d5bd70436f4041d7bd",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-4699a109b1e7-01",
+          "line_start": 3,
+          "line_end": 5,
+          "sha256": "4699a109b1e74b61cab624ecd76a66ad0eb10999875f17e6a27f7aea9e82c90c",
+          "payload_sha256": "4699a109b1e74b61cab624ecd76a66ad0eb10999875f17e6a27f7aea9e82c90c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-938c89be5305-01",
+          "line_start": 7,
+          "line_end": 13,
+          "sha256": "938c89be5305913123917a680795b4b5420f38a6985a789fffacf9e8196eb94d",
+          "payload_sha256": "938c89be5305913123917a680795b4b5420f38a6985a789fffacf9e8196eb94d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0d5cc471819a-01",
+          "line_start": 15,
+          "line_end": 21,
+          "sha256": "0d5cc471819a4aaa7a563d95dcbd06f9fc0fca70c247f721919b4d59d2d36a5b",
+          "payload_sha256": "0d5cc471819a4aaa7a563d95dcbd06f9fc0fca70c247f721919b4d59d2d36a5b",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-fae779fd49df-01",
+          "line_start": 23,
+          "line_end": 28,
+          "sha256": "fae779fd49df0c9c59111f4a2c833d5d6d9340ebb8b9f242975c6f6a92ace0db",
+          "payload_sha256": "fae779fd49df0c9c59111f4a2c833d5d6d9340ebb8b9f242975c6f6a92ace0db",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-d6dcd1310648-01",
+          "line_start": 30,
+          "line_end": 39,
+          "sha256": "d6dcd131064863086637fb324716ae6cd4d41a2edb5a9cb4ef498acf434ba7ad",
+          "payload_sha256": "d6dcd131064863086637fb324716ae6cd4d41a2edb5a9cb4ef498acf434ba7ad",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-bf17b56a9b90-01",
+          "line_start": 41,
+          "line_end": 48,
+          "sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "payload_sha256": "bf17b56a9b903bbc09e8ca99378d81ed8f228078615988604303ac724af52705",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-9f44c4bd356c-01",
+          "line_start": 50,
+          "line_end": 52,
+          "sha256": "9f44c4bd356c5ced92f0e7dbcb5e507fa3fdce8a2725a0a80f88ef627dbe073a",
+          "payload_sha256": "9f44c4bd356c5ced92f0e7dbcb5e507fa3fdce8a2725a0a80f88ef627dbe073a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-458abd54f53f-01",
+          "line_start": 54,
+          "line_end": 56,
+          "sha256": "458abd54f53f3a6fff2bbd35d796d1798be58f36f532bccb17c247d953de131d",
+          "payload_sha256": "458abd54f53f3a6fff2bbd35d796d1798be58f36f532bccb17c247d953de131d",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0eed7068ab21-01",
+          "line_start": 58,
+          "line_end": 62,
+          "sha256": "0eed7068ab210df46f52272274391fec6ab272f61f27c7e83928832862aa48a2",
+          "payload_sha256": "0eed7068ab210df46f52272274391fec6ab272f61f27c7e83928832862aa48a2",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/012-liora-ui-rebuild-followup.md"
+    },
+    {
+      "path": ".prompt/README.md",
+      "sha256": "0c6361759f63538092fc8a4e492a2852f3a89285e675cc8271475c5a32cb8344",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-0c6361759f63-01",
+          "line_start": 1,
+          "line_end": 7,
+          "sha256": "0c6361759f63538092fc8a4e492a2852f3a89285e675cc8271475c5a32cb8344",
+          "payload_sha256": "0c6361759f63538092fc8a4e492a2852f3a89285e675cc8271475c5a32cb8344",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/README.md"
+    },
+    {
+      "path": ".prompt/plans/2026-05-02-cleanup-and-gpui-setup.md",
+      "sha256": "48bf148735ef4e326284309b95cf5f6a000baaa41448e0608d9ebd2c20e12d02",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-ae32d0eadef7-01",
+          "line_start": 1,
+          "line_end": 11,
+          "sha256": "ae32d0eadef7880023d78d11051fd0c0d974237bba95d532eb6740219f4afe24",
+          "payload_sha256": "ae32d0eadef7880023d78d11051fd0c0d974237bba95d532eb6740219f4afe24",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-06b65a9ad3a4-01",
+          "line_start": 13,
+          "line_end": 20,
+          "sha256": "06b65a9ad3a4889a309b0ddb2460d378faeebda158a3d259fe326933989ec839",
+          "payload_sha256": "06b65a9ad3a4889a309b0ddb2460d378faeebda158a3d259fe326933989ec839",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-a386c3b5c037-01",
+          "line_start": 22,
+          "line_end": 24,
+          "sha256": "a386c3b5c0378e4692efc336d9be89c8d34b3ef70c3ae95dd21d79cbfc40ef7e",
+          "payload_sha256": "a386c3b5c0378e4692efc336d9be89c8d34b3ef70c3ae95dd21d79cbfc40ef7e",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-02fe1a778b3d-01",
+          "line_start": 26,
+          "line_end": 28,
+          "sha256": "02fe1a778b3db41636e85ca204a72a5a9396fc0d6afad78fe38b4de4a37ce3eb",
+          "payload_sha256": "02fe1a778b3db41636e85ca204a72a5a9396fc0d6afad78fe38b4de4a37ce3eb",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/plans/2026-05-02-cleanup-and-gpui-setup.md"
+    },
+    {
+      "path": ".prompt/plans/2026-05-02-gpui-bootstrap.md",
+      "sha256": "abff9df25517aaab69c99b2aac0a7189a2d00ae66c82f3dedc914f19a1b3172f",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-34289d825fb3-01",
+          "line_start": 1,
+          "line_end": 11,
+          "sha256": "34289d825fb33555b26c8f0963d30d1bb8fdc148f6723d5bdda35b8016c700c6",
+          "payload_sha256": "34289d825fb33555b26c8f0963d30d1bb8fdc148f6723d5bdda35b8016c700c6",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-59e28e44ceda-01",
+          "line_start": 13,
+          "line_end": 52,
+          "sha256": "59e28e44ceda3b9d3625e98b0a59a7b37ff55cf646add8d94e3b46bcfbfb9ef0",
+          "payload_sha256": "59e28e44ceda3b9d3625e98b0a59a7b37ff55cf646add8d94e3b46bcfbfb9ef0",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-2d4a1a9417aa-01",
+          "line_start": 54,
+          "line_end": 133,
+          "sha256": "2d4a1a9417aa45529d4c1b016760f9313395c1d65481839c38de429c0190bd51",
+          "payload_sha256": "2d4a1a9417aa45529d4c1b016760f9313395c1d65481839c38de429c0190bd51",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-7cd2d8c3f777-01",
+          "line_start": 135,
+          "line_end": 160,
+          "sha256": "7cd2d8c3f7779444b3a12cebcfd76bc6345d0a822990e3a1c1f426e86c1b58f0",
+          "payload_sha256": "7cd2d8c3f7779444b3a12cebcfd76bc6345d0a822990e3a1c1f426e86c1b58f0",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/.prompt/plans/2026-05-02-gpui-bootstrap.md"
+    },
+    {
+      "path": "prompt.md",
+      "sha256": "fb22139f28b0c04c99b8da8fc5555d0de39c744a22fdcce0b7c7a4a3944e1da2",
+      "status": "resolved",
+      "destinations": [],
+      "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+      "migration_note": "按用户新目标整体标记为 obsolete；原始文件保留至 finalize 归档。",
+      "units": [
+        {
+          "id": "U-6aa5ea9c2961-01",
+          "line_start": 1,
+          "line_end": 6,
+          "sha256": "6aa5ea9c2961f8aa85469afd7f6cee57dae2ff47cf08ab8b15cba1d5882dda7c",
+          "payload_sha256": "6aa5ea9c2961f8aa85469afd7f6cee57dae2ff47cf08ab8b15cba1d5882dda7c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0e35ec311737-01",
+          "line_start": 8,
+          "line_end": 32,
+          "sha256": "0e35ec311737785c6df0cbb8e9a7ce6234f105c91a797db71a71c8e49dfe8803",
+          "payload_sha256": "0e35ec311737785c6df0cbb8e9a7ce6234f105c91a797db71a71c8e49dfe8803",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-363315ece714-01",
+          "line_start": 34,
+          "line_end": 40,
+          "sha256": "363315ece714a85e953aae160e69eef0d86c67ba74b767232326b00145134e1a",
+          "payload_sha256": "363315ece714a85e953aae160e69eef0d86c67ba74b767232326b00145134e1a",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-93898abe6ef0-01",
+          "line_start": 42,
+          "line_end": 55,
+          "sha256": "93898abe6ef064e1ea98cccbf9c32ec2b74d381eb298b49f4cacab1196daf32c",
+          "payload_sha256": "93898abe6ef064e1ea98cccbf9c32ec2b74d381eb298b49f4cacab1196daf32c",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-88fe27d1f9c1-01",
+          "line_start": 57,
+          "line_end": 69,
+          "sha256": "88fe27d1f9c18215697300e9ee0ef9016612cb14735285deb6f0e413597f6806",
+          "payload_sha256": "88fe27d1f9c18215697300e9ee0ef9016612cb14735285deb6f0e413597f6806",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-0f4c7a6f7b87-01",
+          "line_start": 71,
+          "line_end": 77,
+          "sha256": "0f4c7a6f7b87b0f4987e6c2e38bc2afc8a56c6dbf0314c553ece8bbb416d25aa",
+          "payload_sha256": "0f4c7a6f7b87b0f4987e6c2e38bc2afc8a56c6dbf0314c553ece8bbb416d25aa",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        },
+        {
+          "id": "U-897f3a777919-01",
+          "line_start": 79,
+          "line_end": 175,
+          "sha256": "897f3a777919c091a5b14aea1c0369c437ef1df70cbf943c137a8e2855ff3721",
+          "payload_sha256": "897f3a777919c091a5b14aea1c0369c437ef1df70cbf943c137a8e2855ff3721",
+          "status": "rejected",
+          "category": "obsolete",
+          "destinations": [],
+          "reason": "旧上下文内容属于上一轮 GPUI/Liora 视觉与阶段计划，已被用户 2026-08-22 的新目标（重建内核编排、分流规则、系统代理与 TUN 可靠闭环）明确取代；原始内容将在 ctx finalize 阶段完整归档，不再作为当前规范依据。",
+          "evidence": {
+            "basis": "用户在当前会话明确要求舍弃原有未完成技术路线与 UI 固化方案，转向 GPUI + Liora 及可靠的多内核/分流实现。",
+            "reviewed_by": "Codex",
+            "reviewed_at": "2026-08-22"
+          }
+        }
+      ],
+      "archive_path": ".context/archive/legacy-sources/prompt.md"
+    }
+  ]
+}

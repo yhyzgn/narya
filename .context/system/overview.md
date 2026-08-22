@@ -1,0 +1,26 @@
+# 系统全景：narya
+
+## 已验证事实
+
+- 语言与构建：Rust 2021 workspace，根清单为 `Cargo.toml`，成员由 `crates/*` 扫描加入。
+- UI：`crates/narya-app` 使用 GPUI 0.2.2 与 crates.io 的 `liora` 0.1.5；启动入口为 `src/main.rs` -> `narya_app::run()`，应用初始化在 `crates/narya-app/src/lib.rs`。
+- 领域模型：`crates/narya-core/src/lib.rs` 目前仅有 `Node`、`Subscription` 等基础结构。
+- 控制面：`crates/narya-daemon/src/main.rs` 通过 Unix socket 接收 JSON IPC；`crates/narya-ipc/src/lib.rs` 定义请求、响应、通知和运行目录。
+- 内核：`crates/narya-daemon/src/kernel.rs` 当前只管理单个子进程；`main.rs` 的状态探测硬编码 sing-box、mihomo、xray，安装接口仍返回未实现错误。
+- 代理：`crates/narya-daemon/src/proxy.rs` 当前只有 Linux GNOME gsettings 与 macOS Wi‑Fi networksetup 后端；未覆盖 TUN、Windows 或代理状态回滚。
+- 配置：`crates/narya-daemon/src/config_gen.rs` 当前只生成 sing-box Shadowsocks 配置，未知协议 fail-closed。
+- 规则：`crates/narya-rules/src/lib.rs` 已建立 `RuleSet`、条件/动作模型、确定性优先级排序和 fail-closed 决策；尚未接入 daemon 的内核配置生成。
+- 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。
+- 外部依赖：仓库扫描未发现数据库、缓存或消息队列；`narya-subscription` 依赖 `reqwest`，真实网络访问需由明确测试场景隔离。
+
+## 当前未知项
+
+- `../../lib/liora` 本地源码与 crates.io 0.1.5 的版本关系尚未确认；当前生产清单仍使用 crates.io 版本。
+- Karing 的具体规则格式、内核适配和平台 TUN 权限尚未完成源码级对照；在接入前必须以其公开实现与各内核官方配置文档为证据。
+- 系统代理恢复、TUN 生命周期、内核下载校验和跨平台安装策略尚未实现。
+
+## Karing 对照证据（2026-08-22）
+
+- 已对照 Karing 仓库提交 `ae12111876a4456cc58c7410950428345f908abb`（临时只读 clone）。其 `lib/app/modules/server_manager.dart` 将 `rule_set_items`、分流组和 DNS 服务器作为独立配置输入；`setting_manager.dart` 明确区分 TUN `auto_route`、`strict_route`、`hijack_dns`、路由排除地址，以及系统代理 bypass domain。
+- Karing 的设计证据支持本项目采用“统一规则语义 + 独立 DNS/路由/TUN 参数 + system proxy bypass”模型；不能只把系统代理开关映射成一个布尔值。
+- 该上游证据仅用于设计对照，不复制其代码；接入具体内核前仍需锁定各内核官方配置版本并编写 golden tests。

@@ -1754,6 +1754,7 @@ pub fn open_shell_window<T: gpui::Render + 'static>(
     build: impl FnOnce(&mut gpui::Window, &mut gpui::App) -> Entity<T> + 'static,
 ) {
     let options = entity_window_options(cx);
-    cx.open_window(options, build)
-        .expect("failed to open Narya main window");
+    if let Err(error) = cx.open_window(options, build) {
+        eprintln!("failed to open Narya main window: {error}");
+    }
 }

@@ -1,7 +1,7 @@
 use crate::ipc::IpcClient;
 use gpui::*;
 use narya_core;
-use narya_ipc::{IpcNotification, IpcRequest};
+use narya_ipc::{IpcNotification, IpcRequest, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -183,6 +183,7 @@ impl AppState {
                 };
 
                 let req_kernel = IpcRequest {
+                    version: PROTOCOL_VERSION,
                     id: 2,
                     method: method.to_string(),
                     params,
@@ -207,6 +208,7 @@ impl AppState {
                 }
 
                 let req_proxy = IpcRequest {
+                    version: PROTOCOL_VERSION,
                     id: 1,
                     method: "SetSystemProxy".to_string(),
                     params: serde_json::json!(next_state),
@@ -221,15 +223,33 @@ impl AppState {
                         });
                     }
                     Ok(response) => {
-                        eprintln!(
-                            "SetSystemProxy failed: {}",
-                            response
-                                .error
-                                .unwrap_or_else(|| "unknown daemon error".to_string())
-                        );
+                        let error = response
+                            .error
+                            .unwrap_or_else(|| "unknown daemon error".to_string());
+                        eprintln!("SetSystemProxy failed: {}", error);
+                        if next_state {
+                            let _ = client
+                                .send_request(IpcRequest {
+                                    version: PROTOCOL_VERSION,
+                                    id: 4,
+                                    method: "StopKernel".to_string(),
+                                    params: serde_json::json!(null),
+                                })
+                                .await;
+                        }
                     }
                     Err(error) => {
                         eprintln!("SetSystemProxy transport failed: {}", error);
+                        if next_state {
+                            let _ = client
+                                .send_request(IpcRequest {
+                                    version: PROTOCOL_VERSION,
+                                    id: 4,
+                                    method: "StopKernel".to_string(),
+                                    params: serde_json::json!(null),
+                                })
+                                .await;
+                        }
                     }
                 }
             }
@@ -367,6 +387,7 @@ impl AppState {
             async move {
                 if let Ok(mut client) = IpcClient::connect_default().await {
                     let request = IpcRequest {
+                        version: PROTOCOL_VERSION,
                         id: 3,
                         method: "GetKernelStatus".to_string(),
                         params: serde_json::json!(null),
@@ -439,7 +460,9 @@ impl AppState {
                 active_node_id: persisted.active_node_id,
                 nodes: persisted.nodes,
                 subscriptions: persisted.subscriptions,
-                kernel_running: persisted.kernel_running,
+                // A persisted flag cannot prove that the daemon and kernel are healthy.
+                // The live IPC status probe is the only source of truth after startup.
+                kernel_running: false,
                 filter_text: String::new(),
                 selected_subscription_id: persisted.selected_subscription_id,
                 active_subscription_tab: SubscriptionTab::Overview,
@@ -623,18 +646,27 @@ impl AppState {
                     installed: false,
                     version: None,
                     running: false,
+                    healthy: false,
+                    state: "not_installed".to_string(),
+                    failure: None,
                 },
                 narya_ipc::KernelInfo {
                     name: "mihomo".to_string(),
                     installed: false,
                     version: None,
                     running: false,
+                    healthy: false,
+                    state: "not_installed".to_string(),
+                    failure: None,
                 },
                 narya_ipc::KernelInfo {
                     name: "xray-core".to_string(),
                     installed: false,
                     version: None,
                     running: false,
+                    healthy: false,
+                    state: "not_installed".to_string(),
+                    failure: None,
                 },
             ],
         };
