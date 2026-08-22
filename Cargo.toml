@@ -41,3 +41,6 @@ anyhow.workspace = true
 narya-app = { path = "crates/narya-app" }
 narya-core = { path = "crates/narya-core" }
 narya-config = { path = "crates/narya-config" }
+
+[patch.crates-io]
+gpui = { version = "=0.2.2", git = "https://github.com/zed-industries/zed", rev = "492acd6c815cbe8c7366d54e6092341340afa6c7" }

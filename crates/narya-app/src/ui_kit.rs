@@ -1,11 +1,13 @@
-use gpui::{div, prelude::*, px, rgb, AnyElement, Entity, IntoElement, ParentElement, Rgba};
+use gpui::{
+    div, prelude::*, px, rgb, AnyElement, Entity, IntoElement, ParentElement, Rgba, ViewElement,
+};
 pub use gpui::{
     App, AppContext as NaryaAppContext, Context, Entity as NaryaEntity,
     IntoElement as NaryaIntoElement, Render, Window,
 };
 use liora::components::{
-    Button, Card, Flex, Image, Input, LineChart, Menu, Progress, Segmented, SegmentedOption,
-    Select, SignalMeter, Space, Sparkline, Statistic, Switch, Tag, Text,
+    Button, Card, Flex, Image, Input, LineChart, Progress, Segmented, SegmentedOption, Select,
+    SignalMeter, Space, Sparkline, Statistic, Switch, Tag, Text,
 };
 use liora_icons::Icon;
 use liora_icons_lucide::IconName;
@@ -312,7 +314,7 @@ impl gpui::RenderOnce for SidebarMenu {
     fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl IntoElement {
         let on_nav = self.on_nav.clone();
         let menu = self.nav_items.into_iter().fold(
-            Menu::new()
+            liora::components::NavigationMenu::new()
                 .id("narya-sidebar-menu")
                 .default_active(self.active.id())
                 .on_select(move |id, _, cx| {
@@ -328,10 +330,10 @@ impl gpui::RenderOnce for SidebarMenu {
 }
 
 impl IntoElement for SidebarMenu {
-    type Element = gpui::Component<Self>;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::Component::new(self)
+        ViewElement::new(self)
     }
 }
 
@@ -628,13 +630,18 @@ impl NaryaCard {
 pub struct NaryaButton;
 impl NaryaButton {
     pub fn primary(label: impl Into<gpui::SharedString>) -> Button {
-        Button::new(label).primary().rounded_md()
+        Button::new(label.into().to_string()).primary().rounded_md()
     }
     pub fn ghost(label: impl Into<gpui::SharedString>) -> Button {
-        Button::new(label).tertiary().rounded_md()
+        Button::new(label.into().to_string())
+            .tertiary()
+            .rounded_md()
     }
     pub fn icon(label: impl Into<gpui::SharedString>) -> Button {
-        Button::new(label).tertiary().rounded_md().small()
+        Button::new(label.into().to_string())
+            .tertiary()
+            .rounded_md()
+            .small()
     }
 
     pub fn icon_name(icon: IconName) -> Button {
@@ -1431,7 +1438,7 @@ pub fn category_menu(
 }
 
 pub fn narya_tag(label: impl Into<gpui::SharedString>, status: NaryaStatus) -> Tag {
-    let tag = Tag::new(label).small().round(true);
+    let tag = Tag::new(label.into().to_string()).small().round(true);
     match status {
         NaryaStatus::Info => tag.info(),
         NaryaStatus::Success => tag.success(),
@@ -1563,10 +1570,10 @@ impl gpui::RenderOnce for LioraInputBox {
 }
 
 impl IntoElement for LioraInputBox {
-    type Element = gpui::Component<Self>;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::Component::new(self)
+        ViewElement::new(self)
     }
 }
 
@@ -1595,10 +1602,10 @@ impl gpui::RenderOnce for LioraSegmentedBox {
 }
 
 impl IntoElement for LioraSegmentedBox {
-    type Element = gpui::Component<Self>;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::Component::new(self)
+        ViewElement::new(self)
     }
 }
 
@@ -1627,10 +1634,10 @@ impl gpui::RenderOnce for LioraSelectBox {
 }
 
 impl IntoElement for LioraSelectBox {
-    type Element = gpui::Component<Self>;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::Component::new(self)
+        ViewElement::new(self)
     }
 }
 
@@ -1646,10 +1653,10 @@ impl gpui::RenderOnce for LioraSwitchView {
 }
 
 impl IntoElement for LioraSwitchView {
-    type Element = gpui::Component<Self>;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::Component::new(self)
+        ViewElement::new(self)
     }
 }
 
@@ -1668,7 +1675,9 @@ impl gpui::RenderOnce for LioraMenuGroup {
             String::new()
         };
         let menu = self.items.into_iter().enumerate().fold(
-            Menu::new().id(self.id).default_active(active_id),
+            liora::components::NavigationMenu::new()
+                .id(self.id)
+                .default_active(active_id),
             |menu, (index, (label, icon))| {
                 menu.item(format!("{}-{}", self.id, index), label, Some(icon))
             },
@@ -1679,10 +1688,10 @@ impl gpui::RenderOnce for LioraMenuGroup {
 }
 
 impl IntoElement for LioraMenuGroup {
-    type Element = gpui::Component<Self>;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::Component::new(self)
+        ViewElement::new(self)
     }
 }
 

@@ -4,7 +4,7 @@ use crate::ui_kit::{
     NaryaButton, NaryaCard, NaryaMetric, NaryaPage, NaryaStatus, NavTarget, PageKind,
 };
 use crate::views::ActiveView;
-use liora::components::{Flex, Text};
+use liora::components::{Flex, Input, Select, Text};
 use liora_icons_lucide::IconName;
 use narya_ui::{
     App, Context, NaryaAppContext, NaryaEntity as Entity, NaryaIntoElement, Render, Window,
@@ -20,6 +20,7 @@ impl AppShell {
         let state = cx.new(|_| AppState::init_or_mock());
         AppState::start_traffic_monitor(state.clone(), cx);
         AppState::fetch_kernel_status(state.clone(), cx);
+        AppState::fetch_routing_status(state.clone(), cx);
 
         narya_ui::open_shell_window(cx, move |_, cx| {
             cx.new(|_| AppShell {
@@ -65,6 +66,12 @@ struct ShellSnapshot {
     subscriptions: Vec<narya_core::Subscription>,
     logs: Vec<crate::state::LogMessage>,
     kernels: Vec<narya_ipc::KernelInfo>,
+    rules: Vec<narya_rules::Rule>,
+    rule_filter_text: String,
+    rule_action_filter: String,
+    routing_mode: narya_platform::ProxyMode,
+    routing_active: narya_platform::ProxyMode,
+    kernel_healthy: bool,
     running: bool,
     active_node_name: String,
     active_latency: u32,
@@ -84,6 +91,12 @@ impl ShellSnapshot {
             subscriptions: state.subscriptions.clone(),
             logs: state.log_lines.clone(),
             kernels: state.kernels.clone(),
+            rules: state.rules.clone(),
+            rule_filter_text: state.rule_filter_text.clone(),
+            rule_action_filter: state.rule_action_filter.clone(),
+            routing_mode: state.routing_mode,
+            routing_active: state.routing_active,
+            kernel_healthy: state.kernel_healthy,
             running: state.kernel_running,
             active_node_name: active_node
                 .map(|node| node.name.clone())
@@ -134,7 +147,7 @@ fn route_page(
         ActiveView::Settings => settings_page(snapshot).into_any_element(),
         ActiveView::Config => config_page().into_any_element(),
         ActiveView::Connections => connections_page(snapshot).into_any_element(),
-        ActiveView::Rules => rules_page().into_any_element(),
+        ActiveView::Rules => rules_page(model, snapshot).into_any_element(),
         ActiveView::Logs => logs_page(snapshot).into_any_element(),
         ActiveView::Tools => tools_page().into_any_element(),
         ActiveView::About => about_page().into_any_element(),
@@ -149,7 +162,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                 IconName::Monitor,
                 "系统代理",
                 "管理系统网络代理设置",
-                snapshot.running,
+                snapshot.routing_active == narya_platform::ProxyMode::SystemProxy,
                 "规则模式 ›",
                 NaryaStatus::Info,
             ),
@@ -157,7 +170,7 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                 IconName::Network,
                 "TUN 虚拟网卡",
                 "拦截并代理所有网络流量（推荐）",
-                snapshot.running,
+                snapshot.routing_active == narya_platform::ProxyMode::Tun,
                 "智能路由 ›",
                 NaryaStatus::Success,
             ),
@@ -547,7 +560,19 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
         .kernels
         .first()
         .and_then(|k| k.version.clone())
-        .unwrap_or_else(|| "sing-box 1.11.x".to_string());
+        .unwrap_or_else(|| "未安装".to_string());
+    let kernel_status = if snapshot.kernel_healthy {
+        "健康运行"
+    } else if snapshot.kernels.iter().any(|kernel| kernel.installed) {
+        "已安装，未运行"
+    } else {
+        "需要可信工件"
+    };
+    let kernel_tone = if snapshot.kernel_healthy {
+        NaryaStatus::Success
+    } else {
+        NaryaStatus::Warning
+    };
     NaryaPage::new()
         .row(narya_ui::page_row(vec![
             NaryaMetric::card(
@@ -561,14 +586,14 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
             NaryaMetric::card(
                 "当前内核",
                 kernel_label,
-                "运行中",
+                kernel_status,
                 IconName::Cpu,
-                NaryaStatus::Success,
+                kernel_tone,
             )
             .into_any_element(),
             NaryaMetric::card(
                 "系统代理",
-                "7890 / 7891",
+                "2080 / 1080",
                 "HTTP / SOCKS",
                 IconName::SquareStack,
                 NaryaStatus::Info,
@@ -772,13 +797,40 @@ fn connections_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
     ))
 }
 
-fn rules_page() -> impl NaryaIntoElement {
+fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    let filter = snapshot.rule_filter_text.to_ascii_lowercase();
+    let action_filter = snapshot.rule_action_filter.as_str();
+    let filtered_rules: Vec<_> = snapshot
+        .rules
+        .iter()
+        .filter(|rule| {
+            (action_filter == "all" || rule_action_key(&rule.action) == action_filter)
+                && (filter.is_empty()
+                    || rule.id.to_ascii_lowercase().contains(&filter)
+                    || rule_action_summary(&rule.action)
+                        .to_ascii_lowercase()
+                        .contains(&filter)
+                    || rule_condition_summary(rule)
+                        .to_ascii_lowercase()
+                        .contains(&filter))
+        })
+        .cloned()
+        .collect();
+    let model_for_add = model.clone();
+    let search = RuleSearchBox {
+        model: model.clone(),
+    };
+    let action_select = RuleActionFilterSelect {
+        model: model.clone(),
+        selected: snapshot.rule_action_filter.clone(),
+    };
+    let mode = snapshot.routing_mode;
     NaryaPage::new()
         .row(narya_ui::metric_grid(vec![
             NaryaMetric::card(
                 "规则集",
-                "8",
-                "GeoSite / GeoIP",
+                filtered_rules.len().to_string(),
+                "本地规则 · 优先级排序",
                 IconName::ListFilter,
                 NaryaStatus::Info,
             )
@@ -794,21 +846,292 @@ fn rules_page() -> impl NaryaIntoElement {
             NaryaMetric::card(
                 "最后更新",
                 "2 天前",
-                "可手动刷新",
+                "规则编译前校验",
                 IconName::RefreshCw,
                 NaryaStatus::Warning,
             )
             .into_any_element(),
         ]))
+        .row(narya_ui::toolbar(vec![
+            search.into_any_element(),
+            action_select.into_any_element(),
+            NaryaButton::primary("新增规则")
+                .on_click(move |_, _, cx| AppState::add_rule(model_for_add.clone(), cx))
+                .into_any_element(),
+        ]))
         .row(NaryaCard::titled(
-            "规则模拟器",
+            "分流规则",
             Flex::new()
                 .column()
                 .gap_md()
-                .child(narya_ui::detail_field("apple.com", "DIRECT"))
-                .child(narya_ui::detail_field("github.com", "PROXY"))
-                .child(narya_ui::detail_field("openai.com", "PROXY")),
+                .children(filtered_rules.into_iter().map(|rule| {
+                    let rule_id = rule.id.clone();
+                    let delete_model = model.clone();
+                    let tone = match rule.action {
+                        narya_rules::Action::Proxy(_) => NaryaStatus::Info,
+                        narya_rules::Action::Direct => NaryaStatus::Success,
+                        narya_rules::Action::Block => NaryaStatus::Danger,
+                        narya_rules::Action::Dns(_) => NaryaStatus::Warning,
+                    };
+                    NaryaCard::titled(
+                        rule.id.clone(),
+                        Flex::new()
+                            .row()
+                            .gap_lg()
+                            .align_center()
+                            .child(RulePriorityInput {
+                                model: model.clone(),
+                                rule_id: rule.id.clone(),
+                                priority: rule.priority,
+                            })
+                            .child(Text::new(rule_condition_summary(&rule)))
+                            .child(RuleActionSelect {
+                                model: model.clone(),
+                                rule_id: rule.id.clone(),
+                                selected: rule_action_key(&rule.action).to_string(),
+                            })
+                            .child(narya_ui::narya_tag(rule_action_summary(&rule.action), tone))
+                            .child(NaryaButton::ghost("删除").on_click(move |_, _, cx| {
+                                AppState::remove_rule(delete_model.clone(), cx, rule_id.clone())
+                            })),
+                    )
+                    .into_any_element()
+                })),
         ))
+        .row(NaryaCard::titled(
+            "运行模式",
+            Flex::new()
+                .row()
+                .gap_md()
+                .align_center()
+                .child(Text::new(format!(
+                    "目标：{} · 当前：{}{}",
+                    routing_mode_label(mode),
+                    routing_mode_label(snapshot.routing_active),
+                    if snapshot.kernel_healthy {
+                        " · 内核健康"
+                    } else {
+                        " · 等待 daemon 确认"
+                    }
+                )))
+                .child(
+                    NaryaButton::ghost("系统代理")
+                        .disabled(snapshot.running)
+                        .on_click({
+                            let model = model.clone();
+                            move |_, _, cx| {
+                                model.update(cx, |state, cx| {
+                                    state.set_routing_mode(
+                                        narya_platform::ProxyMode::SystemProxy,
+                                        cx,
+                                    )
+                                });
+                            }
+                        }),
+                )
+                .child(
+                    NaryaButton::ghost("TUN")
+                        .disabled(snapshot.running)
+                        .on_click({
+                            let model = model.clone();
+                            move |_, _, cx| {
+                                model.update(cx, |state, cx| {
+                                    state.set_routing_mode(narya_platform::ProxyMode::Tun, cx)
+                                });
+                            }
+                        }),
+                ),
+        ))
+}
+
+struct RuleSearchBox {
+    model: Entity<AppState>,
+}
+
+impl gpui::RenderOnce for RuleSearchBox {
+    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
+        let model = self.model;
+        cx.new(|cx| {
+            Input::new("", cx)
+                .placeholder("搜索规则、条件或动作")
+                .icon_prefix(IconName::Search)
+                .clearable(true)
+                .width(gpui::px(300.0))
+                .on_change(move |value, input_cx| {
+                    model.update(input_cx, |state, state_cx| {
+                        state.set_rule_filter_text(value.to_string(), state_cx);
+                    });
+                })
+        })
+    }
+}
+
+impl NaryaIntoElement for RuleSearchBox {
+    type Element = gpui::ViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        gpui::ViewElement::new(self)
+    }
+}
+
+struct RuleActionFilterSelect {
+    model: Entity<AppState>,
+    selected: String,
+}
+
+impl gpui::RenderOnce for RuleActionFilterSelect {
+    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
+        let options = vec!["全部动作", "代理", "直连", "阻断", "DNS"];
+        let selected_index = match self.selected.as_str() {
+            "proxy" => 1,
+            "direct" => 2,
+            "block" => 3,
+            "dns" => 4,
+            _ => 0,
+        };
+        let model = self.model;
+        cx.new(|cx| {
+            Select::new(options, Some(selected_index), cx)
+                .width(gpui::px(144.0))
+                .on_change(move |index, _, app| {
+                    let filter = match index {
+                        1 => "proxy",
+                        2 => "direct",
+                        3 => "block",
+                        4 => "dns",
+                        _ => "all",
+                    };
+                    model.update(app, |state, state_cx| {
+                        state.set_rule_action_filter(filter.to_string(), state_cx);
+                    });
+                })
+        })
+    }
+}
+
+impl NaryaIntoElement for RuleActionFilterSelect {
+    type Element = gpui::ViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        gpui::ViewElement::new(self)
+    }
+}
+
+struct RuleActionSelect {
+    model: Entity<AppState>,
+    rule_id: String,
+    selected: String,
+}
+
+impl gpui::RenderOnce for RuleActionSelect {
+    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
+        let selected_index = match self.selected.as_str() {
+            "proxy" => 0,
+            "direct" => 1,
+            "block" => 2,
+            "dns" => 3,
+            _ => 0,
+        };
+        let model = self.model;
+        let rule_id = self.rule_id;
+        cx.new(|cx| {
+            Select::new(
+                vec!["代理", "直连", "阻断", "DNS"],
+                Some(selected_index),
+                cx,
+            )
+            .width(gpui::px(116.0))
+            .on_change(move |index, _, app| {
+                AppState::set_rule_action(model.clone(), app, rule_id.clone(), index + 1);
+            })
+        })
+    }
+}
+
+impl NaryaIntoElement for RuleActionSelect {
+    type Element = gpui::ViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        gpui::ViewElement::new(self)
+    }
+}
+
+struct RulePriorityInput {
+    model: Entity<AppState>,
+    rule_id: String,
+    priority: i32,
+}
+
+impl gpui::RenderOnce for RulePriorityInput {
+    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
+        let model = self.model;
+        let rule_id = self.rule_id;
+        cx.new(|cx| {
+            Input::new(self.priority.to_string(), cx)
+                .width(gpui::px(84.0))
+                .on_change(move |value, input_cx| {
+                    if let Ok(priority) = value.parse::<i32>() {
+                        AppState::set_rule_priority(
+                            model.clone(),
+                            input_cx,
+                            rule_id.clone(),
+                            priority,
+                        );
+                    }
+                })
+        })
+    }
+}
+
+impl NaryaIntoElement for RulePriorityInput {
+    type Element = gpui::ViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        gpui::ViewElement::new(self)
+    }
+}
+
+fn rule_condition_summary(rule: &narya_rules::Rule) -> String {
+    rule.conditions
+        .iter()
+        .map(|condition| match condition {
+            narya_rules::Condition::Domain(value) => format!("域名 = {value}"),
+            narya_rules::Condition::DomainSuffix(value) => format!("域名后缀 · {value}"),
+            narya_rules::Condition::IpCidr { network, prefix } => {
+                format!("CIDR · {network}/{prefix}")
+            }
+            narya_rules::Condition::Port(port) => format!("端口 · {port}"),
+            narya_rules::Condition::Process(process) => format!("进程 · {process}"),
+            narya_rules::Condition::Any => "所有请求".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("  AND  ")
+}
+
+fn rule_action_summary(action: &narya_rules::Action) -> String {
+    match action {
+        narya_rules::Action::Proxy(outbound) => format!("代理 · {outbound}"),
+        narya_rules::Action::Direct => "直连".to_string(),
+        narya_rules::Action::Block => "阻断".to_string(),
+        narya_rules::Action::Dns(server) => format!("DNS · {server}"),
+    }
+}
+
+fn rule_action_key(action: &narya_rules::Action) -> &'static str {
+    match action {
+        narya_rules::Action::Proxy(_) => "proxy",
+        narya_rules::Action::Direct => "direct",
+        narya_rules::Action::Block => "block",
+        narya_rules::Action::Dns(_) => "dns",
+    }
+}
+
+fn routing_mode_label(mode: narya_platform::ProxyMode) -> &'static str {
+    match mode {
+        narya_platform::ProxyMode::Disabled => "关闭",
+        narya_platform::ProxyMode::SystemProxy => "系统代理",
+        narya_platform::ProxyMode::Tun => "TUN",
+    }
 }
 
 fn logs_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {

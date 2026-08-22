@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 gpui.workspace = true
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "492acd6c815cbe8c7366d54e6092341340afa6c7", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -18,14 +19,16 @@ rand = "0.8"
 tray-icon = "0.19"
 dirs = "5.0"
 chrono = "0.4"
-liora = { version = "0.1.5", default-features = false }
+liora = { path = "../../../../lib/liora/crates/liora", version = "0.3.0", default-features = false }
 narya-ipc = { path = "../narya-ipc" }
 narya-core = { path = "../narya-core" }
 narya-config = { path = "../narya-config" }
 narya-subscription = { path = "../narya-subscription" }
+narya-rules = { path = "../narya-rules" }
+narya-platform = { path = "../narya-platform" }
 
-liora-icons = "0.1.5"
-liora-icons-lucide = "0.1.5"
+liora-icons = { path = "../../../../lib/liora/crates/liora-icons", version = "0.3.0" }
+liora-icons-lucide = { path = "../../../../lib/liora/crates/liora-icons-lucide", version = "0.3.0" }
 
 [lib]
 test = false

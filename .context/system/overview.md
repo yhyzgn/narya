@@ -3,20 +3,20 @@
 ## 已验证事实
 
 - 语言与构建：Rust 2021 workspace，根清单为 `Cargo.toml`，成员由 `crates/*` 扫描加入。
-- UI：`crates/narya-app` 使用 GPUI 0.2.2 与 crates.io 的 `liora` 0.1.5；启动入口为 `src/main.rs` -> `narya_app::run()`，应用初始化在 `crates/narya-app/src/lib.rs`。
+- UI：`crates/narya-app` 使用 GPUI 0.2.2（锁定 Zed revision）与本地 `../../lib/liora` 0.3.0 源码；启动入口为 `src/main.rs` -> `narya_app::run()`，应用初始化在 `crates/narya-app/src/lib.rs`。页面控件通过 Liora `Button`、`Input`、`Select`、`Segmented`、`Switch`、`NavigationMenu` 组合。
 - 领域模型：`crates/narya-core/src/lib.rs` 目前仅有 `Node`、`Subscription` 等基础结构。
 - 控制面：`crates/narya-daemon/src/main.rs` 通过 Unix socket 接收 JSON IPC；`crates/narya-ipc/src/lib.rs` 定义请求、响应、通知和运行目录。
 - 内核：`crates/narya-daemon/src/kernel.rs` 管理单个活动子进程，并通过 `installer.rs` 支持带 SHA-256 校验的本地/HTTPS 内核安装和升级；注册表可发现托管内核并区分安装、运行和健康状态。
 - 代理：`crates/narya-daemon/src/proxy.rs` 支持 Linux GNOME gsettings 事务和 Linux TUN 前置检查；macOS/Windows 完整 backend 仍未实现。
 - 配置：`crates/narya-daemon/src/config_gen.rs` 生成 sing-box Shadowsocks + 统一 `RoutingConfig`；system proxy/TUN 共用 route 顺序，DNS resolver/direct/proxy/outbound 和 TUN hijack 参数显式生成，未匹配流量 block。
-- 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256 校验和 fail-closed 决策，已接入 daemon sing-box 编译器。
+- 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256 校验和 fail-closed 决策；daemon 从 `StartKernel` 接收规则并编译到 sing-box，Liora 规则页支持搜索、新增、删除和目标模式选择。
 - 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。
 - 外部依赖：仓库扫描未发现数据库、缓存或消息队列；`narya-subscription` 依赖 `reqwest`，真实网络访问需由明确测试场景隔离。
 
 ## 当前未知项
 
-- `../../lib/liora` 本地源码与 crates.io 0.1.5 的版本关系尚未确认；当前生产清单仍使用 crates.io 版本。
-- Karing 的具体规则格式、内核适配和平台 TUN 权限尚未完成源码级对照；在接入前必须以其公开实现与各内核官方配置文档为证据。
+- 本地 `../../lib/liora` 0.3.0 与 crates.io 包的资源内容不完全一致（本地包含查询高亮资源），因此应用使用 path 依赖；GPUI 通过同一 Zed revision patch 保持 API/lifetime 一致。
+- Karing 的分流组、规则集订阅和平台 TUN 权限仍需进一步源码级对照；当前已落地统一规则 AST、DNS 分离和 TUN 路由参数，后续需要内核能力矩阵与 golden 测试。
 - 系统代理恢复已覆盖 Linux，TUN 生命周期由 sing-box inbound + daemon 模式互斥管理；签名信任根、mihomo/xray 配置编译和跨平台安装策略尚未实现。
 
 ## Karing 对照证据（2026-08-22）

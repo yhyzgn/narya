@@ -198,17 +198,19 @@ async fn handle_request_inner(
             Ok(serde_json::json!({"mode": mode.as_str()}))
         }
         "StartKernel" => {
-            let (kernel_id, node, routing) = parse_start_params(&request.params)?;
+            let (kernel_id, node, routing, rules) = parse_start_params(&request.params)?;
             if kernel_id != KernelId::SingBox {
                 anyhow::bail!(
                     "configuration generation for kernel {kernel_id} is not available yet"
                 );
             }
-            let generated = crate::config_gen::RoutingConfig {
+            let mut generated = crate::config_gen::RoutingConfig {
                 mode: routing.mode,
                 plan: routing,
                 ..crate::config_gen::RoutingConfig::default()
             };
+            generated.rules =
+                narya_rules::RuleSet::compile(rules).context("invalid routing rules")?;
             let config_json =
                 crate::config_gen::ConfigGenerator::generate_json_with_config(&node, &generated)?;
             let config_path = narya_ipc::kernel_config_path();
@@ -335,7 +337,12 @@ async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()
 
 fn parse_start_params(
     params: &serde_json::Value,
-) -> Result<(KernelId, narya_core::Node, RoutingPlan)> {
+) -> Result<(
+    KernelId,
+    narya_core::Node,
+    RoutingPlan,
+    Vec<narya_rules::Rule>,
+)> {
     if let Some(node) = params.get("node") {
         let kernel = params
             .get("kernel")
@@ -348,12 +355,24 @@ fn parse_start_params(
             .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_else(|| crate::config_gen::RoutingConfig::default().plan);
-        return Ok((kernel, serde_json::from_value(node.clone())?, routing));
+        let rules = params
+            .get("rules")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?
+            .unwrap_or_default();
+        return Ok((
+            kernel,
+            serde_json::from_value(node.clone())?,
+            routing,
+            rules,
+        ));
     }
     Ok((
         KernelId::SingBox,
         serde_json::from_value(params.clone())?,
         crate::config_gen::RoutingConfig::default().plan,
+        Vec::new(),
     ))
 }
 

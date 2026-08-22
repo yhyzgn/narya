@@ -10,7 +10,7 @@ use crate::views::app_shell::AppShell;
 use gpui::*;
 
 pub fn run() {
-    gpui::Application::new()
+    gpui_platform::application()
         .with_assets(Assets)
         .run(|cx: &mut App| {
             // Initialize System Tray (Skeleton)

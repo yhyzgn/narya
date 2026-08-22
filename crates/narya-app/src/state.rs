@@ -3,8 +3,41 @@ use gpui::*;
 use narya_core;
 use narya_ipc::{IpcNotification, IpcRequest, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::time::Duration;
+
+fn default_rules() -> Vec<narya_rules::Rule> {
+    vec![
+        narya_rules::Rule {
+            id: "private-network".into(),
+            priority: 10,
+            conditions: vec![narya_rules::Condition::IpCidr {
+                network: "192.168.0.0".parse::<IpAddr>().expect("valid default CIDR"),
+                prefix: 16,
+            }],
+            action: narya_rules::Action::Direct,
+        },
+        narya_rules::Rule {
+            id: "local-domains".into(),
+            priority: 20,
+            conditions: vec![narya_rules::Condition::DomainSuffix("lan".into())],
+            action: narya_rules::Action::Direct,
+        },
+        narya_rules::Rule {
+            id: "ai-services".into(),
+            priority: 100,
+            conditions: vec![narya_rules::Condition::DomainSuffix("openai.com".into())],
+            action: narya_rules::Action::Proxy("proxy".into()),
+        },
+        narya_rules::Rule {
+            id: "default-block".into(),
+            priority: 1000,
+            conditions: vec![narya_rules::Condition::Any],
+            action: narya_rules::Action::Block,
+        },
+    ]
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SubscriptionTab {
@@ -30,6 +63,8 @@ pub struct PersistedState {
     pub active_node_id: Option<String>,
     pub kernel_running: bool,
     pub selected_subscription_id: Option<String>,
+    #[serde(default)]
+    pub rules: Vec<narya_rules::Rule>,
 }
 
 pub struct AppState {
@@ -38,6 +73,8 @@ pub struct AppState {
     pub active_node_id: Option<String>,
     pub kernel_running: bool,
     pub filter_text: String,
+    pub rule_filter_text: String,
+    pub rule_action_filter: String,
 
     // Subscription specific state
     pub selected_subscription_id: Option<String>,
@@ -48,6 +85,11 @@ pub struct AppState {
 
     pub log_lines: Vec<LogMessage>,
     pub kernels: Vec<narya_ipc::KernelInfo>,
+    pub rules: Vec<narya_rules::Rule>,
+    pub routing_mode: narya_platform::ProxyMode,
+    pub routing_configured: Option<String>,
+    pub routing_active: narya_platform::ProxyMode,
+    pub kernel_healthy: bool,
 }
 
 impl AppState {
@@ -66,6 +108,7 @@ impl AppState {
             active_node_id: self.active_node_id.clone(),
             kernel_running: self.kernel_running,
             selected_subscription_id: self.selected_subscription_id.clone(),
+            rules: self.rules.clone(),
         };
         if let Ok(json) = serde_json::to_string_pretty(&persisted) {
             let _ = std::fs::write(Self::config_path(), json);
@@ -84,6 +127,57 @@ impl AppState {
         cx.notify();
     }
 
+    pub fn set_rule_filter_text(&mut self, text: String, cx: &mut Context<Self>) {
+        self.rule_filter_text = text;
+        cx.notify();
+    }
+
+    pub fn set_rule_action_filter(&mut self, filter: String, cx: &mut Context<Self>) {
+        self.rule_action_filter = filter;
+        cx.notify();
+    }
+
+    pub fn set_rule_action(
+        model: Entity<Self>,
+        cx: &mut App,
+        rule_id: String,
+        action_index: usize,
+    ) {
+        model.update(cx, |state, cx| {
+            if let Some(rule) = state.rules.iter_mut().find(|rule| rule.id == rule_id) {
+                rule.action = match action_index {
+                    1 => narya_rules::Action::Proxy("proxy".into()),
+                    2 => narya_rules::Action::Direct,
+                    3 => narya_rules::Action::Block,
+                    4 => narya_rules::Action::Dns("proxy".into()),
+                    _ => rule.action.clone(),
+                };
+                state.save();
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn set_rule_priority(model: Entity<Self>, cx: &mut App, rule_id: String, priority: i32) {
+        model.update(cx, |state, cx| {
+            if let Some(rule) = state.rules.iter_mut().find(|rule| rule.id == rule_id) {
+                rule.priority = priority;
+                state.rules.sort_by_key(|rule| rule.priority);
+                state.save();
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn set_routing_mode(&mut self, mode: narya_platform::ProxyMode, cx: &mut Context<Self>) {
+        if self.kernel_running {
+            return;
+        }
+        self.routing_mode = mode;
+        self.save();
+        cx.notify();
+    }
+
     pub fn set_subscription_filter_text(&mut self, text: String, cx: &mut Context<Self>) {
         self.subscription_filter_text = text;
         cx.notify();
@@ -98,6 +192,36 @@ impl AppState {
     pub fn set_subscription_tab(&mut self, tab: SubscriptionTab, cx: &mut Context<Self>) {
         self.active_subscription_tab = tab;
         cx.notify();
+    }
+
+    pub fn remove_rule(model: Entity<Self>, cx: &mut App, rule_id: String) {
+        model.update(cx, |state, cx| {
+            state.rules.retain(|rule| rule.id != rule_id);
+            state.save();
+            cx.notify();
+        });
+    }
+
+    pub fn add_rule(model: Entity<Self>, cx: &mut App) {
+        model.update(cx, |state, cx| {
+            let next = state
+                .rules
+                .iter()
+                .map(|rule| rule.priority)
+                .max()
+                .unwrap_or(0)
+                + 10;
+            let id = format!("custom-{}", state.rules.len() + 1);
+            state.rules.push(narya_rules::Rule {
+                id,
+                priority: next,
+                conditions: vec![narya_rules::Condition::DomainSuffix("example.com".into())],
+                action: narya_rules::Action::Proxy("proxy".into()),
+            });
+            state.rules.sort_by_key(|rule| rule.priority);
+            state.save();
+            cx.notify();
+        });
     }
 
     pub fn handle_notification(&mut self, notif: IpcNotification, cx: &mut Context<Self>) {
@@ -153,12 +277,18 @@ impl AppState {
     }
 
     pub fn set_proxy_running(model: Entity<Self>, cx: &mut App, next_state: bool) {
-        let active_node = model
-            .read(cx)
-            .active_node_id
-            .as_ref()
-            .and_then(|id| model.read(cx).nodes.iter().find(|n| n.id == *id))
-            .cloned();
+        let (active_node, routing_mode, rules) = {
+            let state = model.read(cx);
+            (
+                state
+                    .active_node_id
+                    .as_ref()
+                    .and_then(|id| state.nodes.iter().find(|n| n.id == *id))
+                    .cloned(),
+                state.routing_mode,
+                state.rules.clone(),
+            )
+        };
 
         cx.spawn(move |cx: &mut AsyncApp| {
             let mut cx = cx.clone();
@@ -177,7 +307,12 @@ impl AppState {
                     let Some(node) = active_node else {
                         return;
                     };
-                    serde_json::to_value(node).unwrap_or(serde_json::json!(null))
+                    serde_json::json!({
+                        "kernel": "sing-box",
+                        "node": node,
+                        "routing": routing_plan(routing_mode),
+                        "rules": rules,
+                    })
                 } else {
                     serde_json::json!(null)
                 };
@@ -207,17 +342,34 @@ impl AppState {
                     }
                 }
 
-                let req_proxy = IpcRequest {
-                    version: PROTOCOL_VERSION,
-                    id: 1,
-                    method: "SetSystemProxy".to_string(),
-                    params: serde_json::json!(next_state),
+                let route_response = if next_state {
+                    client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 1,
+                            method: "SetRoutingMode".to_string(),
+                            params: serde_json::json!({ "mode": routing_mode.as_str() }),
+                        })
+                        .await
+                } else {
+                    Ok(narya_ipc::IpcResponse {
+                        version: PROTOCOL_VERSION,
+                        id: 1,
+                        result: Some(serde_json::json!(true)),
+                        error: None,
+                    })
                 };
 
-                match client.send_request(req_proxy).await {
+                match route_response {
                     Ok(response) if response.error.is_none() => {
-                        let _ = model.update(&mut cx, |state, cx| {
+                        model.update(&mut cx, |state, cx| {
                             state.kernel_running = next_state;
+                            state.routing_active = if next_state {
+                                routing_mode
+                            } else {
+                                narya_platform::ProxyMode::Disabled
+                            };
+                            state.kernel_healthy = next_state;
                             state.save();
                             cx.notify();
                         });
@@ -226,7 +378,10 @@ impl AppState {
                         let error = response
                             .error
                             .unwrap_or_else(|| "unknown daemon error".to_string());
-                        eprintln!("SetSystemProxy failed: {}", error);
+                        eprintln!(
+                            "SetRoutingMode failed (legacy SetSystemProxy failed path): {}",
+                            error
+                        );
                         if next_state {
                             let _ = client
                                 .send_request(IpcRequest {
@@ -239,7 +394,7 @@ impl AppState {
                         }
                     }
                     Err(error) => {
-                        eprintln!("SetSystemProxy transport failed: {}", error);
+                        eprintln!("SetRoutingMode transport failed: {}", error);
                         if next_state {
                             let _ = client
                                 .send_request(IpcRequest {
@@ -269,7 +424,7 @@ impl AppState {
                         loop {
                             match client.next_notification().await {
                                 Ok(notif) => {
-                                    let _ = model.update(&mut cx_inner, |state, cx| {
+                                    model.update(&mut cx_inner, |state, cx| {
                                         state.handle_notification(notif, cx);
                                     });
                                 }
@@ -280,24 +435,15 @@ impl AppState {
                             }
                         }
                     } else {
-                        // Fallback to simulation if daemon is offline
+                        // A disconnected daemon is an unknown state, never a simulated connection.
                         cx_inner
                             .background_executor()
                             .timer(Duration::from_secs(1))
                             .await;
-                        let _ = model.update(&mut cx_inner, |state, cx| {
-                            if let Some(active_id) = &state.active_node_id {
-                                if let Some(node) =
-                                    state.nodes.iter_mut().find(|n| n.id == *active_id)
-                                {
-                                    node.download_speed = (node.download_speed
-                                        + (rand::random::<f32>() - 0.5) * 2.0)
-                                        .max(0.0);
-                                    node.upload_speed = (node.upload_speed
-                                        + (rand::random::<f32>() - 0.5) * 1.0)
-                                        .max(0.0);
-                                }
-                            }
+                        model.update(&mut cx_inner, |state, cx| {
+                            state.kernel_running = false;
+                            state.kernel_healthy = false;
+                            state.routing_active = narya_platform::ProxyMode::Disabled;
                             cx.notify();
                         });
                     }
@@ -321,7 +467,7 @@ impl AppState {
                 let model = model.clone();
                 async move {
                     // Set status to "更新中..." (Updating...)
-                    let _ = model.update(&mut cx, |state, cx| {
+                    model.update(&mut cx, |state, cx| {
                         if let Some(sub) = state.subscriptions.iter_mut().find(|s| s.id == sub_id) {
                             sub.status = "更新中...".to_string();
                             cx.notify();
@@ -344,7 +490,7 @@ impl AppState {
                         if let Ok((format, new_nodes)) =
                             narya_subscription::parse_subscription(&content)
                         {
-                            let _ = model.update(&mut cx, |state, cx| {
+                            model.update(&mut cx, |state, cx| {
                                 if let Some(sub) =
                                     state.subscriptions.iter_mut().find(|s| s.id == sub_id)
                                 {
@@ -368,7 +514,7 @@ impl AppState {
                     }
 
                     // If failed
-                    let _ = model.update(&mut cx, |state, cx| {
+                    model.update(&mut cx, |state, cx| {
                         if let Some(sub) = state.subscriptions.iter_mut().find(|s| s.id == sub_id) {
                             sub.status = "更新失败".to_string();
                             cx.notify();
@@ -397,14 +543,62 @@ impl AppState {
                             if let Ok(kernels) =
                                 serde_json::from_value::<Vec<narya_ipc::KernelInfo>>(result)
                             {
-                                let _ = model.update(&mut cx, |state, cx| {
+                                model.update(&mut cx, |state, cx| {
                                     state.kernels = kernels;
+                                    state.kernel_healthy = state
+                                        .kernels
+                                        .iter()
+                                        .any(|kernel| kernel.running && kernel.healthy);
                                     cx.notify();
                                 });
                             }
                         }
                     }
                 }
+            }
+        })
+        .detach();
+    }
+
+    pub fn fetch_routing_status(model: Entity<Self>, cx: &mut App) {
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            async move {
+                let Ok(mut client) = IpcClient::connect_default().await else {
+                    return;
+                };
+                let request = IpcRequest {
+                    version: PROTOCOL_VERSION,
+                    id: 5,
+                    method: "GetRoutingStatus".to_string(),
+                    params: serde_json::json!(null),
+                };
+                let Ok(response) = client.send_request(request).await else {
+                    return;
+                };
+                let Some(result) = response.result else {
+                    return;
+                };
+                let configured: Option<narya_platform::ProxyMode> = result
+                    .get("configured_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .and_then(|mode| mode.parse().ok());
+                let active: narya_platform::ProxyMode = result
+                    .get("active_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .and_then(|mode| mode.parse().ok())
+                    .unwrap_or(narya_platform::ProxyMode::Disabled);
+                let healthy = result
+                    .get("kernel_healthy")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                model.update(&mut cx, |state, cx| {
+                    state.routing_configured = configured.map(|mode| mode.as_str().to_string());
+                    state.routing_active = active;
+                    state.kernel_healthy = healthy;
+                    state.kernel_running = healthy && active != narya_platform::ProxyMode::Disabled;
+                    cx.notify();
+                });
             }
         })
         .detach();
@@ -464,12 +658,23 @@ impl AppState {
                 // The live IPC status probe is the only source of truth after startup.
                 kernel_running: false,
                 filter_text: String::new(),
+                rule_filter_text: String::new(),
+                rule_action_filter: "all".to_string(),
                 selected_subscription_id: persisted.selected_subscription_id,
                 active_subscription_tab: SubscriptionTab::Overview,
                 subscription_filter_text: String::new(),
                 subscription_list_state: ListState::new(0, ListAlignment::Top, px(100.0)),
                 log_lines: Vec::new(),
                 kernels: Vec::new(),
+                rules: if persisted.rules.is_empty() {
+                    default_rules()
+                } else {
+                    persisted.rules
+                },
+                routing_mode: narya_platform::ProxyMode::SystemProxy,
+                routing_configured: None,
+                routing_active: narya_platform::ProxyMode::Disabled,
+                kernel_healthy: false,
             };
         }
 
@@ -633,8 +838,10 @@ impl AppState {
             active_node_id: Some("hk-01".to_string()),
             nodes,
             subscriptions,
-            kernel_running: true,
+            kernel_running: false,
             filter_text: String::new(),
+            rule_filter_text: String::new(),
+            rule_action_filter: "all".to_string(),
             selected_subscription_id: Some("sub-1".to_string()),
             active_subscription_tab: SubscriptionTab::Overview,
             subscription_filter_text: String::new(),
@@ -669,9 +876,41 @@ impl AppState {
                     failure: None,
                 },
             ],
+            rules: default_rules(),
+            routing_mode: narya_platform::ProxyMode::SystemProxy,
+            routing_configured: None,
+            routing_active: narya_platform::ProxyMode::Disabled,
+            kernel_healthy: false,
         };
         state.save();
         state
+    }
+}
+
+fn routing_plan(mode: narya_platform::ProxyMode) -> narya_platform::RoutingPlan {
+    narya_platform::RoutingPlan {
+        mode,
+        system_proxy: narya_platform::SystemProxyPlan {
+            http_host: "127.0.0.1".into(),
+            http_port: 2080,
+            socks_host: "127.0.0.1".into(),
+            socks_port: 1080,
+            bypass_domains: vec!["localhost".into(), "127.0.0.1".into(), "::1".into()],
+        },
+        tun: (mode == narya_platform::ProxyMode::Tun).then(|| narya_platform::TunPlan {
+            interface_name: "narya0".into(),
+            address: "172.19.0.1/30".into(),
+            auto_route: true,
+            strict_route: true,
+            hijack_dns: true,
+            excluded_routes: vec!["127.0.0.0/8".into(), "224.0.0.0/4".into()],
+        }),
+        dns: narya_platform::DnsPlan {
+            resolver: vec!["https://1.1.1.1/dns-query".into()],
+            direct: vec!["local".into()],
+            proxy: vec!["https://1.1.1.1/dns-query".into()],
+            hijack: mode == narya_platform::ProxyMode::Tun,
+        },
     }
 }
 
