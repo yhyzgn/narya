@@ -289,6 +289,10 @@ fn generate_mihomo_config(node: &Node, config: &RoutingConfig) -> Result<Value> 
             "respect-rules": true
         }
     });
+    let providers = mihomo_rule_providers(&config.rules, &config.rule_sets)?;
+    if !providers.is_empty() {
+        root["rule-providers"] = Value::Object(providers);
+    }
     if let Some(tun) = &config.plan.tun {
         root["tun"] = json!({
             "enable": true,
@@ -300,6 +304,58 @@ fn generate_mihomo_config(node: &Node, config: &RoutingConfig) -> Result<Value> 
         });
     }
     Ok(root)
+}
+
+fn mihomo_rule_providers(rules: &RuleSet, sources: &[RuleSetSource]) -> Result<Map<String, Value>> {
+    let referenced = rules
+        .rules()
+        .iter()
+        .flat_map(|rule| rule.conditions.iter())
+        .filter_map(|condition| match condition {
+            Condition::RuleSet(id) => Some(id.as_str()),
+            _ => None,
+        })
+        .collect::<std::collections::HashSet<_>>();
+    let mut providers = Map::new();
+    for source in sources
+        .iter()
+        .filter(|source| source.enabled && referenced.contains(source.id.as_str()))
+    {
+        let behavior = source.format.mihomo_behavior().ok_or_else(|| {
+            anyhow!(
+                "ruleset {} uses sing-box binary format, which mihomo cannot consume",
+                source.id
+            )
+        })?;
+        let path = rule_set_local_path(source);
+        providers.insert(
+            source.id.clone(),
+            json!({
+                "type": "file",
+                "behavior": behavior,
+                "format": "text",
+                "path": path,
+                "interval": 0
+            }),
+        );
+    }
+    Ok(providers)
+}
+
+fn rule_set_local_path(source: &RuleSetSource) -> String {
+    if source.source.starts_with("https://") {
+        narya_ipc::ruleset_cache_dir()
+            .join(&source.id)
+            .join("current")
+            .display()
+            .to_string()
+    } else {
+        source
+            .source
+            .strip_prefix("file://")
+            .unwrap_or(&source.source)
+            .to_string()
+    }
 }
 
 fn mihomo_proxy(node: &Node) -> Result<Value> {
@@ -739,7 +795,7 @@ fn rule_set_metadata(rule_sets: &[RuleSetSource]) -> Result<Value> {
                 .map_err(|error| anyhow!("ruleset {} is invalid: {error}", source.id))?;
             Ok(json!({
                 "tag": source.id,
-                "format": "binary",
+                "format": source.format.sing_box_value(),
                 "url": if source.source.starts_with("https://") {
                     format!("file://{}", narya_ipc::ruleset_cache_dir().join(&source.id).join("current").display())
                 } else {
@@ -781,7 +837,7 @@ fn split_shadowsocks_credentials(encryption: &str) -> Result<(&str, &str)> {
 mod tests {
     use super::*;
     use narya_core::{Node, NodeDetails};
-    use narya_rules::{GroupStrategy, RoutingGroup, Rule, RuleSet};
+    use narya_rules::{GroupStrategy, RoutingGroup, Rule, RuleSet, RuleSetFormat, RuleSetSource};
     use std::net::{IpAddr, Ipv4Addr};
 
     fn node(protocol: &str, encryption: &str) -> Node {
@@ -927,6 +983,7 @@ mod tests {
             source: "https://rules.invalid/geosite-cn.srs".into(),
             version: "2026-08-22".into(),
             sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            format: narya_rules::RuleSetFormat::Domain,
             enabled: true,
             signature: "11".repeat(64),
             public_key: "22".repeat(32),
@@ -945,6 +1002,7 @@ mod tests {
             source: "/tmp/disabled-set.db".into(),
             version: "1".into(),
             sha256: "aa".repeat(32),
+            format: narya_rules::RuleSetFormat::Domain,
             enabled: false,
             signature: String::new(),
             public_key: String::new(),
@@ -1023,6 +1081,76 @@ mod tests {
     }
 
     #[test]
+    fn mihomo_rule_provider_is_generated_for_text_ruleset() {
+        let config = RoutingConfig {
+            rule_sets: vec![RuleSetSource {
+                id: "geosite-ai".into(),
+                source: "/var/lib/narya/geosite-ai.txt".into(),
+                version: "1".into(),
+                sha256: "aa".repeat(32),
+                format: RuleSetFormat::Domain,
+                enabled: true,
+                signature: String::new(),
+                public_key: String::new(),
+            }],
+            rules: RuleSet::compile(vec![Rule {
+                id: "ai".into(),
+                priority: 1,
+                conditions: vec![Condition::RuleSet("geosite-ai".into())],
+                action: Action::Proxy("proxy".into()),
+            }])
+            .unwrap(),
+            ..RoutingConfig::default()
+        };
+        let generated = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Mihomo,
+            &node("ss", "aes-256-gcm:secret"),
+            &config,
+        )
+        .unwrap();
+        assert_eq!(
+            generated["rule-providers"]["geosite-ai"]["behavior"],
+            "domain"
+        );
+        assert_eq!(generated["rule-providers"]["geosite-ai"]["type"], "file");
+        assert!(generated["rules"][0]
+            .as_str()
+            .unwrap()
+            .starts_with("RULE-SET,geosite-ai"));
+    }
+
+    #[test]
+    fn mihomo_rejects_sing_box_binary_ruleset() {
+        let config = RoutingConfig {
+            rule_sets: vec![RuleSetSource {
+                id: "binary-set".into(),
+                source: "/var/lib/narya/binary.mrs".into(),
+                version: "1".into(),
+                sha256: "bb".repeat(32),
+                format: RuleSetFormat::SingBoxBinary,
+                enabled: true,
+                signature: String::new(),
+                public_key: String::new(),
+            }],
+            rules: RuleSet::compile(vec![Rule {
+                id: "binary-rule".into(),
+                priority: 1,
+                conditions: vec![Condition::RuleSet("binary-set".into())],
+                action: Action::Block,
+            }])
+            .unwrap(),
+            ..RoutingConfig::default()
+        };
+        let error = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Mihomo,
+            &node("ss", "aes-256-gcm:secret"),
+            &config,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("mihomo cannot consume"));
+    }
+
+    #[test]
     fn xray_tun_is_rejected_instead_of_falling_back_to_system_proxy() {
         let config = routing(ProxyMode::Tun);
         let error = ConfigGenerator::generate_json_for_kernel(
@@ -1059,6 +1187,7 @@ mod tests {
             source: "https://example.invalid/geoip.db".into(),
             version: "1".into(),
             sha256: "a".repeat(64),
+            format: narya_rules::RuleSetFormat::IpCidr,
             enabled: true,
             signature: "11".repeat(64),
             public_key: "22".repeat(32),

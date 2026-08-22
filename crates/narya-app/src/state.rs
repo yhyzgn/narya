@@ -124,6 +124,15 @@ fn parse_condition(kind: &str, value: &str) -> Result<narya_rules::Condition, St
     }
 }
 
+fn parse_rule_set_format(value: &str) -> narya_rules::RuleSetFormat {
+    match value {
+        "domain" => narya_rules::RuleSetFormat::Domain,
+        "ip_cidr" => narya_rules::RuleSetFormat::IpCidr,
+        "classical" => narya_rules::RuleSetFormat::Classical,
+        _ => narya_rules::RuleSetFormat::SingBoxBinary,
+    }
+}
+
 fn write_routing_bundle(path: &str, bundle: &RoutingBundle) -> Result<(), String> {
     let path = std::path::Path::new(path);
     if !path.is_absolute() {
@@ -232,6 +241,7 @@ pub struct AppState {
     pub rule_set_draft_source: String,
     pub rule_set_draft_version: String,
     pub rule_set_draft_sha256: String,
+    pub rule_set_draft_format: String,
     pub rule_set_draft_signature: String,
     pub rule_set_draft_public_key: String,
     pub rule_set_error: Option<String>,
@@ -558,6 +568,12 @@ impl AppState {
         cx.notify();
     }
 
+    pub fn set_rule_set_draft_format(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_set_draft_format = value;
+        self.rule_set_error = None;
+        cx.notify();
+    }
+
     pub fn set_rule_set_draft_signature(&mut self, value: String, cx: &mut Context<Self>) {
         self.rule_set_draft_signature = value;
         self.rule_set_error = None;
@@ -578,6 +594,7 @@ impl AppState {
                 source: state.rule_set_draft_source.trim().to_string(),
                 version: state.rule_set_draft_version.trim().to_string(),
                 sha256: state.rule_set_draft_sha256.trim().to_string(),
+                format: parse_rule_set_format(&state.rule_set_draft_format),
                 enabled: true,
                 signature: state.rule_set_draft_signature.trim().to_string(),
                 public_key: state.rule_set_draft_public_key.trim().to_string(),
@@ -616,6 +633,7 @@ impl AppState {
             state.rule_set_draft_source.clear();
             state.rule_set_draft_version.clear();
             state.rule_set_draft_sha256.clear();
+            state.rule_set_draft_format.clear();
             state.rule_set_draft_signature.clear();
             state.rule_set_draft_public_key.clear();
             state.rule_set_error = None;
@@ -655,6 +673,7 @@ impl AppState {
                                     state.rule_set_draft_source.clear();
                                     state.rule_set_draft_version.clear();
                                     state.rule_set_draft_sha256.clear();
+                                    state.rule_set_draft_format.clear();
                                     state.rule_set_draft_signature.clear();
                                     state.rule_set_draft_public_key.clear();
                                     state.save();
@@ -1555,6 +1574,7 @@ impl AppState {
                 rule_set_draft_source: String::new(),
                 rule_set_draft_version: String::new(),
                 rule_set_draft_sha256: String::new(),
+                rule_set_draft_format: String::new(),
                 rule_set_draft_signature: String::new(),
                 rule_set_draft_public_key: String::new(),
                 rule_set_error: None,
@@ -1787,6 +1807,7 @@ impl AppState {
             rule_set_draft_source: String::new(),
             rule_set_draft_version: String::new(),
             rule_set_draft_sha256: String::new(),
+            rule_set_draft_format: String::new(),
             rule_set_draft_signature: String::new(),
             rule_set_draft_public_key: String::new(),
             rule_set_error: None,

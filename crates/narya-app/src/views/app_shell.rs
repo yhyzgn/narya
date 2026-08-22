@@ -92,6 +92,7 @@ struct ShellSnapshot {
     rule_set_draft_source: String,
     rule_set_draft_version: String,
     rule_set_draft_sha256: String,
+    rule_set_draft_format: String,
     rule_set_draft_signature: String,
     rule_set_draft_public_key: String,
     rule_set_error: Option<String>,
@@ -143,6 +144,7 @@ impl ShellSnapshot {
             rule_set_draft_source: state.rule_set_draft_source.clone(),
             rule_set_draft_version: state.rule_set_draft_version.clone(),
             rule_set_draft_sha256: state.rule_set_draft_sha256.clone(),
+            rule_set_draft_format: state.rule_set_draft_format.clone(),
             rule_set_draft_signature: state.rule_set_draft_signature.clone(),
             rule_set_draft_public_key: state.rule_set_draft_public_key.clone(),
             rule_set_error: state.rule_set_error.clone(),
@@ -1337,6 +1339,7 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                     source: snapshot.rule_set_draft_source,
                     version: snapshot.rule_set_draft_version,
                     sha256: snapshot.rule_set_draft_sha256,
+                    format: snapshot.rule_set_draft_format,
                     signature: snapshot.rule_set_draft_signature,
                     public_key: snapshot.rule_set_draft_public_key,
                     error: snapshot.rule_set_error,
@@ -1698,6 +1701,7 @@ struct RuleSetForm {
     source: String,
     version: String,
     sha256: String,
+    format: String,
     signature: String,
     public_key: String,
     error: Option<String>,
@@ -1709,6 +1713,7 @@ impl NaryaRenderOnce for RuleSetForm {
         let model_source = self.model.clone();
         let model_version = self.model.clone();
         let model_sha = self.model.clone();
+        let model_format = self.model.clone();
         let model_add = self.model.clone();
         let model_signature = self.model.clone();
         let model_public_key = self.model.clone();
@@ -1719,6 +1724,31 @@ impl NaryaRenderOnce for RuleSetForm {
                 Flex::new()
                     .row()
                     .gap_md()
+                    .child(cx.new(|cx| {
+                        let options = vec![
+                            "sing_box_binary".to_string(),
+                            "domain".to_string(),
+                            "ip_cidr".to_string(),
+                            "classical".to_string(),
+                        ];
+                        let selected = options
+                            .iter()
+                            .position(|value| value == &self.format)
+                            .unwrap_or(0);
+                        Select::new(options, Some(selected), cx)
+                            .width(px(170.0))
+                            .on_change(move |index, _, app| {
+                                let value = match index {
+                                    1 => "domain",
+                                    2 => "ip_cidr",
+                                    3 => "classical",
+                                    _ => "sing_box_binary",
+                                };
+                                model_format.update(app, |state, state_cx| {
+                                    state.set_rule_set_draft_format(value.into(), state_cx)
+                                });
+                            })
+                    }))
                     .child(cx.new(|cx| {
                         Input::new(self.id, cx)
                             .placeholder("ID，例如 geosite-ai")

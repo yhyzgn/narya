@@ -168,8 +168,11 @@ mod tests {
         assert!(
             rules.contains("default_rule_set_enabled")
                 && app_shell.contains("RuleSetToggle")
-                && app_shell.contains("Switch"),
-            "ruleset enablement must be persisted in the shared model and exposed through Liora Switch"
+                && app_shell.contains("Switch")
+                && rules.contains("RuleSetFormat")
+                && workspace_file("crates/narya-daemon/src/config_gen.rs")
+                    .contains("mihomo_rule_providers"),
+            "ruleset lifecycle and cross-kernel provider formats must be explicit and exposed through Liora"
         );
         let catalog = workspace_file("crates/narya-daemon/src/kernel_catalog.rs");
         let daemon = workspace_file("crates/narya-daemon/src/main.rs");

@@ -121,12 +121,42 @@ pub struct RuleSetSource {
     pub source: String,
     pub version: String,
     pub sha256: String,
+    #[serde(default)]
+    pub format: RuleSetFormat,
     #[serde(default = "default_rule_set_enabled")]
     pub enabled: bool,
     #[serde(default)]
     pub signature: String,
     #[serde(default)]
     pub public_key: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleSetFormat {
+    #[default]
+    SingBoxBinary,
+    Domain,
+    IpCidr,
+    Classical,
+}
+
+impl RuleSetFormat {
+    pub fn sing_box_value(self) -> &'static str {
+        match self {
+            Self::SingBoxBinary => "binary",
+            Self::Domain | Self::IpCidr | Self::Classical => "source",
+        }
+    }
+
+    pub fn mihomo_behavior(self) -> Option<&'static str> {
+        match self {
+            Self::SingBoxBinary => None,
+            Self::Domain => Some("domain"),
+            Self::IpCidr => Some("ipcidr"),
+            Self::Classical => Some("classical"),
+        }
+    }
 }
 
 fn default_rule_set_enabled() -> bool {
