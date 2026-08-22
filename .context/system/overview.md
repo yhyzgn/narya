@@ -6,10 +6,10 @@
 - UI：`crates/narya-app` 使用 GPUI 0.2.2（锁定 Zed revision）与本地 `../../lib/liora` 0.3.0 源码；启动入口为 `src/main.rs` -> `narya_app::run()`，应用初始化在 `crates/narya-app/src/lib.rs`。页面控件通过 Liora `Button`、`Input`、`Select`、`Segmented`、`Switch`、`NavigationMenu` 组合。
 - 领域模型：`crates/narya-core/src/lib.rs` 目前仅有 `Node`、`Subscription` 等基础结构。
 - 控制面：`crates/narya-daemon/src/main.rs` 通过 Unix socket 接收 JSON IPC；`crates/narya-ipc/src/lib.rs` 定义请求、响应、通知和运行目录。
-- 内核：`crates/narya-daemon/src/kernel.rs` 管理单个活动子进程，并通过 `installer.rs` 支持带 SHA-256 校验的本地/HTTPS 内核安装和升级；注册表可发现托管内核并区分安装、运行和健康状态。
+- 内核：`crates/narya-daemon/src/kernel.rs` 管理单个活动子进程，并通过 `installer.rs` 支持本地/HTTPS 内核安装和升级；所有工件必须有 SHA-256，HTTPS 工件还需 Ed25519 签名/公钥；注册表区分安装、运行和健康状态。
 - 代理：`crates/narya-daemon/src/proxy.rs` 支持 Linux GNOME gsettings 事务和 Linux TUN 前置检查；macOS/Windows 完整 backend 仍未实现。
-- 配置：`crates/narya-daemon/src/config_gen.rs` 生成 sing-box Shadowsocks + 统一 `RoutingConfig`；system proxy/TUN 共用 route 顺序，DNS resolver/direct/proxy/outbound 和 TUN hijack 参数显式生成，未匹配流量 block。
-- 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256 校验和 fail-closed 决策；daemon 从 `StartKernel` 接收规则并编译到 sing-box，Liora 规则页支持搜索、新增、删除和目标模式选择。
+- 配置：`crates/narya-daemon/src/config_gen.rs` 以统一 `RoutingConfig` 生成 sing-box、mihomo、xray-core 配置；system proxy/TUN 共用规则语义，DNS resolver/direct/proxy/outbound、分流组和 TUN 参数显式生成，未匹配流量 block。
+- 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256 校验和 fail-closed 决策；daemon 从 `StartKernel` 接收规则并编译到 sing-box、mihomo、xray-core，Liora 规则页支持搜索、新增、删除、目标模式、分流组和本地规则集导入。
 - 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。
 - 外部依赖：仓库扫描未发现数据库、缓存或消息队列；`narya-subscription` 依赖 `reqwest`，真实网络访问需由明确测试场景隔离。
 

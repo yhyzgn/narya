@@ -31,12 +31,15 @@
 - 锁定 GPUI 与 Liora 0.3.0 兼容 revision，使用 Liora 本地资源构建。
 - `AppState` 持久化规则，提供默认 fail-closed 规则、新增/删除/搜索和系统代理/TUN 目标模式。
 - daemon `StartKernel` 接收规则列表，先通过 `RuleSet::compile` 校验，再生成 sing-box 路由/DNS 配置。
+- 设置页使用 Liora 表单控件提交内核工件，展示真实安装/升级进度与错误；支持 SHA-256 和 HTTPS Ed25519 签名字段。
+- 规则模型增加外部规则集条件和 selector/urltest/fallback/load-balance 分流组；sing-box、mihomo、xray-core 具备独立配置适配，缺失能力显式拒绝。
+- 规则页使用 Liora `Input`/`Select`/`Button` 管理本地规则集 ID、版本、绝对路径/file URL 和 SHA-256；导入前校验格式与重复 ID，删除被规则引用的规则集会被拒绝并提示。
 - daemon 离线时 UI 不模拟速度和连接状态；连接状态需内核健康与路由模式 IPC 成功确认。
 
 ## 未完成与验收标准
 
-- 内核设置页需接入可信工件清单、安装/升级进度和失败原因展示。
-- 分流规则编辑需覆盖 Karing 风格的规则集、分流组、DNS 动作、AND 条件和导入导出。
+- 内核设置页仍需接入签名公钥的官方发布清单和版本选择器。
+- 分流规则编辑仍需覆盖 Karing 风格的规则集远程下载、AND 条件可视化和导入导出；当前阶段已完成本地已验证规则集管理。
 - 需要为 Liora 增强可复用规则编辑器控件时，修改 `../../lib/liora/crates/liora-components`，不得在 Narya 内自绘替代控件。
 - system proxy 与 TUN 需在 Linux 实机通过 DNS 泄漏、污染和断开恢复探针。
 

@@ -25,6 +25,15 @@ struct DaemonState {
     active_mode: ProxyMode,
 }
 
+struct StartParams {
+    kernel: KernelId,
+    node: narya_core::Node,
+    routing: RoutingPlan,
+    rules: Vec<narya_rules::Rule>,
+    groups: Vec<narya_rules::RoutingGroup>,
+    rule_sets: Vec<narya_rules::RuleSetSource>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let runtime_dir = narya_ipc::runtime_dir();
@@ -198,12 +207,13 @@ async fn handle_request_inner(
             Ok(serde_json::json!({"mode": mode.as_str()}))
         }
         "StartKernel" => {
-            let (kernel_id, node, routing, rules) = parse_start_params(&request.params)?;
-            if kernel_id != KernelId::SingBox {
-                anyhow::bail!(
-                    "configuration generation for kernel {kernel_id} is not available yet"
-                );
-            }
+            let start = parse_start_params(&request.params)?;
+            let kernel_id = start.kernel;
+            let node = start.node;
+            let routing = start.routing;
+            let rules = start.rules;
+            let groups = start.groups;
+            let rule_sets = start.rule_sets;
             let mut generated = crate::config_gen::RoutingConfig {
                 mode: routing.mode,
                 plan: routing,
@@ -211,8 +221,14 @@ async fn handle_request_inner(
             };
             generated.rules =
                 narya_rules::RuleSet::compile(rules).context("invalid routing rules")?;
-            let config_json =
-                crate::config_gen::ConfigGenerator::generate_json_with_config(&node, &generated)?;
+            if !groups.is_empty() {
+                generated.groups = groups;
+            }
+            generated.rule_sets = rule_sets;
+            crate::config_gen::validate_rule_set_sources(&generated.rule_sets)?;
+            let config_json = crate::config_gen::ConfigGenerator::generate_json_for_kernel(
+                kernel_id, &node, &generated,
+            )?;
             let config_path = narya_ipc::kernel_config_path();
             write_private_config(&config_path, &config_json)?;
             let log_tx = state.log_tx.clone();
@@ -335,14 +351,7 @@ async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()
     }
 }
 
-fn parse_start_params(
-    params: &serde_json::Value,
-) -> Result<(
-    KernelId,
-    narya_core::Node,
-    RoutingPlan,
-    Vec<narya_rules::Rule>,
-)> {
+fn parse_start_params(params: &serde_json::Value) -> Result<StartParams> {
     if let Some(node) = params.get("node") {
         let kernel = params
             .get("kernel")
@@ -361,19 +370,35 @@ fn parse_start_params(
             .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_default();
-        return Ok((
+        let groups = params
+            .get("groups")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?
+            .unwrap_or_default();
+        let rule_sets = params
+            .get("rule_sets")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?
+            .unwrap_or_default();
+        return Ok(StartParams {
             kernel,
-            serde_json::from_value(node.clone())?,
+            node: serde_json::from_value(node.clone())?,
             routing,
             rules,
-        ));
+            groups,
+            rule_sets,
+        });
     }
-    Ok((
-        KernelId::SingBox,
-        serde_json::from_value(params.clone())?,
-        crate::config_gen::RoutingConfig::default().plan,
-        Vec::new(),
-    ))
+    Ok(StartParams {
+        kernel: KernelId::SingBox,
+        node: serde_json::from_value(params.clone())?,
+        routing: crate::config_gen::RoutingConfig::default().plan,
+        rules: Vec::new(),
+        groups: Vec::new(),
+        rule_sets: Vec::new(),
+    })
 }
 
 fn write_private_config(path: &Path, config_json: &serde_json::Value) -> Result<()> {

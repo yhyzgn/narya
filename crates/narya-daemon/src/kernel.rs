@@ -2,6 +2,7 @@ use crate::installer::{self, InstalledKernel, KernelArtifactRequest};
 use anyhow::{anyhow, Result};
 use narya_kernel::{KernelId, KernelRecord, KernelRegistry, KernelState};
 use std::process::Stdio;
+use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::broadcast;
@@ -108,6 +109,11 @@ impl KernelManager {
             .clone()
             .ok_or_else(|| anyhow!("kernel {id} has no executable path"))?;
         let config_path = std::path::Path::new(config_path);
+        if let Err(error) = installer::verify_installed(&binary_path).await {
+            self.registry
+                .set_state(id, KernelState::Failed, false, Some(error.to_string()));
+            return Err(error);
+        }
         self.registry
             .set_state(id, KernelState::Starting, false, None);
 
@@ -153,7 +159,23 @@ impl KernelManager {
         self.active = Some(id);
         self.registry
             .set_state(id, KernelState::Running, false, None);
+        // Give the child a bounded readiness window before reporting it as a
+        // usable kernel. This catches instant exits (bad binaries/configs)
+        // and prevents a transient process from becoming a fake connection.
+        tokio::time::sleep(Duration::from_millis(50)).await;
         self.refresh_health();
+        if !self.registry.record(id).healthy {
+            let failure = self
+                .registry
+                .record(id)
+                .failure
+                .clone()
+                .unwrap_or_else(|| "kernel failed readiness check".into());
+            let _ = self.stop().await;
+            self.registry
+                .set_state(id, KernelState::Failed, false, Some(failure.clone()));
+            anyhow::bail!("kernel {id} failed readiness: {failure}");
+        }
         Ok(())
     }
 
@@ -217,7 +239,11 @@ fn discover_managed_kernels(registry: &mut KernelRegistry) {
     let root = narya_ipc::kernel_install_dir();
     for id in KernelId::ALL {
         let path = root.join(id.as_str()).join("current");
-        if !path.is_file() {
+        // Managed binaries are only discoverable when their persisted digest
+        // exists. The digest is rechecked asynchronously before every start;
+        // this prevents silently adopting an unverified or tampered binary
+        // left by an older installer.
+        if !path.is_file() || !path.with_file_name("sha256").is_file() {
             continue;
         }
         let version = std::fs::read_to_string(path.with_file_name("version"))

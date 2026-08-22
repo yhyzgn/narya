@@ -1,9 +1,11 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use narya_core::Node;
+use narya_kernel::KernelId;
 use narya_platform::{ProxyMode, RoutingPlan};
-use narya_rules::{Action, Condition, RuleSet, RuleSetSource};
+use narya_rules::{Action, Condition, GroupStrategy, RoutingGroup, RuleSet, RuleSetSource};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 
 /// Explicit DNS paths used by the generated sing-box configuration.
@@ -56,6 +58,7 @@ pub struct RoutingConfig {
     pub mode: ProxyMode,
     pub plan: RoutingPlan,
     pub rules: RuleSet,
+    pub groups: Vec<RoutingGroup>,
     pub rule_sets: Vec<RuleSetSource>,
     pub dns: DnsConfig,
 }
@@ -82,6 +85,7 @@ impl Default for RoutingConfig {
                 },
             },
             rules: RuleSet::empty(),
+            groups: vec![RoutingGroup::default_proxy()],
             rule_sets: Vec::new(),
             dns: DnsConfig::default(),
         }
@@ -89,6 +93,47 @@ impl Default for RoutingConfig {
 }
 
 pub struct ConfigGenerator;
+
+/// Rule-set bytes must be verified by Narya before a kernel is allowed to
+/// consume them. Remote URLs are intentionally rejected here; a future
+/// managed downloader can populate a verified local cache without delegating
+/// trust to an arbitrary kernel process.
+pub fn validate_rule_set_sources(rule_sets: &[RuleSetSource]) -> Result<()> {
+    for source in rule_sets {
+        source
+            .validate()
+            .map_err(|error| anyhow!("ruleset {} is invalid: {error}", source.id))?;
+        if source.source.starts_with("https://") {
+            bail!(
+                "ruleset {}: HTTPS sources require a verified local cache",
+                source.id
+            );
+        }
+        let path = source
+            .source
+            .strip_prefix("file://")
+            .unwrap_or(&source.source);
+        let path = std::path::Path::new(path);
+        if !path.is_absolute() {
+            bail!(
+                "ruleset {}: source must be an absolute local path",
+                source.id
+            );
+        }
+        let bytes = std::fs::read(path)
+            .with_context(|| format!("ruleset {}: failed to read {}", source.id, path.display()))?;
+        let actual = format!("{:x}", Sha256::digest(bytes));
+        if !actual.eq_ignore_ascii_case(&source.sha256) {
+            bail!(
+                "ruleset {}: checksum mismatch, expected {}, got {}",
+                source.id,
+                source.sha256,
+                actual
+            );
+        }
+    }
+    Ok(())
+}
 
 impl ConfigGenerator {
     /// Compile a node and the shared routing model for sing-box.
@@ -101,7 +146,18 @@ impl ConfigGenerator {
             );
         }
 
-        let proxy = proxy_outbound(node)?;
+        let group_tags = config
+            .groups
+            .iter()
+            .map(|group| group.id.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        let proxy_tag = if config.groups.is_empty() {
+            "proxy"
+        } else {
+            "proxy-node"
+        };
+        let proxy = proxy_outbound(node, proxy_tag)?;
+        validate_rule_set_references(&config.rules, &config.rule_sets)?;
         let mut inbounds = vec![
             json!({
                 "type": "socks",
@@ -126,13 +182,14 @@ impl ConfigGenerator {
         }
 
         let dns = effective_dns_config(config);
-        let rules = compile_route_rules(&config.rules, dns.hijack)?;
-        let outbounds = vec![
-            proxy,
+        let rules = compile_route_rules(&config.rules, dns.hijack, &group_tags)?;
+        let mut outbounds = vec![proxy];
+        outbounds.extend(compile_groups(&config.groups)?);
+        outbounds.extend([
             json!({"type": "direct", "tag": "direct"}),
             json!({"type": "block", "tag": "block"}),
             json!({"type": "dns", "tag": "dns-out"}),
-        ];
+        ]);
 
         let mut root = Map::new();
         root.insert("log".into(), json!({"level": "info", "timestamp": true}));
@@ -154,6 +211,224 @@ impl ConfigGenerator {
         root.insert("route".into(), route);
         Ok(Value::Object(root))
     }
+
+    /// Compile the shared model for every kernel that Narya can start. Each
+    /// adapter owns its schema translation but reuses the same validated rule
+    /// and group semantics; unsupported conditions fail with the rule ID.
+    pub fn generate_json_for_kernel(
+        kernel: KernelId,
+        node: &Node,
+        config: &RoutingConfig,
+    ) -> Result<Value> {
+        match kernel {
+            KernelId::SingBox => Self::generate_json_with_config(node, config),
+            KernelId::Mihomo => generate_mihomo_config(node, config),
+            KernelId::Xray => generate_xray_config(node, config),
+        }
+    }
+}
+
+fn generate_mihomo_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
+    validate_rule_set_references(&config.rules, &config.rule_sets)?;
+    let proxy = mihomo_proxy(node)?;
+    let proxies = vec![proxy];
+    let mut groups = Vec::new();
+    for group in &config.groups {
+        group
+            .validate()
+            .map_err(|error| anyhow!("group {} is invalid: {error}", group.id))?;
+        let group_type = match group.strategy {
+            GroupStrategy::Select => "select",
+            GroupStrategy::UrlTest => "url-test",
+            GroupStrategy::Fallback => "fallback",
+            GroupStrategy::LoadBalance => "load-balance",
+        };
+        let mut value = json!({
+            "name": group.id,
+            "type": group_type,
+            "proxies": group.members,
+        });
+        if let Some(url) = &group.url {
+            value["url"] = Value::String(url.clone());
+        }
+        if let Some(interval) = group.interval_secs {
+            value["interval"] = Value::Number(interval.into());
+        }
+        groups.push(value);
+    }
+    let mut rules = Vec::new();
+    for rule in config.rules.rules() {
+        rules.push(mihomo_rule(rule)?);
+    }
+    if rules.is_empty() || !rules.iter().any(|rule| rule.ends_with(",REJECT")) {
+        rules.push("MATCH,REJECT".into());
+    }
+    let mut root = json!({
+        "port": config.plan.system_proxy.http_port,
+        "socks-port": config.plan.system_proxy.socks_port,
+        "allow-lan": false,
+        "mode": "rule",
+        "log-level": "info",
+        "proxies": proxies,
+        "proxy-groups": groups,
+        "rules": rules,
+        "dns": {
+            "enable": true,
+            "listen": "127.0.0.1:1053",
+            "nameserver": config.dns.proxy,
+            "fallback": config.dns.resolver,
+            "respect-rules": true
+        }
+    });
+    if let Some(tun) = &config.plan.tun {
+        root["tun"] = json!({
+            "enable": true,
+            "stack": "system",
+            "auto-route": tun.auto_route,
+            "strict-route": tun.strict_route,
+            "dns-hijack": if tun.hijack_dns { vec!["any:53"] } else { Vec::new() },
+            "route-exclude-address": tun.excluded_routes,
+        });
+    }
+    Ok(root)
+}
+
+fn mihomo_proxy(node: &Node) -> Result<Value> {
+    let (server, port) = split_host_port(&node.details.address)?;
+    match node.protocol.to_ascii_lowercase().as_str() {
+        "shadowsocks" | "ss" => {
+            let (cipher, password) = split_shadowsocks_credentials(&node.details.encryption)?;
+            Ok(json!({
+                "name": "proxy-node",
+                "type": "ss",
+                "server": server,
+                "port": port,
+                "cipher": cipher,
+                "password": password,
+            }))
+        }
+        protocol => bail!("mihomo adapter does not support proxy protocol {protocol}"),
+    }
+}
+
+fn mihomo_rule(rule: &narya_rules::Rule) -> Result<String> {
+    if rule.conditions.len() != 1 {
+        bail!(
+            "rule {}: mihomo adapter requires one condition per rule",
+            rule.id
+        );
+    }
+    let target = match &rule.action {
+        Action::Proxy(group) => group.clone(),
+        Action::Direct => "DIRECT".into(),
+        Action::Block => "REJECT".into(),
+        Action::Dns(_) => bail!(
+            "rule {}: mihomo adapter does not support DNS actions",
+            rule.id
+        ),
+    };
+    let condition = match &rule.conditions[0] {
+        Condition::Domain(value) => format!("DOMAIN,{value},{target}"),
+        Condition::DomainSuffix(value) => format!("DOMAIN-SUFFIX,{value},{target}"),
+        Condition::IpCidr { network, prefix } => format!("IP-CIDR,{network}/{prefix},{target}"),
+        Condition::RuleSet(value) => format!("RULE-SET,{value},{target}"),
+        Condition::Any => format!("MATCH,{target}"),
+        Condition::Port(_) | Condition::Process(_) => {
+            bail!(
+                "rule {}: mihomo adapter does not support port/process conditions",
+                rule.id
+            )
+        }
+    };
+    Ok(condition)
+}
+
+fn generate_xray_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
+    validate_rule_set_references(&config.rules, &config.rule_sets)?;
+    if config.mode == ProxyMode::Tun {
+        bail!("xray-core adapter does not support TUN mode yet");
+    }
+    let (server, port) = split_host_port(&node.details.address)?;
+    let (method, password) = split_shadowsocks_credentials(&node.details.encryption)?;
+    let outbounds = vec![
+        json!({
+            "protocol": "shadowsocks",
+            "tag": "proxy-node",
+            "settings": {"servers": [{"address": server, "port": port, "method": method, "password": password}]}
+        }),
+        json!({"protocol": "freedom", "tag": "direct"}),
+        json!({"protocol": "blackhole", "tag": "block"}),
+    ];
+    let mut balancers = Vec::new();
+    for group in &config.groups {
+        group
+            .validate()
+            .map_err(|error| anyhow!("group {} is invalid: {error}", group.id))?;
+        balancers.push(json!({
+            "tag": group.id,
+            "selector": group.members,
+        }));
+    }
+    let mut routing_rules = Vec::new();
+    for rule in config.rules.rules() {
+        if rule.conditions.len() != 1 {
+            bail!(
+                "rule {}: xray adapter requires one condition per rule",
+                rule.id
+            );
+        }
+        let mut value = Map::new();
+        match &rule.conditions[0] {
+            Condition::Domain(domain) => {
+                value.insert("domain".into(), json!([format!("domain:{domain}")]))
+            }
+            Condition::DomainSuffix(domain) => {
+                value.insert("domain".into(), json!([format!("domain:{domain}")]))
+            }
+            Condition::IpCidr { network, prefix } => {
+                value.insert("ip".into(), json!([format!("{network}/{prefix}")]))
+            }
+            Condition::RuleSet(_) => bail!(
+                "rule {}: xray adapter requires downloaded rule-set translation",
+                rule.id
+            ),
+            Condition::Any => None,
+            Condition::Port(_) | Condition::Process(_) => bail!(
+                "rule {}: xray adapter does not support port/process conditions",
+                rule.id
+            ),
+        };
+        match &rule.action {
+            Action::Proxy(group) => {
+                value.insert("balancerTag".into(), Value::String(group.clone()));
+            }
+            Action::Direct => {
+                value.insert("outboundTag".into(), Value::String("direct".into()));
+            }
+            Action::Block => {
+                value.insert("outboundTag".into(), Value::String("block".into()));
+            }
+            Action::Dns(_) => bail!(
+                "rule {}: xray adapter does not support DNS actions",
+                rule.id
+            ),
+        }
+        routing_rules.push(Value::Object(value));
+    }
+    routing_rules.push(json!({"outboundTag": "block"}));
+    let mut root = json!({
+        "log": {"loglevel": "warning"},
+        "inbounds": [
+            {"listen": "127.0.0.1", "port": config.plan.system_proxy.socks_port, "protocol": "socks", "settings": {"udp": true}},
+            {"listen": "127.0.0.1", "port": config.plan.system_proxy.http_port, "protocol": "http"}
+        ],
+        "outbounds": outbounds,
+        "routing": {"domainStrategy": "AsIs", "rules": routing_rules}
+    });
+    if !balancers.is_empty() {
+        root["routing"]["balancers"] = Value::Array(balancers);
+    }
+    Ok(root)
 }
 
 fn effective_dns_config(config: &RoutingConfig) -> DnsConfig {
@@ -164,14 +439,31 @@ fn effective_dns_config(config: &RoutingConfig) -> DnsConfig {
     dns
 }
 
-fn proxy_outbound(node: &Node) -> Result<Value> {
+fn validate_rule_set_references(rules: &RuleSet, sources: &[RuleSetSource]) -> Result<()> {
+    let known = sources
+        .iter()
+        .map(|source| source.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    for rule in rules.rules() {
+        for condition in &rule.conditions {
+            if let Condition::RuleSet(id) = condition {
+                if !known.contains(id.as_str()) {
+                    bail!("rule {} references unknown ruleset {id}", rule.id);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn proxy_outbound(node: &Node, tag: &str) -> Result<Value> {
     let (server, port) = split_host_port(&node.details.address)?;
     match node.protocol.to_ascii_lowercase().as_str() {
         "shadowsocks" | "ss" => {
             let (method, password) = split_shadowsocks_credentials(&node.details.encryption)?;
             Ok(json!({
                 "type": "shadowsocks",
-                "tag": "proxy",
+                "tag": tag,
                 "server": server,
                 "server_port": port,
                 "method": method,
@@ -185,7 +477,11 @@ fn proxy_outbound(node: &Node) -> Result<Value> {
     }
 }
 
-fn compile_route_rules(rules: &RuleSet, hijack_dns: bool) -> Result<Vec<Value>> {
+fn compile_route_rules(
+    rules: &RuleSet,
+    hijack_dns: bool,
+    group_tags: &std::collections::HashSet<&str>,
+) -> Result<Vec<Value>> {
     let mut compiled = Vec::with_capacity(rules.rules().len() + usize::from(hijack_dns));
     if hijack_dns {
         compiled.push(json!({"protocol": "dns", "action": "hijack-dns"}));
@@ -198,7 +494,7 @@ fn compile_route_rules(rules: &RuleSet, hijack_dns: bool) -> Result<Vec<Value>> 
         for condition in &rule.conditions {
             append_condition(&mut value, condition, &rule.id)?;
         }
-        append_action(&mut value, &rule.action, &rule.id)?;
+        append_action(&mut value, &rule.action, &rule.id, group_tags)?;
         compiled.push(Value::Object(value));
     }
     Ok(compiled)
@@ -244,6 +540,7 @@ fn append_dns_condition(
     match condition {
         Condition::Domain(value) => append_string(target, "domain", value),
         Condition::DomainSuffix(value) => append_string(target, "domain_suffix", value),
+        Condition::RuleSet(value) => append_string(target, "rule_set", value),
         Condition::IpCidr { network, prefix } => {
             let max = if matches!(network, IpAddr::V4(_)) {
                 32
@@ -271,6 +568,7 @@ fn append_condition(
         Condition::Any => Ok(()),
         Condition::Domain(value) => append_string(target, "domain", value),
         Condition::DomainSuffix(value) => append_string(target, "domain_suffix", value),
+        Condition::RuleSet(value) => append_string(target, "rule_set", value),
         Condition::IpCidr { network, prefix } => {
             let max = if matches!(network, IpAddr::V4(_)) {
                 32
@@ -301,13 +599,25 @@ fn append_string(target: &mut Map<String, Value>, key: &str, value: &str) -> Res
     Ok(())
 }
 
-fn append_action(target: &mut Map<String, Value>, action: &Action, rule_id: &str) -> Result<()> {
+fn append_action(
+    target: &mut Map<String, Value>,
+    action: &Action,
+    rule_id: &str,
+    group_tags: &std::collections::HashSet<&str>,
+) -> Result<()> {
     match action {
         Action::Proxy(tag) => {
-            if tag != "proxy" {
+            if !group_tags.is_empty() && !group_tags.contains(tag.as_str()) {
                 bail!("rule {rule_id}: proxy outbound {tag:?} is not configured");
             }
-            target.insert("outbound".into(), Value::String(tag.clone()));
+            target.insert(
+                "outbound".into(),
+                Value::String(if group_tags.is_empty() {
+                    "proxy".into()
+                } else {
+                    tag.clone()
+                }),
+            );
         }
         Action::Direct => {
             target.insert("outbound".into(), Value::String("direct".into()));
@@ -318,6 +628,38 @@ fn append_action(target: &mut Map<String, Value>, action: &Action, rule_id: &str
         Action::Dns(_) => bail!("rule {rule_id}: DNS action must be compiled as a DNS rule"),
     }
     Ok(())
+}
+
+fn compile_groups(groups: &[RoutingGroup]) -> Result<Vec<Value>> {
+    let mut tags = std::collections::HashSet::new();
+    let mut values = Vec::with_capacity(groups.len());
+    for group in groups {
+        group
+            .validate()
+            .map_err(|error| anyhow!("group {} is invalid: {error}", group.id))?;
+        if !tags.insert(group.id.as_str()) {
+            bail!("duplicate outbound group tag {}", group.id);
+        }
+        let kind = match group.strategy {
+            GroupStrategy::Select => "selector",
+            GroupStrategy::UrlTest => "urltest",
+            GroupStrategy::Fallback => "fallback",
+            GroupStrategy::LoadBalance => "loadbalance",
+        };
+        let mut value = json!({
+            "type": kind,
+            "tag": group.id,
+            "outbounds": group.members,
+        });
+        if let Some(url) = &group.url {
+            value["url"] = Value::String(url.clone());
+        }
+        if let Some(interval) = group.interval_secs {
+            value["interval"] = Value::String(format!("{interval}s"));
+        }
+        values.push(value);
+    }
+    Ok(values)
 }
 
 fn dns_config(config: &DnsConfig, rules: &[Value]) -> Result<Value> {
@@ -424,7 +766,7 @@ fn split_shadowsocks_credentials(encryption: &str) -> Result<(&str, &str)> {
 mod tests {
     use super::*;
     use narya_core::{Node, NodeDetails};
-    use narya_rules::{Rule, RuleSet};
+    use narya_rules::{GroupStrategy, RoutingGroup, Rule, RuleSet};
     use std::net::{IpAddr, Ipv4Addr};
 
     fn node(protocol: &str, encryption: &str) -> Node {
@@ -575,6 +917,103 @@ mod tests {
             ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
                 .unwrap();
         assert_eq!(generated["route"]["rule_set"][0]["version"], "2026-08-22");
+    }
+
+    #[test]
+    fn compiles_selector_group_and_rejects_unknown_group_target() {
+        let mut config = RoutingConfig::default();
+        config.groups.push(RoutingGroup {
+            id: "streaming".into(),
+            strategy: GroupStrategy::UrlTest,
+            members: vec!["proxy-node".into()],
+            url: Some("https://www.gstatic.com/generate_204".into()),
+            interval_secs: Some(300),
+        });
+        config.rules = RuleSet::compile(vec![Rule {
+            id: "streaming-rule".into(),
+            priority: 10,
+            conditions: vec![Condition::DomainSuffix("video.example".into())],
+            action: Action::Proxy("streaming".into()),
+        }])
+        .unwrap();
+        let generated =
+            ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
+                .unwrap();
+        assert!(generated["outbounds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|outbound| { outbound["tag"] == "streaming" && outbound["type"] == "urltest" }));
+        let mut invalid = config;
+        invalid.rules = RuleSet::compile(vec![Rule {
+            id: "unknown-group".into(),
+            priority: 1,
+            conditions: vec![Condition::Any],
+            action: Action::Proxy("missing".into()),
+        }])
+        .unwrap();
+        assert!(ConfigGenerator::generate_json_with_config(
+            &node("ss", "aes-256-gcm:secret"),
+            &invalid
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("unknown-group"));
+    }
+
+    #[test]
+    fn compiles_mihomo_and_xray_system_proxy_configs() {
+        let config = RoutingConfig::default();
+        let node = node("ss", "aes-256-gcm:secret");
+        let mihomo =
+            ConfigGenerator::generate_json_for_kernel(KernelId::Mihomo, &node, &config).unwrap();
+        assert_eq!(mihomo["mode"], "rule");
+        assert_eq!(mihomo["proxy-groups"][0]["name"], "proxy");
+        let xray =
+            ConfigGenerator::generate_json_for_kernel(KernelId::Xray, &node, &config).unwrap();
+        assert_eq!(xray["routing"]["balancers"][0]["tag"], "proxy");
+    }
+
+    #[test]
+    fn xray_tun_is_rejected_instead_of_falling_back_to_system_proxy() {
+        let config = routing(ProxyMode::Tun);
+        let error = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Xray,
+            &node("ss", "aes-256-gcm:secret"),
+            &config,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("does not support TUN"));
+    }
+
+    #[test]
+    fn ruleset_conditions_require_declared_verified_metadata() {
+        let config = RoutingConfig {
+            rules: RuleSet::compile(vec![Rule {
+                id: "geo-rule".into(),
+                priority: 1,
+                conditions: vec![Condition::RuleSet("geoip-private".into())],
+                action: Action::Direct,
+            }])
+            .unwrap(),
+            ..RoutingConfig::default()
+        };
+        let error =
+            ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
+                .unwrap_err();
+        assert!(error.to_string().contains("unknown ruleset"));
+    }
+
+    #[test]
+    fn remote_ruleset_sources_are_rejected_until_locally_verified() {
+        let source = RuleSetSource {
+            id: "geoip".into(),
+            source: "https://example.invalid/geoip.db".into(),
+            version: "1".into(),
+            sha256: "a".repeat(64),
+        };
+        let error = validate_rule_set_sources(&[source]).unwrap_err();
+        assert!(error.to_string().contains("verified local cache"));
     }
 
     #[test]

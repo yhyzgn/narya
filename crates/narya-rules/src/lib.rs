@@ -18,6 +18,7 @@ pub enum Condition {
     IpCidr { network: IpAddr, prefix: u8 },
     Port(u16),
     Process(String),
+    RuleSet(String),
     Any,
 }
 
@@ -28,6 +29,66 @@ pub enum Action {
     Direct,
     Block,
     Dns(String),
+}
+
+/// A user-visible outbound strategy group. Members are outbound tags, so the
+/// same model can be compiled to sing-box selector/urltest/fallback groups or
+/// rejected explicitly by a kernel adapter that lacks the capability.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoutingGroup {
+    pub id: String,
+    pub strategy: GroupStrategy,
+    pub members: Vec<String>,
+    pub url: Option<String>,
+    pub interval_secs: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupStrategy {
+    Select,
+    UrlTest,
+    Fallback,
+    LoadBalance,
+}
+
+impl RoutingGroup {
+    pub fn default_proxy() -> Self {
+        Self {
+            id: "proxy".into(),
+            strategy: GroupStrategy::Select,
+            members: vec!["proxy-node".into()],
+            url: None,
+            interval_secs: None,
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), RuleError> {
+        if self.id.trim().is_empty() || self.members.is_empty() {
+            return Err(RuleError::EmptyValue {
+                rule_id: self.id.clone(),
+            });
+        }
+        if self.members.iter().any(|member| member.trim().is_empty()) {
+            return Err(RuleError::EmptyValue {
+                rule_id: self.id.clone(),
+            });
+        }
+        match self.strategy {
+            GroupStrategy::UrlTest | GroupStrategy::Fallback if self.url.is_none() => {
+                return Err(RuleError::EmptyValue {
+                    rule_id: self.id.clone(),
+                });
+            }
+            _ => {}
+        }
+        if self.url.as_deref().is_some_and(|url| url.trim().is_empty()) {
+            return Err(RuleError::EmptyValue {
+                rule_id: self.id.clone(),
+            });
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -186,7 +247,8 @@ fn validate_rule(rule: &Rule) -> Result<(), RuleError> {
         match condition {
             Condition::Domain(value)
             | Condition::DomainSuffix(value)
-            | Condition::Process(value) => {
+            | Condition::Process(value)
+            | Condition::RuleSet(value) => {
                 if value.trim().is_empty() {
                     return Err(RuleError::EmptyValue {
                         rule_id: rule.id.clone(),
@@ -234,6 +296,9 @@ fn condition_matches(condition: &Condition, request: &RequestContext) -> bool {
             .process
             .as_deref()
             .is_some_and(|actual| actual.eq_ignore_ascii_case(expected)),
+        // Rule-set membership is resolved by the kernel adapter; the pure
+        // request matcher cannot evaluate an external binary ruleset.
+        Condition::RuleSet(_) => false,
     }
 }
 
@@ -402,5 +467,42 @@ mod tests {
         )])
         .unwrap_err();
         assert!(matches!(error, RuleError::InvalidCidr { .. }));
+    }
+
+    #[test]
+    fn routing_group_requires_members_and_validates_strategy_fields() {
+        let mut group = RoutingGroup::default_proxy();
+        assert!(group.validate().is_ok());
+        group.members.clear();
+        assert!(matches!(
+            group.validate(),
+            Err(RuleError::EmptyValue { .. })
+        ));
+        let url_test = RoutingGroup {
+            id: "auto".into(),
+            strategy: GroupStrategy::UrlTest,
+            members: vec!["proxy-node".into()],
+            url: None,
+            interval_secs: Some(300),
+        };
+        assert!(matches!(
+            url_test.validate(),
+            Err(RuleError::EmptyValue { .. })
+        ));
+    }
+
+    #[test]
+    fn external_ruleset_condition_is_fail_closed_in_pure_matcher() {
+        let rules = RuleSet::compile(vec![rule(
+            "geosite-ai",
+            1,
+            Condition::RuleSet("geosite-ai".into()),
+            Action::Proxy("proxy".into()),
+        )])
+        .unwrap();
+        assert!(matches!(
+            rules.decide(&RequestContext::default()),
+            Err(RuleError::NoMatch { .. })
+        ));
     }
 }

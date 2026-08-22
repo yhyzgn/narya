@@ -7,7 +7,8 @@ use crate::views::ActiveView;
 use liora::components::{Flex, Input, Select, Text};
 use liora_icons_lucide::IconName;
 use narya_ui::{
-    App, Context, NaryaAppContext, NaryaEntity as Entity, NaryaIntoElement, Render, Window,
+    px, App, Context, NaryaAppContext, NaryaEntity as Entity, NaryaFluentBuilder, NaryaIntoElement,
+    NaryaRenderOnce, NaryaViewElement, Render, Window,
 };
 
 pub struct AppShell {
@@ -67,11 +68,27 @@ struct ShellSnapshot {
     logs: Vec<crate::state::LogMessage>,
     kernels: Vec<narya_ipc::KernelInfo>,
     rules: Vec<narya_rules::Rule>,
+    groups: Vec<narya_rules::RoutingGroup>,
+    rule_sets: Vec<narya_rules::RuleSetSource>,
     rule_filter_text: String,
     rule_action_filter: String,
     routing_mode: narya_platform::ProxyMode,
     routing_active: narya_platform::ProxyMode,
     kernel_healthy: bool,
+    active_kernel: String,
+    kernel_artifact_kernel: String,
+    kernel_artifact_version: String,
+    kernel_artifact_source: String,
+    kernel_artifact_sha256: String,
+    kernel_artifact_signature: String,
+    kernel_artifact_public_key: String,
+    kernel_operation: Option<String>,
+    kernel_error: Option<String>,
+    rule_set_draft_id: String,
+    rule_set_draft_source: String,
+    rule_set_draft_version: String,
+    rule_set_draft_sha256: String,
+    rule_set_error: Option<String>,
     running: bool,
     active_node_name: String,
     active_latency: u32,
@@ -92,11 +109,27 @@ impl ShellSnapshot {
             logs: state.log_lines.clone(),
             kernels: state.kernels.clone(),
             rules: state.rules.clone(),
+            groups: state.groups.clone(),
+            rule_sets: state.rule_sets.clone(),
             rule_filter_text: state.rule_filter_text.clone(),
             rule_action_filter: state.rule_action_filter.clone(),
             routing_mode: state.routing_mode,
             routing_active: state.routing_active,
             kernel_healthy: state.kernel_healthy,
+            active_kernel: state.active_kernel.clone(),
+            kernel_artifact_kernel: state.kernel_artifact_kernel.clone(),
+            kernel_artifact_version: state.kernel_artifact_version.clone(),
+            kernel_artifact_source: state.kernel_artifact_source.clone(),
+            kernel_artifact_sha256: state.kernel_artifact_sha256.clone(),
+            kernel_artifact_signature: state.kernel_artifact_signature.clone(),
+            kernel_artifact_public_key: state.kernel_artifact_public_key.clone(),
+            kernel_operation: state.kernel_operation.clone(),
+            kernel_error: state.kernel_error.clone(),
+            rule_set_draft_id: state.rule_set_draft_id.clone(),
+            rule_set_draft_source: state.rule_set_draft_source.clone(),
+            rule_set_draft_version: state.rule_set_draft_version.clone(),
+            rule_set_draft_sha256: state.rule_set_draft_sha256.clone(),
+            rule_set_error: state.rule_set_error.clone(),
             running: state.kernel_running,
             active_node_name: active_node
                 .map(|node| node.name.clone())
@@ -144,7 +177,7 @@ fn route_page(
         ActiveView::Dashboard => dashboard_page(model, snapshot).into_any_element(),
         ActiveView::Nodes => nodes_page(model, snapshot).into_any_element(),
         ActiveView::Subscriptions => subscriptions_page(model, snapshot).into_any_element(),
-        ActiveView::Settings => settings_page(snapshot).into_any_element(),
+        ActiveView::Settings => settings_page(model, snapshot).into_any_element(),
         ActiveView::Config => config_page().into_any_element(),
         ActiveView::Connections => connections_page(snapshot).into_any_element(),
         ActiveView::Rules => rules_page(model, snapshot).into_any_element(),
@@ -555,12 +588,21 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
         }))
 }
 
-fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+fn settings_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    let kernel_infos = snapshot.kernels.clone();
     let kernel_label = snapshot
         .kernels
         .first()
+        .filter(|kernel| kernel.name == snapshot.active_kernel)
+        .or_else(|| {
+            snapshot
+                .kernels
+                .iter()
+                .find(|kernel| kernel.name == snapshot.active_kernel)
+        })
         .and_then(|k| k.version.clone())
-        .unwrap_or_else(|| "未安装".to_string());
+        .map(|version| format!("{} {version}", snapshot.active_kernel))
+        .unwrap_or_else(|| format!("{} 未安装", snapshot.active_kernel));
     let kernel_status = if snapshot.kernel_healthy {
         "健康运行"
     } else if snapshot.kernels.iter().any(|kernel| kernel.installed) {
@@ -663,7 +705,7 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                     Flex::new()
                         .column()
                         .gap_md()
-                        .children(snapshot.kernels.into_iter().map(|k| {
+                        .children(kernel_infos.into_iter().map(|k| {
                             narya_ui::detail_field(
                                 k.name,
                                 if k.installed {
@@ -673,7 +715,17 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                                 },
                             )
                         }))
-                        .child(NaryaButton::primary("安装未实现").disabled(true)),
+                        .child(KernelArtifactForm {
+                            model: model.clone(),
+                            selected_kernel: snapshot.kernel_artifact_kernel,
+                            version: snapshot.kernel_artifact_version,
+                            source: snapshot.kernel_artifact_source,
+                            sha256: snapshot.kernel_artifact_sha256,
+                            signature: snapshot.kernel_artifact_signature,
+                            public_key: snapshot.kernel_artifact_public_key,
+                            operation: snapshot.kernel_operation,
+                            error: snapshot.kernel_error,
+                        }),
                 ))
                 .child(NaryaCard::titled(
                     "权限状态",
@@ -712,6 +764,144 @@ fn settings_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
             )
             .into_any_element(),
         ]))
+}
+
+struct KernelArtifactForm {
+    model: Entity<AppState>,
+    selected_kernel: String,
+    version: String,
+    source: String,
+    sha256: String,
+    signature: String,
+    public_key: String,
+    operation: Option<String>,
+    error: Option<String>,
+}
+
+impl NaryaRenderOnce for KernelArtifactForm {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let selected_index = match self.selected_kernel.as_str() {
+            "mihomo" => 1,
+            "xray-core" => 2,
+            _ => 0,
+        };
+        let model_for_select = self.model.clone();
+        let model_for_version = self.model.clone();
+        let model_for_source = self.model.clone();
+        let model_for_sha = self.model.clone();
+        let model_for_signature = self.model.clone();
+        let model_for_public_key = self.model.clone();
+        let model_for_install = self.model.clone();
+        let version = self.version;
+        let source = self.source;
+        let sha256 = self.sha256;
+        let signature = self.signature;
+        let public_key = self.public_key;
+        let selected_kernel = self.selected_kernel;
+        let operation = self.operation;
+        let error = self.error;
+        let installed = self
+            .model
+            .read(cx)
+            .kernels
+            .iter()
+            .any(|kernel| kernel.name == selected_kernel && kernel.installed);
+        let action_label = if installed {
+            "升级内核"
+        } else {
+            "安装内核"
+        };
+
+        Flex::new()
+            .column()
+            .gap_md()
+            .child(Text::new("仅接受明确来源与 SHA-256 的可信工件"))
+            .child(cx.new(|cx| {
+                Select::new(
+                    vec!["sing-box", "mihomo", "xray-core"],
+                    Some(selected_index),
+                    cx,
+                )
+                .width(px(180.0))
+                .on_change(move |index, _, app| {
+                    let kernel = match index {
+                        1 => "mihomo",
+                        2 => "xray-core",
+                        _ => "sing-box",
+                    };
+                    model_for_select.update(app, |state, state_cx| {
+                        state.set_kernel_artifact_kernel(kernel.into(), state_cx);
+                    });
+                })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(version, cx)
+                    .placeholder("版本，例如 1.11.0")
+                    .width(px(260.0))
+                    .on_change(move |value, input_cx| {
+                        model_for_version.update(input_cx, |state, state_cx| {
+                            state.set_kernel_artifact_version(value.to_string(), state_cx);
+                        });
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(source, cx)
+                    .placeholder("绝对路径、file:// 或 HTTPS")
+                    .width(px(420.0))
+                    .on_change(move |value, input_cx| {
+                        model_for_source.update(input_cx, |state, state_cx| {
+                            state.set_kernel_artifact_source(value.to_string(), state_cx);
+                        });
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(sha256, cx)
+                    .placeholder("SHA-256 64 位十六进制摘要")
+                    .width(px(420.0))
+                    .on_change(move |value, input_cx| {
+                        model_for_sha.update(input_cx, |state, state_cx| {
+                            state.set_kernel_artifact_sha256(value.to_string(), state_cx);
+                        });
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(signature, cx)
+                    .placeholder("可选：Ed25519 签名（HTTPS 必填）")
+                    .width(px(420.0))
+                    .on_change(move |value, input_cx| {
+                        model_for_signature.update(input_cx, |state, state_cx| {
+                            state.set_kernel_artifact_signature(value.to_string(), state_cx);
+                        });
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(public_key, cx)
+                    .placeholder("可选：Ed25519 公钥（HTTPS 必填）")
+                    .width(px(420.0))
+                    .on_change(move |value, input_cx| {
+                        model_for_public_key.update(input_cx, |state, state_cx| {
+                            state.set_kernel_artifact_public_key(value.to_string(), state_cx);
+                        });
+                    })
+            }))
+            .child(
+                NaryaButton::primary(action_label).on_click(move |_, _, app| {
+                    AppState::install_kernel(model_for_install.clone(), app);
+                }),
+            )
+            .when_some(operation, |element, text| element.child(Text::new(text)))
+            .when_some(error, |element, text| {
+                element.child(Text::new(format!("错误：{text}")))
+            })
+    }
+}
+
+impl NaryaIntoElement for KernelArtifactForm {
+    type Element = NaryaViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        NaryaViewElement::new(self)
+    }
 }
 
 fn config_page() -> impl NaryaIntoElement {
@@ -824,6 +1014,8 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
         model: model.clone(),
         selected: snapshot.rule_action_filter.clone(),
     };
+    let groups = snapshot.groups.clone();
+    let model_for_group = model.clone();
     let mode = snapshot.routing_mode;
     NaryaPage::new()
         .row(narya_ui::metric_grid(vec![
@@ -888,7 +1080,12 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                             .child(RuleActionSelect {
                                 model: model.clone(),
                                 rule_id: rule.id.clone(),
-                                selected: rule_action_key(&rule.action).to_string(),
+                                selected: rule_action_value(&rule.action),
+                                groups: snapshot
+                                    .groups
+                                    .iter()
+                                    .map(|group| group.id.clone())
+                                    .collect(),
                             })
                             .child(narya_ui::narya_tag(rule_action_summary(&rule.action), tone))
                             .child(NaryaButton::ghost("删除").on_click(move |_, _, cx| {
@@ -897,6 +1094,70 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                     )
                     .into_any_element()
                 })),
+        ))
+        .row(NaryaCard::titled(
+            "分流组",
+            Flex::new()
+                .column()
+                .gap_md()
+                .children(groups.into_iter().map(|group| {
+                    let group_id = group.id.clone();
+                    let removable = group.id != "proxy";
+                    let model = model.clone();
+                    Flex::new()
+                        .row()
+                        .gap_lg()
+                        .align_center()
+                        .child(Text::new(group.id))
+                        .child(Text::new(format!(
+                            "{} · {}",
+                            group_strategy_label(group.strategy),
+                            group.members.join(", ")
+                        )))
+                        .child(NaryaButton::ghost("删除").disabled(!removable).on_click(
+                            move |_, _, cx| {
+                                AppState::remove_group(model.clone(), cx, group_id.clone())
+                            },
+                        ))
+                        .into_any_element()
+                }))
+                .child(
+                    NaryaButton::ghost("新增分流组")
+                        .on_click(move |_, _, cx| AppState::add_group(model_for_group.clone(), cx)),
+                ),
+        ))
+        .row(NaryaCard::titled(
+            "规则集",
+            Flex::new()
+                .column()
+                .gap_md()
+                .children(snapshot.rule_sets.iter().cloned().map(|source| {
+                    let source_id = source.id.clone();
+                    let remove_model = model.clone();
+                    Flex::new()
+                        .row()
+                        .gap_lg()
+                        .align_center()
+                        .child(Text::new(source.id))
+                        .child(Text::new(format!(
+                            "v{} · SHA-256 {}",
+                            source.version,
+                            source.sha256.chars().take(12).collect::<String>()
+                        )))
+                        .child(Text::new(source.source))
+                        .child(NaryaButton::ghost("删除").on_click(move |_, _, cx| {
+                            AppState::remove_rule_set(remove_model.clone(), cx, source_id.clone())
+                        }))
+                        .into_any_element()
+                }))
+                .child(RuleSetForm {
+                    model: model.clone(),
+                    id: snapshot.rule_set_draft_id,
+                    source: snapshot.rule_set_draft_source,
+                    version: snapshot.rule_set_draft_version,
+                    sha256: snapshot.rule_set_draft_sha256,
+                    error: snapshot.rule_set_error,
+                }),
         ))
         .row(NaryaCard::titled(
             "运行模式",
@@ -944,19 +1205,100 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
         ))
 }
 
+struct RuleSetForm {
+    model: Entity<AppState>,
+    id: String,
+    source: String,
+    version: String,
+    sha256: String,
+    error: Option<String>,
+}
+
+impl NaryaRenderOnce for RuleSetForm {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let model_id = self.model.clone();
+        let model_source = self.model.clone();
+        let model_version = self.model.clone();
+        let model_sha = self.model.clone();
+        let model_add = self.model.clone();
+        Flex::new()
+            .column()
+            .gap_sm()
+            .child(
+                Flex::new()
+                    .row()
+                    .gap_md()
+                    .child(cx.new(|cx| {
+                        Input::new(self.id, cx)
+                            .placeholder("ID，例如 geosite-ai")
+                            .width(px(180.0))
+                            .on_change(move |value, input_cx| {
+                                model_id.update(input_cx, |state, state_cx| {
+                                    state.set_rule_set_draft_id(value.to_string(), state_cx)
+                                });
+                            })
+                    }))
+                    .child(cx.new(|cx| {
+                        Input::new(self.version, cx)
+                            .placeholder("版本")
+                            .width(px(120.0))
+                            .on_change(move |value, input_cx| {
+                                model_version.update(input_cx, |state, state_cx| {
+                                    state.set_rule_set_draft_version(value.to_string(), state_cx)
+                                });
+                            })
+                    }))
+                    .child(cx.new(|cx| {
+                        Input::new(self.source, cx)
+                            .placeholder("绝对路径或 file://")
+                            .width(px(320.0))
+                            .on_change(move |value, input_cx| {
+                                model_source.update(input_cx, |state, state_cx| {
+                                    state.set_rule_set_draft_source(value.to_string(), state_cx)
+                                });
+                            })
+                    }))
+                    .child(cx.new(|cx| {
+                        Input::new(self.sha256, cx)
+                            .placeholder("SHA-256")
+                            .width(px(260.0))
+                            .on_change(move |value, input_cx| {
+                                model_sha.update(input_cx, |state, state_cx| {
+                                    state.set_rule_set_draft_sha256(value.to_string(), state_cx)
+                                });
+                            })
+                    }))
+                    .child(
+                        NaryaButton::primary("导入规则集").on_click(move |_, _, app| {
+                            AppState::add_rule_set(model_add.clone(), app)
+                        }),
+                    ),
+            )
+            .when_some(self.error, |element, error| element.child(Text::new(error)))
+    }
+}
+
+impl NaryaIntoElement for RuleSetForm {
+    type Element = NaryaViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        NaryaViewElement::new(self)
+    }
+}
+
 struct RuleSearchBox {
     model: Entity<AppState>,
 }
 
-impl gpui::RenderOnce for RuleSearchBox {
-    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
+impl NaryaRenderOnce for RuleSearchBox {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
         let model = self.model;
         cx.new(|cx| {
             Input::new("", cx)
                 .placeholder("搜索规则、条件或动作")
                 .icon_prefix(IconName::Search)
                 .clearable(true)
-                .width(gpui::px(300.0))
+                .width(px(300.0))
                 .on_change(move |value, input_cx| {
                     model.update(input_cx, |state, state_cx| {
                         state.set_rule_filter_text(value.to_string(), state_cx);
@@ -967,10 +1309,10 @@ impl gpui::RenderOnce for RuleSearchBox {
 }
 
 impl NaryaIntoElement for RuleSearchBox {
-    type Element = gpui::ViewElement<Self>;
+    type Element = NaryaViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::ViewElement::new(self)
+        NaryaViewElement::new(self)
     }
 }
 
@@ -979,8 +1321,8 @@ struct RuleActionFilterSelect {
     selected: String,
 }
 
-impl gpui::RenderOnce for RuleActionFilterSelect {
-    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
+impl NaryaRenderOnce for RuleActionFilterSelect {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
         let options = vec!["全部动作", "代理", "直连", "阻断", "DNS"];
         let selected_index = match self.selected.as_str() {
             "proxy" => 1,
@@ -992,7 +1334,7 @@ impl gpui::RenderOnce for RuleActionFilterSelect {
         let model = self.model;
         cx.new(|cx| {
             Select::new(options, Some(selected_index), cx)
-                .width(gpui::px(144.0))
+                .width(px(144.0))
                 .on_change(move |index, _, app| {
                     let filter = match index {
                         1 => "proxy",
@@ -1010,10 +1352,10 @@ impl gpui::RenderOnce for RuleActionFilterSelect {
 }
 
 impl NaryaIntoElement for RuleActionFilterSelect {
-    type Element = gpui::ViewElement<Self>;
+    type Element = NaryaViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::ViewElement::new(self)
+        NaryaViewElement::new(self)
     }
 }
 
@@ -1021,38 +1363,60 @@ struct RuleActionSelect {
     model: Entity<AppState>,
     rule_id: String,
     selected: String,
+    groups: Vec<String>,
 }
 
-impl gpui::RenderOnce for RuleActionSelect {
-    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
-        let selected_index = match self.selected.as_str() {
-            "proxy" => 0,
-            "direct" => 1,
-            "block" => 2,
-            "dns" => 3,
-            _ => 0,
-        };
+impl NaryaRenderOnce for RuleActionSelect {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let mut values = vec![
+            "proxy".to_string(),
+            "direct".to_string(),
+            "block".to_string(),
+            "dns:proxy".to_string(),
+        ];
+        for group in self.groups {
+            if group != "proxy" {
+                values.push(group);
+            }
+        }
+        let selected_index = values
+            .iter()
+            .position(|value| value == &self.selected)
+            .unwrap_or(0);
+        let labels: Vec<String> = values
+            .iter()
+            .map(|value| match value.as_str() {
+                "proxy" => "代理组 · proxy".to_string(),
+                "direct" => "直连".to_string(),
+                "block" => "阻断".to_string(),
+                "dns:proxy" => "DNS · proxy".to_string(),
+                value => format!("代理组 · {value}"),
+            })
+            .collect();
         let model = self.model;
         let rule_id = self.rule_id;
         cx.new(|cx| {
-            Select::new(
-                vec!["代理", "直连", "阻断", "DNS"],
-                Some(selected_index),
-                cx,
-            )
-            .width(gpui::px(116.0))
-            .on_change(move |index, _, app| {
-                AppState::set_rule_action(model.clone(), app, rule_id.clone(), index + 1);
-            })
+            Select::new(labels, Some(selected_index), cx)
+                .width(px(116.0))
+                .on_change(move |index, _, app| {
+                    if let Some(value) = values.get(index) {
+                        AppState::set_rule_action(
+                            model.clone(),
+                            app,
+                            rule_id.clone(),
+                            value.clone(),
+                        );
+                    }
+                })
         })
     }
 }
 
 impl NaryaIntoElement for RuleActionSelect {
-    type Element = gpui::ViewElement<Self>;
+    type Element = NaryaViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::ViewElement::new(self)
+        NaryaViewElement::new(self)
     }
 }
 
@@ -1062,13 +1426,13 @@ struct RulePriorityInput {
     priority: i32,
 }
 
-impl gpui::RenderOnce for RulePriorityInput {
-    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl NaryaIntoElement {
+impl NaryaRenderOnce for RulePriorityInput {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
         let model = self.model;
         let rule_id = self.rule_id;
         cx.new(|cx| {
             Input::new(self.priority.to_string(), cx)
-                .width(gpui::px(84.0))
+                .width(px(84.0))
                 .on_change(move |value, input_cx| {
                     if let Ok(priority) = value.parse::<i32>() {
                         AppState::set_rule_priority(
@@ -1084,10 +1448,10 @@ impl gpui::RenderOnce for RulePriorityInput {
 }
 
 impl NaryaIntoElement for RulePriorityInput {
-    type Element = gpui::ViewElement<Self>;
+    type Element = NaryaViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        gpui::ViewElement::new(self)
+        NaryaViewElement::new(self)
     }
 }
 
@@ -1102,6 +1466,7 @@ fn rule_condition_summary(rule: &narya_rules::Rule) -> String {
             }
             narya_rules::Condition::Port(port) => format!("端口 · {port}"),
             narya_rules::Condition::Process(process) => format!("进程 · {process}"),
+            narya_rules::Condition::RuleSet(name) => format!("规则集 · {name}"),
             narya_rules::Condition::Any => "所有请求".to_string(),
         })
         .collect::<Vec<_>>()
@@ -1123,6 +1488,24 @@ fn rule_action_key(action: &narya_rules::Action) -> &'static str {
         narya_rules::Action::Direct => "direct",
         narya_rules::Action::Block => "block",
         narya_rules::Action::Dns(_) => "dns",
+    }
+}
+
+fn rule_action_value(action: &narya_rules::Action) -> String {
+    match action {
+        narya_rules::Action::Proxy(outbound) => outbound.clone(),
+        narya_rules::Action::Direct => "direct".into(),
+        narya_rules::Action::Block => "block".into(),
+        narya_rules::Action::Dns(server) => format!("dns:{server}"),
+    }
+}
+
+fn group_strategy_label(strategy: narya_rules::GroupStrategy) -> &'static str {
+    match strategy {
+        narya_rules::GroupStrategy::Select => "手动选择",
+        narya_rules::GroupStrategy::UrlTest => "URL 测试",
+        narya_rules::GroupStrategy::Fallback => "故障转移",
+        narya_rules::GroupStrategy::LoadBalance => "负载均衡",
     }
 }
 

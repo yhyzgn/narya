@@ -129,6 +129,17 @@ mod tests {
                 && app_state.contains("SetSystemProxy failed"),
             "app state must inspect daemon IpcResponse.error before reporting connected state"
         );
+        assert!(
+            app_state.contains("InstallKernel")
+                && app_state.contains("UpgradeKernel")
+                && !app_state.contains("Kernel installation is not implemented"),
+            "kernel settings must submit real install/upgrade IPC requests"
+        );
+        let installer = workspace_file("crates/narya-daemon/src/installer.rs");
+        assert!(
+            installer.contains("Ed25519") && installer.contains("signature verification"),
+            "HTTPS kernel artifacts must be authenticated, not checksum-only"
+        );
 
         let ipc = workspace_file("crates/narya-ipc/src/lib.rs");
         assert!(

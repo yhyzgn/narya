@@ -62,9 +62,15 @@ pub struct PersistedState {
     pub subscriptions: Vec<narya_core::Subscription>,
     pub active_node_id: Option<String>,
     pub kernel_running: bool,
+    #[serde(default)]
+    pub active_kernel: String,
     pub selected_subscription_id: Option<String>,
     #[serde(default)]
     pub rules: Vec<narya_rules::Rule>,
+    #[serde(default)]
+    pub groups: Vec<narya_rules::RoutingGroup>,
+    #[serde(default)]
+    pub rule_sets: Vec<narya_rules::RuleSetSource>,
 }
 
 pub struct AppState {
@@ -86,10 +92,26 @@ pub struct AppState {
     pub log_lines: Vec<LogMessage>,
     pub kernels: Vec<narya_ipc::KernelInfo>,
     pub rules: Vec<narya_rules::Rule>,
+    pub groups: Vec<narya_rules::RoutingGroup>,
+    pub rule_sets: Vec<narya_rules::RuleSetSource>,
     pub routing_mode: narya_platform::ProxyMode,
     pub routing_configured: Option<String>,
     pub routing_active: narya_platform::ProxyMode,
     pub kernel_healthy: bool,
+    pub active_kernel: String,
+    pub kernel_artifact_kernel: String,
+    pub kernel_artifact_version: String,
+    pub kernel_artifact_source: String,
+    pub kernel_artifact_sha256: String,
+    pub kernel_artifact_signature: String,
+    pub kernel_artifact_public_key: String,
+    pub kernel_operation: Option<String>,
+    pub kernel_error: Option<String>,
+    pub rule_set_draft_id: String,
+    pub rule_set_draft_source: String,
+    pub rule_set_draft_version: String,
+    pub rule_set_draft_sha256: String,
+    pub rule_set_error: Option<String>,
 }
 
 impl AppState {
@@ -107,8 +129,11 @@ impl AppState {
             subscriptions: self.subscriptions.clone(),
             active_node_id: self.active_node_id.clone(),
             kernel_running: self.kernel_running,
+            active_kernel: self.active_kernel.clone(),
             selected_subscription_id: self.selected_subscription_id.clone(),
             rules: self.rules.clone(),
+            groups: self.groups.clone(),
+            rule_sets: self.rule_sets.clone(),
         };
         if let Ok(json) = serde_json::to_string_pretty(&persisted) {
             let _ = std::fs::write(Self::config_path(), json);
@@ -137,19 +162,16 @@ impl AppState {
         cx.notify();
     }
 
-    pub fn set_rule_action(
-        model: Entity<Self>,
-        cx: &mut App,
-        rule_id: String,
-        action_index: usize,
-    ) {
+    pub fn set_rule_action(model: Entity<Self>, cx: &mut App, rule_id: String, target: String) {
         model.update(cx, |state, cx| {
             if let Some(rule) = state.rules.iter_mut().find(|rule| rule.id == rule_id) {
-                rule.action = match action_index {
-                    1 => narya_rules::Action::Proxy("proxy".into()),
-                    2 => narya_rules::Action::Direct,
-                    3 => narya_rules::Action::Block,
-                    4 => narya_rules::Action::Dns("proxy".into()),
+                rule.action = match target.as_str() {
+                    "direct" => narya_rules::Action::Direct,
+                    "block" => narya_rules::Action::Block,
+                    value if value.starts_with("dns:") => {
+                        narya_rules::Action::Dns(value.trim_start_matches("dns:").into())
+                    }
+                    value if !value.trim().is_empty() => narya_rules::Action::Proxy(value.into()),
                     _ => rule.action.clone(),
                 };
                 state.save();
@@ -176,6 +198,235 @@ impl AppState {
         self.routing_mode = mode;
         self.save();
         cx.notify();
+    }
+
+    pub fn set_kernel_artifact_kernel(&mut self, kernel: String, cx: &mut Context<Self>) {
+        self.kernel_artifact_kernel = kernel;
+        self.active_kernel = self.kernel_artifact_kernel.clone();
+        self.save();
+        self.kernel_error = None;
+        cx.notify();
+    }
+
+    pub fn set_kernel_artifact_version(&mut self, version: String, cx: &mut Context<Self>) {
+        self.kernel_artifact_version = version;
+        self.kernel_error = None;
+        cx.notify();
+    }
+
+    pub fn set_kernel_artifact_source(&mut self, source: String, cx: &mut Context<Self>) {
+        self.kernel_artifact_source = source;
+        self.kernel_error = None;
+        cx.notify();
+    }
+
+    pub fn set_kernel_artifact_sha256(&mut self, sha256: String, cx: &mut Context<Self>) {
+        self.kernel_artifact_sha256 = sha256;
+        self.kernel_error = None;
+        cx.notify();
+    }
+
+    pub fn set_kernel_artifact_signature(&mut self, signature: String, cx: &mut Context<Self>) {
+        self.kernel_artifact_signature = signature;
+        self.kernel_error = None;
+        cx.notify();
+    }
+
+    pub fn set_kernel_artifact_public_key(&mut self, public_key: String, cx: &mut Context<Self>) {
+        self.kernel_artifact_public_key = public_key;
+        self.kernel_error = None;
+        cx.notify();
+    }
+
+    pub fn set_rule_set_draft_id(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_set_draft_id = value;
+        self.rule_set_error = None;
+        cx.notify();
+    }
+
+    pub fn set_rule_set_draft_source(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_set_draft_source = value;
+        self.rule_set_error = None;
+        cx.notify();
+    }
+
+    pub fn set_rule_set_draft_version(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_set_draft_version = value;
+        self.rule_set_error = None;
+        cx.notify();
+    }
+
+    pub fn set_rule_set_draft_sha256(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_set_draft_sha256 = value;
+        self.rule_set_error = None;
+        cx.notify();
+    }
+
+    pub fn add_rule_set(model: Entity<Self>, cx: &mut App) {
+        model.update(cx, |state, cx| {
+            let source = narya_rules::RuleSetSource {
+                id: state.rule_set_draft_id.trim().to_string(),
+                source: state.rule_set_draft_source.trim().to_string(),
+                version: state.rule_set_draft_version.trim().to_string(),
+                sha256: state.rule_set_draft_sha256.trim().to_string(),
+            };
+            if let Err(error) = source.validate() {
+                state.rule_set_error = Some(format!("规则集校验失败：{error}"));
+                cx.notify();
+                return;
+            }
+            if !source.source.starts_with("file://")
+                && !std::path::Path::new(&source.source).is_absolute()
+            {
+                state.rule_set_error = Some("规则集必须使用绝对本地路径或 file:// 路径".into());
+                cx.notify();
+                return;
+            }
+            if state.rule_sets.iter().any(|item| item.id == source.id) {
+                state.rule_set_error = Some(format!("规则集 ID 已存在：{}", source.id));
+                cx.notify();
+                return;
+            }
+            state.rule_sets.push(source);
+            state
+                .rule_sets
+                .sort_by(|left, right| left.id.cmp(&right.id));
+            state.rule_set_draft_id.clear();
+            state.rule_set_draft_source.clear();
+            state.rule_set_draft_version.clear();
+            state.rule_set_draft_sha256.clear();
+            state.rule_set_error = None;
+            state.save();
+            cx.notify();
+        });
+    }
+
+    pub fn remove_rule_set(model: Entity<Self>, cx: &mut App, rule_set_id: String) {
+        model.update(cx, |state, cx| {
+            let referenced = state.rules.iter().any(|rule| {
+                rule.conditions.iter().any(|condition| {
+                    matches!(condition, narya_rules::Condition::RuleSet(id) if id == &rule_set_id)
+                })
+            });
+            if referenced {
+                state.rule_set_error = Some(format!(
+                    "规则集 {} 仍被规则引用，请先移除规则条件",
+                    rule_set_id
+                ));
+                cx.notify();
+                return;
+            }
+            state.rule_sets.retain(|item| item.id != rule_set_id);
+            state.rule_set_error = None;
+            state.save();
+            cx.notify();
+        });
+    }
+
+    pub fn install_kernel(model: Entity<Self>, cx: &mut App) {
+        let (kernel, version, source, sha256, signature, public_key, upgrade) = {
+            let state = model.read(cx);
+            let kernel = state.kernel_artifact_kernel.trim().to_string();
+            let upgrade = state
+                .kernels
+                .iter()
+                .any(|installed| installed.name == kernel && installed.installed);
+            (
+                kernel,
+                state.kernel_artifact_version.trim().to_string(),
+                state.kernel_artifact_source.trim().to_string(),
+                state.kernel_artifact_sha256.trim().to_string(),
+                state.kernel_artifact_signature.trim().to_string(),
+                state.kernel_artifact_public_key.trim().to_string(),
+                upgrade,
+            )
+        };
+        if kernel.is_empty() || version.is_empty() || source.is_empty() || sha256.is_empty() {
+            model.update(cx, |state, cx| {
+                state.kernel_error = Some("内核、版本、来源和 SHA-256 均为必填项".into());
+                cx.notify();
+            });
+            return;
+        }
+        model.update(cx, |state, cx| {
+            state.kernel_operation = Some(if upgrade {
+                "正在升级内核…".into()
+            } else {
+                "正在安装内核…".into()
+            });
+            state.kernel_error = None;
+            cx.notify();
+        });
+
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            let model = model.clone();
+            async move {
+                let result = async {
+                    let mut client = IpcClient::connect_default().await?;
+                    let method = if upgrade {
+                        "UpgradeKernel"
+                    } else {
+                        "InstallKernel"
+                    };
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 20,
+                            method: method.into(),
+                            params: serde_json::json!({
+                                "kernel": kernel,
+                                "version": version,
+                                "source": source,
+                                "sha256": sha256,
+                                "signature": signature,
+                                "public_key": public_key,
+                            }),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    let result = response.result.unwrap_or_default();
+                    let installed_version = result
+                        .get("version")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("unknown")
+                        .to_string();
+                    Ok::<(String, String), anyhow::Error>((kernel, installed_version))
+                }
+                .await;
+
+                match result {
+                    Ok((kernel, version)) => {
+                        model.update(&mut cx, |state, cx| {
+                            state.active_kernel = kernel.clone();
+                            if let Some(info) =
+                                state.kernels.iter_mut().find(|info| info.name == kernel)
+                            {
+                                info.installed = true;
+                                info.version = Some(version.clone());
+                                info.state = "installed".into();
+                                info.running = false;
+                                info.healthy = false;
+                                info.failure = None;
+                            }
+                            state.kernel_operation = Some(format!("已完成：{kernel} {version}"));
+                            state.save();
+                            cx.notify();
+                        });
+                    }
+                    Err(error) => {
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(error.to_string());
+                            cx.notify();
+                        });
+                    }
+                }
+            }
+        })
+        .detach();
     }
 
     pub fn set_subscription_filter_text(&mut self, text: String, cx: &mut Context<Self>) {
@@ -219,6 +470,38 @@ impl AppState {
                 action: narya_rules::Action::Proxy("proxy".into()),
             });
             state.rules.sort_by_key(|rule| rule.priority);
+            state.save();
+            cx.notify();
+        });
+    }
+
+    pub fn add_group(model: Entity<Self>, cx: &mut App) {
+        model.update(cx, |state, cx| {
+            let id = format!("proxy-{}", state.groups.len() + 1);
+            state.groups.push(narya_rules::RoutingGroup {
+                id,
+                strategy: narya_rules::GroupStrategy::Select,
+                members: vec!["proxy-node".into()],
+                url: None,
+                interval_secs: None,
+            });
+            state.save();
+            cx.notify();
+        });
+    }
+
+    pub fn remove_group(model: Entity<Self>, cx: &mut App, group_id: String) {
+        if group_id == "proxy" {
+            return;
+        }
+        model.update(cx, |state, cx| {
+            state.groups.retain(|group| group.id != group_id);
+            for rule in &mut state.rules {
+                if matches!(&rule.action, narya_rules::Action::Proxy(target) if target == &group_id)
+                {
+                    rule.action = narya_rules::Action::Proxy("proxy".into());
+                }
+            }
             state.save();
             cx.notify();
         });
@@ -277,7 +560,7 @@ impl AppState {
     }
 
     pub fn set_proxy_running(model: Entity<Self>, cx: &mut App, next_state: bool) {
-        let (active_node, routing_mode, rules) = {
+        let (active_node, routing_mode, rules, groups, rule_sets, active_kernel) = {
             let state = model.read(cx);
             (
                 state
@@ -287,6 +570,9 @@ impl AppState {
                     .cloned(),
                 state.routing_mode,
                 state.rules.clone(),
+                state.groups.clone(),
+                state.rule_sets.clone(),
+                state.active_kernel.clone(),
             )
         };
 
@@ -308,10 +594,12 @@ impl AppState {
                         return;
                     };
                     serde_json::json!({
-                        "kernel": "sing-box",
+                        "kernel": active_kernel,
                         "node": node,
                         "routing": routing_plan(routing_mode),
                         "rules": rules,
+                        "groups": groups,
+                        "rule_sets": rule_sets,
                     })
                 } else {
                     serde_json::json!(null)
@@ -604,10 +892,6 @@ impl AppState {
         .detach();
     }
 
-    pub fn install_kernel(_model: Entity<Self>, _cx: &mut App, _kernel_name: String) {
-        eprintln!("Kernel installation is not implemented yet; refusing to report fake success");
-    }
-
     pub fn test_all_latency(model: Entity<Self>, cx: &mut App) {
         // Collect IDs first to avoid borrow checker issues with model.read(cx) and model.update(cx)
         let ids: Vec<String> = model.read(cx).nodes.iter().map(|n| n.id.clone()).collect();
@@ -650,6 +934,11 @@ impl AppState {
     pub fn init_or_mock() -> Self {
         let persisted = Self::load_persisted();
         if !persisted.subscriptions.is_empty() {
+            let active_kernel = if persisted.active_kernel.is_empty() {
+                "sing-box".to_string()
+            } else {
+                persisted.active_kernel.clone()
+            };
             return Self {
                 active_node_id: persisted.active_node_id,
                 nodes: persisted.nodes,
@@ -671,10 +960,30 @@ impl AppState {
                 } else {
                     persisted.rules
                 },
+                groups: if persisted.groups.is_empty() {
+                    vec![narya_rules::RoutingGroup::default_proxy()]
+                } else {
+                    persisted.groups
+                },
+                rule_sets: persisted.rule_sets,
                 routing_mode: narya_platform::ProxyMode::SystemProxy,
                 routing_configured: None,
                 routing_active: narya_platform::ProxyMode::Disabled,
                 kernel_healthy: false,
+                active_kernel: active_kernel.clone(),
+                kernel_artifact_kernel: active_kernel,
+                kernel_artifact_version: String::new(),
+                kernel_artifact_source: String::new(),
+                kernel_artifact_sha256: String::new(),
+                kernel_artifact_signature: String::new(),
+                kernel_artifact_public_key: String::new(),
+                kernel_operation: None,
+                kernel_error: None,
+                rule_set_draft_id: String::new(),
+                rule_set_draft_source: String::new(),
+                rule_set_draft_version: String::new(),
+                rule_set_draft_sha256: String::new(),
+                rule_set_error: None,
             };
         }
 
@@ -877,10 +1186,26 @@ impl AppState {
                 },
             ],
             rules: default_rules(),
+            groups: vec![narya_rules::RoutingGroup::default_proxy()],
+            rule_sets: Vec::new(),
             routing_mode: narya_platform::ProxyMode::SystemProxy,
             routing_configured: None,
             routing_active: narya_platform::ProxyMode::Disabled,
             kernel_healthy: false,
+            active_kernel: "sing-box".into(),
+            kernel_artifact_kernel: "sing-box".into(),
+            kernel_artifact_version: String::new(),
+            kernel_artifact_source: String::new(),
+            kernel_artifact_sha256: String::new(),
+            kernel_artifact_signature: String::new(),
+            kernel_artifact_public_key: String::new(),
+            kernel_operation: None,
+            kernel_error: None,
+            rule_set_draft_id: String::new(),
+            rule_set_draft_source: String::new(),
+            rule_set_draft_version: String::new(),
+            rule_set_draft_sha256: String::new(),
+            rule_set_error: None,
         };
         state.save();
         state

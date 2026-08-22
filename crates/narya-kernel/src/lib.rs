@@ -9,6 +9,7 @@ use std::process::Command;
 pub enum KernelId {
     SingBox,
     Mihomo,
+    #[serde(rename = "xray-core", alias = "xray")]
     Xray,
 }
 

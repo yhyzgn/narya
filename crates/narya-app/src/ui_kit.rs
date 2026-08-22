@@ -1,9 +1,12 @@
+pub use gpui::prelude::FluentBuilder as NaryaFluentBuilder;
+pub use gpui::px;
 use gpui::{
-    div, prelude::*, px, rgb, AnyElement, Entity, IntoElement, ParentElement, Rgba, ViewElement,
+    div, prelude::*, rgb, AnyElement, Entity, IntoElement, ParentElement, Rgba, ViewElement,
 };
 pub use gpui::{
     App, AppContext as NaryaAppContext, Context, Entity as NaryaEntity,
-    IntoElement as NaryaIntoElement, Render, Window,
+    IntoElement as NaryaIntoElement, Render, RenderOnce as NaryaRenderOnce,
+    ViewElement as NaryaViewElement, Window,
 };
 use liora::components::{
     Button, Card, Flex, Image, Input, LineChart, Progress, Segmented, SegmentedOption, Select,
