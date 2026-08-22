@@ -55,7 +55,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 - `FrameDecoder` 覆盖 1 字节拆分、连续粘包、超大帧和截断帧测试。
 - `narya-kernel` 新增 `KernelId`、`KernelState`、`KernelRecord`、`KernelRegistry`；按 PATH 探测 sing-box、mihomo、xray，并将运行状态与健康状态分离。
 - daemon/app 已切换到 framed IPC；请求带协议版本，未知版本 fail-closed；启动代理失败时 app 会尝试停止刚启动的内核。
-- kernel manager 启动前解析生成配置中的本地 HTTP/SOCKS 监听，并在 bounded window 内验证至少一个监听可连接；监听消失时主动终止子进程并报告失败，避免仅凭进程存活伪造健康状态。
+- kernel manager 启动前解析生成配置中的全部本地 HTTP/SOCKS 监听，并在 bounded window 内验证所有监听可连接；任一监听消失时主动终止子进程并报告失败，避免仅凭进程存活或半可用入口伪造健康状态。
 - `GetKernelStatus` 返回安装、版本、运行、健康、状态和失败原因；在无核心环境中实际返回三个 `not_installed`、`healthy=false` 状态。
 - 验证：`cargo fmt --all -- --check`、`cargo check --workspace`、目标 crate 测试、`cargo test --workspace`、分段 clippy、`ctx validate` 均通过；真实 daemon Python Unix socket framed Ping/KernelStatus/版本错误烟测通过；`timeout 8s cargo run -p narya-app` 在无 DISPLAY 环境下输出可诊断错误并正常退出，不再 panic。
 - 未覆盖：真实内核安装/升级下载器、TUN/system proxy 事务和流量级健康探针留在后续任务。

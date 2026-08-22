@@ -372,18 +372,19 @@ async fn wait_for_configured_listeners(
         if let Some(status) = child.try_wait()? {
             bail!("kernel exited during readiness with {status}");
         }
+        let mut reachable = 0;
         for target in &targets {
-            let address = format!("{}:{}", target.host, target.port);
-            if timeout(Duration::from_millis(100), TcpStream::connect(&address))
-                .await
-                .is_ok_and(|result| result.is_ok())
-            {
-                return Ok(targets);
+            if listener_reachable_async(target).await {
+                reachable += 1;
             }
+        }
+        if reachable == targets.len() {
+            return Ok(targets);
         }
         if tokio::time::Instant::now() >= deadline {
             bail!(
-                "kernel readiness failed: no configured local listener accepted a connection ({})",
+                "kernel readiness failed: only {reachable}/{} configured local listeners accepted a connection ({})",
+                targets.len(),
                 targets
                     .iter()
                     .map(|target| format!("{}:{}", target.host, target.port))
@@ -395,8 +396,19 @@ async fn wait_for_configured_listeners(
     }
 }
 
+async fn listener_reachable_async(target: &ListenerTarget) -> bool {
+    let address = if target.host.contains(':') {
+        format!("[{}]:{}", target.host, target.port)
+    } else {
+        format!("{}:{}", target.host, target.port)
+    };
+    timeout(Duration::from_millis(100), TcpStream::connect(&address))
+        .await
+        .is_ok_and(|result| result.is_ok())
+}
+
 fn listeners_reachable(targets: &[ListenerTarget]) -> bool {
-    targets.iter().any(|target| {
+    targets.iter().all(|target| {
         let address = if target.host.contains(':') {
             format!("[{}]:{}", target.host, target.port)
         } else {
@@ -512,5 +524,23 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("no local readiness listener"));
+    }
+
+    #[test]
+    fn health_requires_all_declared_listeners() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let targets = vec![
+            ListenerTarget {
+                host: "127.0.0.1".into(),
+                port,
+            },
+            ListenerTarget {
+                host: "127.0.0.1".into(),
+                port: port.saturating_add(1),
+            },
+        ];
+        assert!(!listeners_reachable(&targets));
+        drop(listener);
     }
 }

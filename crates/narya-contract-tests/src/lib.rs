@@ -107,8 +107,10 @@ mod tests {
                 && daemon.contains("GetRoutingStatus")
                 && daemon.contains("preflight_tun")
                 && workspace_file("crates/narya-daemon/src/kernel.rs")
-                    .contains("wait_for_configured_listeners"),
-            "daemon IPC must use framing, validated routing state, and kernel listener readiness"
+                    .contains("wait_for_configured_listeners")
+                && workspace_file("crates/narya-daemon/src/kernel.rs")
+                    .contains("reachable == targets.len()"),
+            "daemon IPC must use framing, validated routing state, and complete kernel listener readiness"
         );
 
         let config_gen = workspace_file("crates/narya-daemon/src/config_gen.rs");
