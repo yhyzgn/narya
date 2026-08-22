@@ -1,18 +1,21 @@
 use crate::installer::{self, InstalledKernel, KernelArtifactRequest};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use narya_kernel::{KernelId, KernelRecord, KernelRegistry, KernelState};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::net::TcpStream;
 use tokio::process::{Child, Command};
 use tokio::sync::broadcast;
+use tokio::time::timeout;
 
 pub struct KernelManager {
     registry: KernelRegistry,
     child: Option<Child>,
     active: Option<KernelId>,
     active_config: Option<(PathBuf, Vec<u8>)>,
+    active_listeners: Vec<ListenerTarget>,
 }
 
 impl KernelManager {
@@ -24,6 +27,7 @@ impl KernelManager {
             child: None,
             active: None,
             active_config: None,
+            active_listeners: Vec::new(),
         }
     }
 
@@ -238,15 +242,26 @@ impl KernelManager {
             }
         });
 
+        self.registry
+            .set_state(id, KernelState::Starting, false, None);
+        // A live process is not sufficient evidence of a usable VPN. Require
+        // a declared local HTTP/SOCKS listener to accept a TCP connection.
+        let listeners = match wait_for_configured_listeners(&config_bytes, &mut child).await {
+            Ok(listeners) => listeners,
+            Err(error) => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                self.registry
+                    .set_state(id, KernelState::Failed, false, Some(error.to_string()));
+                return Err(error);
+            }
+        };
         self.child = Some(child);
         self.active = Some(id);
         self.active_config = Some((config_path.to_path_buf(), config_bytes));
+        self.active_listeners = listeners;
         self.registry
             .set_state(id, KernelState::Running, false, None);
-        // Give the child a bounded readiness window before reporting it as a
-        // usable kernel. This catches instant exits (bad binaries/configs)
-        // and prevents a transient process from becoming a fake connection.
-        tokio::time::sleep(Duration::from_millis(50)).await;
         self.refresh_health();
         if !self.registry.record(id).healthy {
             let failure = self
@@ -267,6 +282,7 @@ impl KernelManager {
         let Some(id) = self.active.take() else {
             self.child = None;
             self.active_config = None;
+            self.active_listeners.clear();
             return Ok(());
         };
         self.registry
@@ -282,6 +298,7 @@ impl KernelManager {
         self.registry
             .set_state(id, KernelState::Installed, false, None);
         self.active_config = None;
+        self.active_listeners.clear();
         Ok(())
     }
 
@@ -300,9 +317,25 @@ impl KernelManager {
             return;
         };
         match child.try_wait() {
-            Ok(None) => self
-                .registry
-                .set_state(id, KernelState::Running, true, None),
+            Ok(None) if listeners_reachable(&self.active_listeners) => {
+                self.registry
+                    .set_state(id, KernelState::Running, true, None)
+            }
+            Ok(None) => {
+                if let Some(child) = self.child.as_mut() {
+                    let _ = child.start_kill();
+                }
+                self.registry.set_state(
+                    id,
+                    KernelState::Failed,
+                    false,
+                    Some("kernel listener became unreachable".into()),
+                );
+                self.active = None;
+                self.child = None;
+                self.active_config = None;
+                self.active_listeners.clear();
+            }
             Ok(Some(status)) => {
                 self.registry.set_state(
                     id,
@@ -313,6 +346,7 @@ impl KernelManager {
                 self.active = None;
                 self.child = None;
                 self.active_config = None;
+                self.active_listeners.clear();
             }
             Err(error) => {
                 self.registry
@@ -320,6 +354,101 @@ impl KernelManager {
             }
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ListenerTarget {
+    host: String,
+    port: u16,
+}
+
+async fn wait_for_configured_listeners(
+    config_bytes: &[u8],
+    child: &mut Child,
+) -> Result<Vec<ListenerTarget>> {
+    let targets = listener_targets(config_bytes)?;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        if let Some(status) = child.try_wait()? {
+            bail!("kernel exited during readiness with {status}");
+        }
+        for target in &targets {
+            let address = format!("{}:{}", target.host, target.port);
+            if timeout(Duration::from_millis(100), TcpStream::connect(&address))
+                .await
+                .is_ok_and(|result| result.is_ok())
+            {
+                return Ok(targets);
+            }
+        }
+        if tokio::time::Instant::now() >= deadline {
+            bail!(
+                "kernel readiness failed: no configured local listener accepted a connection ({})",
+                targets
+                    .iter()
+                    .map(|target| format!("{}:{}", target.host, target.port))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+fn listeners_reachable(targets: &[ListenerTarget]) -> bool {
+    targets.iter().any(|target| {
+        let address = if target.host.contains(':') {
+            format!("[{}]:{}", target.host, target.port)
+        } else {
+            format!("{}:{}", target.host, target.port)
+        };
+        address.parse().ok().is_some_and(|address| {
+            std::net::TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_ok()
+        })
+    })
+}
+
+fn listener_targets(config_bytes: &[u8]) -> Result<Vec<ListenerTarget>> {
+    let root: serde_json::Value = serde_json::from_slice(config_bytes)
+        .context("kernel configuration is not valid JSON for readiness probing")?;
+    let mut targets = Vec::new();
+    if let Some(inbounds) = root.get("inbounds").and_then(serde_json::Value::as_array) {
+        for inbound in inbounds {
+            let Some(port) = inbound
+                .get("listen_port")
+                .or_else(|| inbound.get("port"))
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|port| u16::try_from(port).ok())
+            else {
+                continue;
+            };
+            let host = inbound
+                .get("listen")
+                .and_then(serde_json::Value::as_str)
+                .filter(|host| !host.is_empty() && *host != "0.0.0.0" && *host != "::")
+                .unwrap_or("127.0.0.1")
+                .to_string();
+            targets.push(ListenerTarget { host, port });
+        }
+    }
+    for key in ["port", "socks-port"] {
+        if let Some(port) = root
+            .get(key)
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|port| u16::try_from(port).ok())
+        {
+            targets.push(ListenerTarget {
+                host: "127.0.0.1".into(),
+                port,
+            });
+        }
+    }
+    targets.sort_by(|left, right| left.port.cmp(&right.port).then(left.host.cmp(&right.host)));
+    targets.dedup();
+    if targets.is_empty() {
+        bail!("kernel configuration declares no local readiness listener");
+    }
+    Ok(targets)
 }
 
 fn discover_managed_kernels(registry: &mut KernelRegistry) {
@@ -339,5 +468,49 @@ fn discover_managed_kernels(registry: &mut KernelRegistry) {
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| "managed-unknown".into());
         registry.set_installed(id, path, version);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_listeners_from_sing_box_and_mihomo_shapes() {
+        let sing_box = serde_json::json!({
+            "inbounds": [
+                {"type": "socks", "listen": "127.0.0.1", "listen_port": 1080},
+                {"type": "http", "listen": "127.0.0.1", "listen_port": 2080}
+            ]
+        });
+        assert_eq!(
+            listener_targets(&serde_json::to_vec(&sing_box).unwrap()).unwrap(),
+            vec![
+                ListenerTarget {
+                    host: "127.0.0.1".into(),
+                    port: 1080
+                },
+                ListenerTarget {
+                    host: "127.0.0.1".into(),
+                    port: 2080
+                },
+            ]
+        );
+
+        let mihomo = serde_json::json!({"port": 2080, "socks-port": 1080});
+        assert_eq!(
+            listener_targets(&serde_json::to_vec(&mihomo).unwrap())
+                .unwrap()
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    fn readiness_probe_rejects_config_without_listener() {
+        let error = listener_targets(br#"{"outbounds": []}"#)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("no local readiness listener"));
     }
 }
