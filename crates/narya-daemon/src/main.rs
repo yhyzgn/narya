@@ -1,4 +1,5 @@
 mod config_gen;
+mod installer;
 mod kernel;
 mod proxy;
 
@@ -226,15 +227,20 @@ async fn handle_request_inner(
         }
         "GetKernelStatus" => Ok(serde_json::to_value(kernel_status(&mut state.kernel))?),
         "InstallKernel" | "UpgradeKernel" => {
-            let kernel = request
-                .params
-                .get("kernel")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or_default();
-            let id: KernelId = kernel.parse()?;
-            anyhow::bail!(
-                "verified artifact source is required before installing or upgrading {id}"
-            )
+            let artifact: installer::KernelArtifactRequest =
+                serde_json::from_value(request.params.clone())
+                    .context("invalid kernel artifact request")?;
+            let log_tx = state.log_tx.clone();
+            let installed = state
+                .kernel
+                .install(&artifact, log_tx, request.method == "UpgradeKernel")
+                .await?;
+            Ok(serde_json::json!({
+                "kernel": installed.kernel,
+                "version": installed.version,
+                "binary_path": installed.binary_path,
+                "operation": request.method.to_ascii_lowercase()
+            }))
         }
         _ => anyhow::bail!("Unknown method: {}", request.method),
     }

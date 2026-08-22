@@ -72,6 +72,8 @@ impl std::str::FromStr for KernelId {
 pub enum KernelState {
     NotInstalled,
     Installed,
+    Installing,
+    Upgrading,
     Starting,
     Running,
     Stopping,
@@ -83,6 +85,8 @@ impl KernelState {
         match self {
             Self::NotInstalled => "not_installed",
             Self::Installed => "installed",
+            Self::Installing => "installing",
+            Self::Upgrading => "upgrading",
             Self::Starting => "starting",
             Self::Running => "running",
             Self::Stopping => "stopping",
@@ -216,6 +220,15 @@ impl KernelRegistry {
             return Err(KernelError::NotInstalled(id));
         }
         Ok(record)
+    }
+
+    pub fn set_installed(&mut self, id: KernelId, path: PathBuf, version: String) {
+        let record = self.record_mut(id);
+        record.binary_path = Some(path);
+        record.version = Some(version);
+        record.state = KernelState::Installed;
+        record.healthy = false;
+        record.failure = None;
     }
 
     pub fn set_state(

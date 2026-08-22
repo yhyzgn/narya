@@ -93,17 +93,12 @@ mod tests {
                 "main Liora shell must wire visible connection actions through {callback}"
             );
         }
-        assert!(
-            app_shell.contains(".disabled(true)"),
-            "kernel installation must not present a fake actionable success path"
-        );
-
         let daemon = workspace_file("crates/narya-daemon/src/main.rs");
         assert!(
-            daemon.contains("verified artifact source is required")
+            daemon.contains("KernelArtifactRequest")
                 && daemon.contains("InstallKernel")
                 && daemon.contains("UpgradeKernel"),
-            "kernel install and upgrade must fail closed without verified artifacts"
+            "kernel install and upgrade must require a verified artifact request"
         );
         assert!(
             daemon.contains("read_frame")

@@ -1,3 +1,4 @@
+use crate::installer::{self, InstalledKernel, KernelArtifactRequest};
 use anyhow::{anyhow, Result};
 use narya_kernel::{KernelId, KernelRecord, KernelRegistry, KernelState};
 use std::process::Stdio;
@@ -13,10 +14,76 @@ pub struct KernelManager {
 
 impl KernelManager {
     pub fn new() -> Self {
+        let mut registry = KernelRegistry::probe();
+        discover_managed_kernels(&mut registry);
         Self {
-            registry: KernelRegistry::probe(),
+            registry,
             child: None,
             active: None,
+        }
+    }
+
+    pub async fn install(
+        &mut self,
+        request: &KernelArtifactRequest,
+        log_tx: broadcast::Sender<String>,
+        requested_upgrade: bool,
+    ) -> Result<InstalledKernel> {
+        if self.active.is_some() {
+            anyhow::bail!("cannot install or upgrade a kernel while another kernel is running")
+        }
+        let upgrading = self.registry.record(request.kernel).binary_path.is_some();
+        if requested_upgrade && !upgrading {
+            anyhow::bail!(
+                "cannot upgrade kernel {} because it is not installed",
+                request.kernel
+            );
+        }
+        if !requested_upgrade && upgrading {
+            anyhow::bail!(
+                "kernel {} is already installed; use UpgradeKernel to replace it",
+                request.kernel
+            );
+        }
+        self.registry.set_state(
+            request.kernel,
+            if upgrading {
+                KernelState::Upgrading
+            } else {
+                KernelState::Installing
+            },
+            false,
+            None,
+        );
+        match installer::install(request, &narya_ipc::kernel_install_dir(), upgrading).await {
+            Ok(installed) => {
+                self.registry.set_installed(
+                    installed.kernel,
+                    installed.binary_path.clone(),
+                    installed.version.clone(),
+                );
+                let _ = log_tx.send(format!(
+                    "INFO kernel {} {} successfully {}",
+                    installed.kernel,
+                    installed.version,
+                    if upgrading { "upgraded" } else { "installed" }
+                ));
+                Ok(installed)
+            }
+            Err(error) => {
+                let previous = self.registry.record(request.kernel).binary_path.is_some();
+                self.registry.set_state(
+                    request.kernel,
+                    if previous {
+                        KernelState::Installed
+                    } else {
+                        KernelState::Failed
+                    },
+                    false,
+                    Some(error.to_string()),
+                );
+                Err(error)
+            }
         }
     }
 
@@ -143,5 +210,21 @@ impl KernelManager {
                     .set_state(id, KernelState::Failed, false, Some(error.to_string()))
             }
         }
+    }
+}
+
+fn discover_managed_kernels(registry: &mut KernelRegistry) {
+    let root = narya_ipc::kernel_install_dir();
+    for id in KernelId::ALL {
+        let path = root.join(id.as_str()).join("current");
+        if !path.is_file() {
+            continue;
+        }
+        let version = std::fs::read_to_string(path.with_file_name("version"))
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "managed-unknown".into());
+        registry.set_installed(id, path, version);
     }
 }

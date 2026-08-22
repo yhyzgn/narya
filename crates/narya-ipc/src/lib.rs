@@ -172,6 +172,14 @@ pub fn kernel_config_path() -> PathBuf {
     runtime_dir().join("kernel.json")
 }
 
+pub fn kernel_install_dir() -> PathBuf {
+    let base = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))
+        .unwrap_or_else(|| std::env::temp_dir().join("narya-data"));
+    base.join("narya").join("kernels")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
