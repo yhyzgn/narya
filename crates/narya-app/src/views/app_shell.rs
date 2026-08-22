@@ -610,6 +610,7 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
 
 fn settings_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
     let kernel_infos = snapshot.kernels.clone();
+    let model_for_kernel_switch = model.clone();
     let kernel_label = snapshot
         .kernels
         .first()
@@ -726,14 +727,40 @@ fn settings_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nary
                         .column()
                         .gap_md()
                         .children(kernel_infos.into_iter().map(|k| {
-                            narya_ui::detail_field(
-                                k.name,
-                                if k.installed {
-                                    "已安装"
-                                } else {
-                                    "未安装"
-                                },
-                            )
+                            let name = k.name.clone();
+                            let active = name == snapshot.active_kernel;
+                            Flex::new()
+                                .row()
+                                .justify_between()
+                                .center()
+                                .child(narya_ui::detail_field(
+                                    name.clone(),
+                                    if k.installed {
+                                        "已安装"
+                                    } else {
+                                        "未安装"
+                                    },
+                                ))
+                                .when(k.installed, |element| {
+                                    element.child(
+                                        NaryaButton::ghost(if active {
+                                            "当前内核"
+                                        } else {
+                                            "切换"
+                                        })
+                                        .disabled(active)
+                                        .on_click({
+                                            let model = model_for_kernel_switch.clone();
+                                            move |_, _, cx| {
+                                                AppState::select_kernel_and_start(
+                                                    model.clone(),
+                                                    cx,
+                                                    name.clone(),
+                                                )
+                                            }
+                                        }),
+                                    )
+                                })
                         }))
                         .child(KernelArtifactForm {
                             model: model.clone(),

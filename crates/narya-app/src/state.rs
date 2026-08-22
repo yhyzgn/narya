@@ -390,10 +390,31 @@ impl AppState {
 
     pub fn set_kernel_artifact_kernel(&mut self, kernel: String, cx: &mut Context<Self>) {
         self.kernel_artifact_kernel = kernel;
-        self.active_kernel = self.kernel_artifact_kernel.clone();
         self.save();
         self.kernel_error = None;
         cx.notify();
+    }
+
+    pub fn select_kernel_and_start(model: Entity<Self>, cx: &mut App, kernel: String) {
+        let installed = model
+            .read(cx)
+            .kernels
+            .iter()
+            .any(|item| item.name == kernel && item.installed);
+        if !installed {
+            model.update(cx, |state, cx| {
+                state.kernel_error = Some(format!("内核 {kernel} 尚未安装，不能切换"));
+                cx.notify();
+            });
+            return;
+        }
+        model.update(cx, |state, cx| {
+            state.active_kernel = kernel;
+            state.kernel_error = None;
+            state.save();
+            cx.notify();
+        });
+        Self::set_proxy_running(model, cx, true);
     }
 
     pub fn set_kernel_artifact_version(&mut self, version: String, cx: &mut Context<Self>) {
