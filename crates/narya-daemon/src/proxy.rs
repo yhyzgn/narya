@@ -131,9 +131,18 @@ impl SystemProxy for MacOSNetworkSetup {
     }
 }
 
+pub struct WindowsSystemProxy;
+
+impl SystemProxy for WindowsSystemProxy {
+    async fn set_enabled(&self, _enabled: bool) -> Result<()> {
+        anyhow::bail!("Windows system proxy backend is not implemented safely yet")
+    }
+}
+
 pub enum ProxyBackend {
     Linux(LinuxGSettings),
     MacOS(MacOSNetworkSetup),
+    Windows(WindowsSystemProxy),
 }
 
 impl ProxyBackend {
@@ -160,6 +169,7 @@ impl ProxyBackend {
                 }
             }
             Self::MacOS(_) => anyhow::bail!("macOS TUN backend is not available safely yet"),
+            Self::Windows(_) => anyhow::bail!("Windows TUN backend is not implemented safely yet"),
         }
     }
 
@@ -167,6 +177,9 @@ impl ProxyBackend {
         match self {
             Self::Linux(backend) => backend.capture().await,
             Self::MacOS(_) => anyhow::bail!("macOS proxy snapshot is not implemented safely yet"),
+            Self::Windows(_) => {
+                anyhow::bail!("Windows proxy snapshot is not implemented safely yet")
+            }
         }
     }
 
@@ -176,6 +189,9 @@ impl ProxyBackend {
             Self::MacOS(_) => {
                 anyhow::bail!("macOS proxy transaction is not implemented safely yet")
             }
+            Self::Windows(_) => {
+                anyhow::bail!("Windows proxy transaction is not implemented safely yet")
+            }
         }
     }
 
@@ -183,6 +199,9 @@ impl ProxyBackend {
         match self {
             Self::Linux(backend) => backend.restore(snapshot).await,
             Self::MacOS(_) => anyhow::bail!("macOS proxy restore is not implemented safely yet"),
+            Self::Windows(_) => {
+                anyhow::bail!("Windows proxy restore is not implemented safely yet")
+            }
         }
     }
 }
@@ -192,6 +211,7 @@ impl SystemProxy for ProxyBackend {
         match self {
             Self::Linux(backend) => backend.set_enabled(enabled).await,
             Self::MacOS(backend) => backend.set_enabled(enabled).await,
+            Self::Windows(backend) => backend.set_enabled(enabled).await,
         }
     }
 }
@@ -270,5 +290,14 @@ mod tests {
             format_gvariant_strings(&["localhost".into()]),
             "['localhost']"
         );
+    }
+
+    #[tokio::test]
+    async fn windows_backend_fails_closed_instead_of_running_gsettings() {
+        let error = ProxyBackend::Windows(WindowsSystemProxy)
+            .set_enabled(true)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("Windows system proxy backend"));
     }
 }

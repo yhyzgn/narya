@@ -51,7 +51,7 @@
 
 ## 风险六：平台代理能力不一致（高）
 
-- 证据和影响范围：`crates/narya-daemon/src/proxy.rs` 当前只对 Linux GNOME 实现完整快照/apply/restore；macOS 与 TUN 明确返回 unsupported，Windows 尚未接入。
+- 证据和影响范围：`crates/narya-daemon/src/proxy.rs` 当前只对 Linux GNOME 实现完整快照/apply/restore；macOS、Windows 与 TUN 明确返回 unsupported，Windows 已有独立 fail-closed backend，不会调用 Linux gsettings。
 - 触发条件：在未实现平台上调用 `SetRoutingMode`，或发行版没有 `gsettings`/权限不足。
 - 失败模式：连接动作被拒绝；不会假报成功，但用户需要明确的能力提示。
 - 缓解措施和必需验证：每个平台 backend 单独实现快照、apply、restore 和 fake tests；真实流量探针通过后才能开放默认模式。

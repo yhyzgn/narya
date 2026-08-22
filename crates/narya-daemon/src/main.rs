@@ -6,7 +6,9 @@ mod proxy;
 mod ruleset_cache;
 
 use crate::kernel::KernelManager;
-use crate::proxy::{LinuxGSettings, MacOSNetworkSetup, ProxyBackend, SystemProxy};
+use crate::proxy::{
+    LinuxGSettings, MacOSNetworkSetup, ProxyBackend, SystemProxy, WindowsSystemProxy,
+};
 use anyhow::{Context, Result};
 use narya_ipc::{decode_frame, encode_frame, IpcRequest, IpcResponse};
 use narya_kernel::KernelId;
@@ -60,6 +62,8 @@ async fn main() -> Result<()> {
 
     let proxy = if cfg!(target_os = "macos") {
         ProxyBackend::MacOS(MacOSNetworkSetup)
+    } else if cfg!(target_os = "windows") {
+        ProxyBackend::Windows(WindowsSystemProxy)
     } else {
         ProxyBackend::Linux(LinuxGSettings)
     };
