@@ -10,7 +10,7 @@ use crate::proxy::{LinuxGSettings, MacOSNetworkSetup, ProxyBackend, SystemProxy}
 use anyhow::{Context, Result};
 use narya_ipc::{decode_frame, encode_frame, IpcRequest, IpcResponse};
 use narya_kernel::KernelId;
-use narya_platform::{ProxyMode, RoutingPlan, SystemProxyPlan, SystemProxyState};
+use narya_platform::{ProxyMode, RoutingPlan, SystemProxyState};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -352,8 +352,10 @@ async fn handle_request_inner(
 async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()> {
     match mode {
         ProxyMode::Disabled => {
-            if let Some(snapshot) = state.proxy_snapshot.take() {
-                state.proxy.restore(&snapshot).await?
+            if let Some(snapshot) = state.proxy_snapshot.as_ref() {
+                let snapshot = snapshot.clone();
+                state.proxy.restore(&snapshot).await?;
+                state.proxy_snapshot = None;
             } else {
                 state.proxy.set_enabled(false).await?
             }
@@ -361,54 +363,86 @@ async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()
             Ok(())
         }
         ProxyMode::SystemProxy => {
+            if state.active_mode == ProxyMode::SystemProxy {
+                return Ok(());
+            }
             if state.active_mode == ProxyMode::Tun {
                 anyhow::bail!(
                     "cannot switch from TUN to system proxy without restarting the kernel configuration"
                 );
             }
+            let routing = state
+                .configured_routing
+                .as_ref()
+                .ok_or_else(|| {
+                    anyhow::anyhow!("system proxy requires a running kernel configuration")
+                })?
+                .clone();
+            if routing.mode != ProxyMode::SystemProxy {
+                anyhow::bail!(
+                    "system proxy mode does not match the running kernel configuration ({})",
+                    routing.mode.as_str()
+                );
+            }
+            require_healthy_kernel(state)?;
             let snapshot = state.proxy.capture().await?;
-            let plan = SystemProxyPlan {
-                http_host: "127.0.0.1".into(),
-                http_port: 2080,
-                socks_host: "127.0.0.1".into(),
-                socks_port: 1080,
-                bypass_domains: vec!["localhost".into(), "127.0.0.1".into(), "::1".into()],
-            };
+            let plan = routing.system_proxy.clone();
+            state.proxy_snapshot = Some(snapshot.clone());
             if let Err(apply_error) = state.proxy.apply_system_proxy(&plan).await {
                 return match state.proxy.restore(&snapshot).await {
-                    Ok(()) => Err(apply_error),
+                    Ok(()) => {
+                        state.proxy_snapshot = None;
+                        Err(apply_error)
+                    }
                     Err(restore_error) => Err(anyhow::anyhow!(
                         "proxy apply failed: {apply_error}; restore failed: {restore_error}"
                     )),
                 };
             }
-            state.proxy_snapshot = Some(snapshot);
             state.active_mode = ProxyMode::SystemProxy;
             Ok(())
         }
         ProxyMode::Tun => {
+            if state.active_mode == ProxyMode::Tun {
+                return Ok(());
+            }
             let tun = state.configured_routing.as_ref().ok_or_else(|| {
                 anyhow::anyhow!("TUN mode requires a running kernel configuration")
             })?;
+            if tun.mode != ProxyMode::Tun {
+                anyhow::bail!(
+                    "TUN mode does not match the running kernel configuration ({})",
+                    tun.mode.as_str()
+                );
+            }
             let tun = tun
                 .tun
                 .as_ref()
                 .cloned()
                 .ok_or_else(|| anyhow::anyhow!("TUN mode requires an explicit TUN plan"))?;
             state.proxy.preflight_tun(&tun).await?;
-            let healthy =
-                state.kernel.records().into_iter().any(|record| {
-                    record.healthy && record.state == narya_kernel::KernelState::Running
-                });
-            if !healthy {
-                anyhow::bail!("TUN mode requires a healthy kernel process");
-            }
-            if let Some(snapshot) = state.proxy_snapshot.take() {
+            require_healthy_kernel(state)?;
+            if let Some(snapshot) = state.proxy_snapshot.as_ref() {
+                let snapshot = snapshot.clone();
                 state.proxy.restore(&snapshot).await?;
+                state.proxy_snapshot = None;
             }
             state.active_mode = ProxyMode::Tun;
             Ok(())
         }
+    }
+}
+
+fn require_healthy_kernel(state: &mut DaemonState) -> Result<()> {
+    let healthy = state
+        .kernel
+        .records()
+        .into_iter()
+        .any(|record| record.healthy && record.state == narya_kernel::KernelState::Running);
+    if healthy {
+        Ok(())
+    } else {
+        anyhow::bail!("routing mode requires a healthy kernel process")
     }
 }
 
@@ -484,4 +518,24 @@ fn kernel_status(kernel: &mut KernelManager) -> Vec<narya_ipc::KernelInfo> {
             failure: record.failure,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn routing_mode_requires_healthy_kernel() {
+        let (log_tx, _) = broadcast::channel(1);
+        let mut state = DaemonState {
+            kernel: KernelManager::new(),
+            proxy: ProxyBackend::Linux(LinuxGSettings),
+            log_tx,
+            proxy_snapshot: None,
+            configured_routing: None,
+            active_mode: ProxyMode::Disabled,
+        };
+        let error = require_healthy_kernel(&mut state).unwrap_err();
+        assert!(error.to_string().contains("healthy kernel process"));
+    }
 }

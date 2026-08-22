@@ -40,6 +40,7 @@
 - Linux TUN 检查 `/dev/net/tun` 与 `iproute2`，并要求健康内核；macOS 仍明确拒绝。
 - daemon 追踪 configured/active mode，阻止 TUN 与 system proxy 同时活动。
 - 新增 `GetRoutingStatus`，返回 configured mode、active mode 和 kernel health。
+- `SetRoutingMode` 现在要求运行配置与请求模式一致，并要求内核处于健康运行态；system proxy 使用启动配置中的端口和 bypass 列表，代理快照只有恢复成功后才清除。
 
 ## 验证
 

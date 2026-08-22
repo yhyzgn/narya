@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use narya_core::Node;
 use narya_kernel::KernelId;
-use narya_platform::{ProxyMode, RoutingPlan};
+use narya_platform::{ProxyMode, RoutingPlan, SystemProxyPlan};
 use narya_rules::{Action, Condition, GroupStrategy, RoutingGroup, RuleSet, RuleSetSource};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -154,6 +154,7 @@ impl ConfigGenerator {
                 config.plan.mode.as_str()
             );
         }
+        validate_system_proxy_plan(&config.plan.system_proxy)?;
 
         let group_tags = config
             .groups
@@ -171,13 +172,13 @@ impl ConfigGenerator {
             json!({
                 "type": "socks",
                 "tag": "socks-in",
-                "listen": "127.0.0.1",
+                "listen": config.plan.system_proxy.socks_host,
                 "listen_port": config.plan.system_proxy.socks_port
             }),
             json!({
                 "type": "http",
                 "tag": "http-in",
-                "listen": "127.0.0.1",
+                "listen": config.plan.system_proxy.http_host,
                 "listen_port": config.plan.system_proxy.http_port
             }),
         ];
@@ -238,6 +239,7 @@ impl ConfigGenerator {
 }
 
 fn generate_mihomo_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
+    validate_system_proxy_plan(&config.plan.system_proxy)?;
     validate_rule_set_references(&config.rules, &config.rule_sets)?;
     let proxy = mihomo_proxy(node)?;
     let proxies = vec![proxy];
@@ -275,6 +277,7 @@ fn generate_mihomo_config(node: &Node, config: &RoutingConfig) -> Result<Value> 
     let mut root = json!({
         "port": config.plan.system_proxy.http_port,
         "socks-port": config.plan.system_proxy.socks_port,
+        "bind-address": config.plan.system_proxy.http_host,
         "allow-lan": false,
         "mode": "rule",
         "log-level": "info",
@@ -409,6 +412,7 @@ fn mihomo_rule(rule: &narya_rules::Rule) -> Result<String> {
 }
 
 fn generate_xray_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
+    validate_system_proxy_plan(&config.plan.system_proxy)?;
     validate_rule_set_references(&config.rules, &config.rule_sets)?;
     if config.mode == ProxyMode::Tun {
         bail!("xray-core adapter does not support TUN mode yet");
@@ -484,8 +488,8 @@ fn generate_xray_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
     let mut root = json!({
         "log": {"loglevel": "warning"},
         "inbounds": [
-            {"listen": "127.0.0.1", "port": config.plan.system_proxy.socks_port, "protocol": "socks", "settings": {"udp": true}},
-            {"listen": "127.0.0.1", "port": config.plan.system_proxy.http_port, "protocol": "http"}
+            {"listen": config.plan.system_proxy.socks_host, "port": config.plan.system_proxy.socks_port, "protocol": "socks", "settings": {"udp": true}},
+            {"listen": config.plan.system_proxy.http_host, "port": config.plan.system_proxy.http_port, "protocol": "http"}
         ],
         "outbounds": outbounds,
         "routing": {"domainStrategy": "AsIs", "rules": routing_rules}
@@ -494,6 +498,25 @@ fn generate_xray_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
         root["routing"]["balancers"] = Value::Array(balancers);
     }
     Ok(root)
+}
+
+fn validate_system_proxy_plan(plan: &SystemProxyPlan) -> Result<()> {
+    if plan.http_port == 0 || plan.socks_port == 0 {
+        bail!("system proxy listener ports must be non-zero");
+    }
+    if plan.http_host != plan.socks_host {
+        bail!("HTTP and SOCKS proxy listeners must use the same local bind host");
+    }
+    let host = plan.http_host.trim();
+    let is_loopback = host == "localhost"
+        || host
+            .parse::<IpAddr>()
+            .ok()
+            .is_some_and(|address| address.is_loopback());
+    if !is_loopback {
+        bail!("system proxy listeners must bind to a loopback host");
+    }
+    Ok(())
 }
 
 fn effective_dns_config(config: &RoutingConfig) -> DnsConfig {
@@ -1078,6 +1101,24 @@ mod tests {
         let xray =
             ConfigGenerator::generate_json_for_kernel(KernelId::Xray, &node, &config).unwrap();
         assert_eq!(xray["routing"]["balancers"][0]["tag"], "proxy");
+    }
+
+    #[test]
+    fn proxy_listeners_must_be_loopback_and_share_bind_host() {
+        let mut config = RoutingConfig::default();
+        config.plan.system_proxy.http_host = "0.0.0.0".into();
+        config.plan.system_proxy.socks_host = "0.0.0.0".into();
+        let error =
+            ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
+                .unwrap_err();
+        assert!(error.to_string().contains("loopback"));
+
+        config.plan.system_proxy.http_host = "127.0.0.1".into();
+        config.plan.system_proxy.socks_host = "127.0.0.2".into();
+        let error =
+            ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
+                .unwrap_err();
+        assert!(error.to_string().contains("same local bind host"));
     }
 
     #[test]
