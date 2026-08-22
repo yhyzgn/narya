@@ -89,6 +89,10 @@ struct ShellSnapshot {
     rule_set_draft_version: String,
     rule_set_draft_sha256: String,
     rule_set_error: Option<String>,
+    group_error: Option<String>,
+    rule_editor_error: Option<String>,
+    rule_io_path: String,
+    rule_io_status: Option<String>,
     running: bool,
     active_node_name: String,
     active_latency: u32,
@@ -130,6 +134,10 @@ impl ShellSnapshot {
             rule_set_draft_version: state.rule_set_draft_version.clone(),
             rule_set_draft_sha256: state.rule_set_draft_sha256.clone(),
             rule_set_error: state.rule_set_error.clone(),
+            group_error: state.group_error.clone(),
+            rule_editor_error: state.rule_editor_error.clone(),
+            rule_io_path: state.rule_io_path.clone(),
+            rule_io_status: state.rule_io_status.clone(),
             running: state.kernel_running,
             active_node_name: active_node
                 .map(|node| node.name.clone())
@@ -1052,6 +1060,14 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                 .into_any_element(),
         ]))
         .row(NaryaCard::titled(
+            "规则配置文件",
+            RuleIoControls {
+                model: model.clone(),
+                path: snapshot.rule_io_path.clone(),
+                status: snapshot.rule_io_status.clone(),
+            },
+        ))
+        .row(NaryaCard::titled(
             "分流规则",
             Flex::new()
                 .column()
@@ -1076,7 +1092,11 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                                 rule_id: rule.id.clone(),
                                 priority: rule.priority,
                             })
-                            .child(Text::new(rule_condition_summary(&rule)))
+                            .child(RuleConditionEditor {
+                                model: model.clone(),
+                                rule_id: rule.id.clone(),
+                                conditions: rule.conditions.clone(),
+                            })
                             .child(RuleActionSelect {
                                 model: model.clone(),
                                 rule_id: rule.id.clone(),
@@ -1095,6 +1115,9 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                     .into_any_element()
                 })),
         ))
+        .when_some(snapshot.rule_editor_error.clone(), |element, error| {
+            element.row(NaryaCard::titled("规则校验", Text::new(error)))
+        })
         .row(NaryaCard::titled(
             "分流组",
             Flex::new()
@@ -1103,12 +1126,13 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                 .children(groups.into_iter().map(|group| {
                     let group_id = group.id.clone();
                     let removable = group.id != "proxy";
-                    let model = model.clone();
+                    let remove_model = model.clone();
+                    let editor_group = group.clone();
                     Flex::new()
                         .row()
                         .gap_lg()
                         .align_center()
-                        .child(Text::new(group.id))
+                        .child(Text::new(group.id.clone()))
                         .child(Text::new(format!(
                             "{} · {}",
                             group_strategy_label(group.strategy),
@@ -1116,15 +1140,22 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                         )))
                         .child(NaryaButton::ghost("删除").disabled(!removable).on_click(
                             move |_, _, cx| {
-                                AppState::remove_group(model.clone(), cx, group_id.clone())
+                                AppState::remove_group(remove_model.clone(), cx, group_id.clone())
                             },
                         ))
+                        .child(GroupEditor {
+                            model: model.clone(),
+                            group: editor_group,
+                        })
                         .into_any_element()
                 }))
                 .child(
                     NaryaButton::ghost("新增分流组")
                         .on_click(move |_, _, cx| AppState::add_group(model_for_group.clone(), cx)),
-                ),
+                )
+                .when_some(snapshot.group_error.clone(), |element, error| {
+                    element.child(Text::new(error))
+                }),
         ))
         .row(NaryaCard::titled(
             "规则集",
@@ -1203,6 +1234,284 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                         }),
                 ),
         ))
+}
+
+struct RuleIoControls {
+    model: Entity<AppState>,
+    path: String,
+    status: Option<String>,
+}
+
+impl NaryaRenderOnce for RuleIoControls {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let model_path = self.model.clone();
+        let model_export = self.model.clone();
+        let model_import = self.model.clone();
+        Flex::new()
+            .row()
+            .gap_md()
+            .child(cx.new(|cx| {
+                Input::new(self.path, cx)
+                    .placeholder("绝对路径，例如 /tmp/narya-routes.json")
+                    .width(px(420.0))
+                    .on_change(move |value, input_cx| {
+                        model_path.update(input_cx, |state, state_cx| {
+                            state.set_rule_io_path(value.to_string(), state_cx)
+                        });
+                    })
+            }))
+            .child(
+                NaryaButton::ghost("导入")
+                    .on_click(move |_, _, app| AppState::import_rules(model_import.clone(), app)),
+            )
+            .child(
+                NaryaButton::ghost("导出")
+                    .on_click(move |_, _, app| AppState::export_rules(model_export.clone(), app)),
+            )
+            .when_some(self.status, |element, status| {
+                element.child(Text::new(status))
+            })
+    }
+}
+
+impl NaryaIntoElement for RuleIoControls {
+    type Element = NaryaViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        NaryaViewElement::new(self)
+    }
+}
+
+struct RuleConditionEditor {
+    model: Entity<AppState>,
+    rule_id: String,
+    conditions: Vec<narya_rules::Condition>,
+}
+
+impl NaryaRenderOnce for RuleConditionEditor {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let rule_id = self.rule_id.clone();
+        let add_model = self.model.clone();
+        let mut editor = Flex::new().column().gap_sm();
+        for (index, condition) in self.conditions.into_iter().enumerate() {
+            let (kind, value) = condition_editor_value(&condition);
+            let kinds = [
+                "domain".to_string(),
+                "domain_suffix".to_string(),
+                "ip_cidr".to_string(),
+                "port".to_string(),
+                "process".to_string(),
+                "rule_set".to_string(),
+                "any".to_string(),
+            ];
+            let labels = kinds
+                .iter()
+                .map(|kind| condition_kind_label(kind).to_string())
+                .collect::<Vec<_>>();
+            let selected = kinds.iter().position(|item| item == &kind).unwrap_or(0);
+            let model_select = self.model.clone();
+            let model_value = self.model.clone();
+            let model_remove = self.model.clone();
+            let rule_for_select = rule_id.clone();
+            let rule_for_value = rule_id.clone();
+            let rule_for_remove = rule_id.clone();
+            editor = editor.child(
+                Flex::new()
+                    .row()
+                    .gap_sm()
+                    .align_center()
+                    .child(Text::new(if index == 0 { "条件" } else { "AND" }))
+                    .child(cx.new(|cx| {
+                        Select::new(labels, Some(selected), cx)
+                            .width(px(130.0))
+                            .on_change(move |next, _, app| {
+                                if let Some(next_kind) = kinds.get(next) {
+                                    AppState::set_rule_condition(
+                                        model_select.clone(),
+                                        app,
+                                        rule_for_select.clone(),
+                                        index,
+                                        next_kind.clone(),
+                                        condition_default_value(next_kind),
+                                    );
+                                }
+                            })
+                    }))
+                    .child(cx.new(|cx| {
+                        Input::new(value, cx)
+                            .placeholder("条件值")
+                            .width(px(210.0))
+                            .on_change(move |next, input_cx| {
+                                AppState::set_rule_condition(
+                                    model_value.clone(),
+                                    input_cx,
+                                    rule_for_value.clone(),
+                                    index,
+                                    kind.clone(),
+                                    next.to_string(),
+                                );
+                            })
+                    }))
+                    .child(NaryaButton::ghost("移除").on_click(move |_, _, app| {
+                        AppState::remove_rule_condition(
+                            model_remove.clone(),
+                            app,
+                            rule_for_remove.clone(),
+                            index,
+                        )
+                    })),
+            );
+        }
+        editor.child(
+            NaryaButton::ghost("添加 AND 条件").on_click(move |_, _, app| {
+                AppState::add_rule_condition(add_model.clone(), app, rule_id.clone())
+            }),
+        )
+    }
+}
+
+impl NaryaIntoElement for RuleConditionEditor {
+    type Element = NaryaViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        NaryaViewElement::new(self)
+    }
+}
+
+struct GroupEditor {
+    model: Entity<AppState>,
+    group: narya_rules::RoutingGroup,
+}
+
+impl NaryaRenderOnce for GroupEditor {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
+        let group_id = self.group.id.clone();
+        let select_model = self.model.clone();
+        let members_model = self.model.clone();
+        let url_model = self.model.clone();
+        let interval_model = self.model.clone();
+        let strategies = vec![
+            "手动选择".to_string(),
+            "URL 测试".to_string(),
+            "故障转移".to_string(),
+            "负载均衡".to_string(),
+        ];
+        let selected = match self.group.strategy {
+            narya_rules::GroupStrategy::Select => 0,
+            narya_rules::GroupStrategy::UrlTest => 1,
+            narya_rules::GroupStrategy::Fallback => 2,
+            narya_rules::GroupStrategy::LoadBalance => 3,
+        };
+        let id_for_select = group_id.clone();
+        let id_for_members = group_id.clone();
+        let id_for_url = group_id.clone();
+        let id_for_interval = group_id;
+        Flex::new()
+            .row()
+            .gap_sm()
+            .child(cx.new(|cx| {
+                Select::new(strategies, Some(selected), cx)
+                    .width(px(130.0))
+                    .on_change(move |index, _, app| {
+                        AppState::set_group_strategy(
+                            select_model.clone(),
+                            app,
+                            id_for_select.clone(),
+                            index,
+                        )
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(self.group.members.join(", "), cx)
+                    .placeholder("成员 outbound，用逗号分隔")
+                    .width(px(260.0))
+                    .on_change(move |value, input_cx| {
+                        AppState::set_group_members(
+                            members_model.clone(),
+                            input_cx,
+                            id_for_members.clone(),
+                            value.to_string(),
+                        )
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(self.group.url.unwrap_or_default(), cx)
+                    .placeholder("URL 测试地址")
+                    .width(px(250.0))
+                    .on_change(move |value, input_cx| {
+                        AppState::set_group_url(
+                            url_model.clone(),
+                            input_cx,
+                            id_for_url.clone(),
+                            value.to_string(),
+                        )
+                    })
+            }))
+            .child(cx.new(|cx| {
+                Input::new(
+                    self.group
+                        .interval_secs
+                        .map(|value| value.to_string())
+                        .unwrap_or_default(),
+                    cx,
+                )
+                .placeholder("间隔秒")
+                .width(px(100.0))
+                .on_change(move |value, input_cx| {
+                    AppState::set_group_interval(
+                        interval_model.clone(),
+                        input_cx,
+                        id_for_interval.clone(),
+                        value.to_string(),
+                    )
+                })
+            }))
+    }
+}
+
+impl NaryaIntoElement for GroupEditor {
+    type Element = NaryaViewElement<Self>;
+
+    fn into_element(self) -> Self::Element {
+        NaryaViewElement::new(self)
+    }
+}
+
+fn condition_editor_value(condition: &narya_rules::Condition) -> (String, String) {
+    match condition {
+        narya_rules::Condition::Domain(value) => ("domain".into(), value.clone()),
+        narya_rules::Condition::DomainSuffix(value) => ("domain_suffix".into(), value.clone()),
+        narya_rules::Condition::IpCidr { network, prefix } => {
+            ("ip_cidr".into(), format!("{network}/{prefix}"))
+        }
+        narya_rules::Condition::Port(value) => ("port".into(), value.to_string()),
+        narya_rules::Condition::Process(value) => ("process".into(), value.clone()),
+        narya_rules::Condition::RuleSet(value) => ("rule_set".into(), value.clone()),
+        narya_rules::Condition::Any => ("any".into(), String::new()),
+    }
+}
+
+fn condition_kind_label(kind: &str) -> &'static str {
+    match kind {
+        "domain" => "域名",
+        "domain_suffix" => "域名后缀",
+        "ip_cidr" => "IP/CIDR",
+        "port" => "端口",
+        "process" => "进程",
+        "rule_set" => "规则集",
+        "any" => "所有请求",
+        _ => "条件",
+    }
+}
+
+fn condition_default_value(kind: &str) -> String {
+    match kind {
+        "domain" | "domain_suffix" | "process" | "rule_set" => "example.com".into(),
+        "ip_cidr" => "10.0.0.0/8".into(),
+        "port" => "443".into(),
+        "any" => String::new(),
+        _ => String::new(),
+    }
 }
 
 struct RuleSetForm {

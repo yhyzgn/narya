@@ -135,6 +135,17 @@ mod tests {
                 && !app_state.contains("Kernel installation is not implemented"),
             "kernel settings must submit real install/upgrade IPC requests"
         );
+        assert!(
+            app_state.contains("export_rules")
+                && app_state.contains("import_rules")
+                && app_state.contains("set_rule_condition")
+                && app_state.contains("set_group_strategy"),
+            "routing workbench must support validated import/export, AND conditions, and group strategies"
+        );
+        assert!(
+            app_state.contains("仍被规则引用") && app_state.contains("仍被规则引用，请先修改"),
+            "deleting referenced rule sets or groups must fail closed instead of silently retargeting"
+        );
         let installer = workspace_file("crates/narya-daemon/src/installer.rs");
         assert!(
             installer.contains("Ed25519") && installer.contains("signature verification"),

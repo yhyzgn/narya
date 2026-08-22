@@ -73,6 +73,103 @@ pub struct PersistedState {
     pub rule_sets: Vec<narya_rules::RuleSetSource>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RoutingBundle {
+    version: u32,
+    rules: Vec<narya_rules::Rule>,
+    groups: Vec<narya_rules::RoutingGroup>,
+    rule_sets: Vec<narya_rules::RuleSetSource>,
+}
+
+fn parse_condition(kind: &str, value: &str) -> Result<narya_rules::Condition, String> {
+    let value = value.trim();
+    match kind {
+        "domain" if !value.is_empty() => Ok(narya_rules::Condition::Domain(value.into())),
+        "domain_suffix" if !value.is_empty() => {
+            Ok(narya_rules::Condition::DomainSuffix(value.into()))
+        }
+        "process" if !value.is_empty() => Ok(narya_rules::Condition::Process(value.into())),
+        "rule_set" if !value.is_empty() => Ok(narya_rules::Condition::RuleSet(value.into())),
+        "ip_cidr" => {
+            let (network, prefix) = value
+                .rsplit_once('/')
+                .ok_or_else(|| "CIDR 条件格式应为地址/前缀，例如 10.0.0.0/8".to_string())?;
+            let network = network
+                .parse::<IpAddr>()
+                .map_err(|_| "CIDR 地址无效".to_string())?;
+            let prefix = prefix
+                .parse::<u8>()
+                .map_err(|_| "CIDR 前缀无效".to_string())?;
+            Ok(narya_rules::Condition::IpCidr { network, prefix })
+        }
+        "port" => Ok(narya_rules::Condition::Port(
+            value
+                .parse::<u16>()
+                .map_err(|_| "端口必须是 1-65535 的整数".to_string())?,
+        )),
+        "any" => Ok(narya_rules::Condition::Any),
+        _ => Err("条件值不能为空，或条件类型不支持".into()),
+    }
+}
+
+fn write_routing_bundle(path: &str, bundle: &RoutingBundle) -> Result<(), String> {
+    let path = std::path::Path::new(path);
+    if !path.is_absolute() {
+        return Err("导入导出路径必须是绝对路径".into());
+    }
+    let json = serde_json::to_vec_pretty(bundle).map_err(|error| error.to_string())?;
+    let temp = path.with_extension("narya.tmp");
+    std::fs::write(&temp, json).map_err(|error| error.to_string())?;
+    std::fs::rename(&temp, path).map_err(|error| error.to_string())
+}
+
+fn read_routing_bundle(path: &str) -> Result<RoutingBundle, String> {
+    let path = std::path::Path::new(path);
+    if !path.is_absolute() {
+        return Err("导入导出路径必须是绝对路径".into());
+    }
+    let json = std::fs::read(path).map_err(|error| error.to_string())?;
+    let bundle: RoutingBundle = serde_json::from_slice(&json).map_err(|error| error.to_string())?;
+    if bundle.version != 1 {
+        return Err(format!("不支持的规则配置版本 {}", bundle.version));
+    }
+    narya_rules::RuleSet::compile(bundle.rules.clone())
+        .map_err(|error| format!("规则校验失败：{error}"))?;
+    let mut group_ids = std::collections::HashSet::new();
+    for group in &bundle.groups {
+        group
+            .validate()
+            .map_err(|error| format!("分流组校验失败：{error}"))?;
+        if !group_ids.insert(group.id.as_str()) {
+            return Err(format!("重复的分流组 ID：{}", group.id));
+        }
+    }
+    let mut rule_set_ids = std::collections::HashSet::new();
+    for source in &bundle.rule_sets {
+        source
+            .validate()
+            .map_err(|error| format!("规则集校验失败：{error}"))?;
+        if !rule_set_ids.insert(source.id.as_str()) {
+            return Err(format!("重复的规则集 ID：{}", source.id));
+        }
+    }
+    for rule in &bundle.rules {
+        for condition in &rule.conditions {
+            if let narya_rules::Condition::RuleSet(id) = condition {
+                if !rule_set_ids.contains(id.as_str()) {
+                    return Err(format!("规则 {} 引用了未知规则集 {}", rule.id, id));
+                }
+            }
+        }
+        if let narya_rules::Action::Proxy(target) = &rule.action {
+            if !group_ids.contains(target.as_str()) {
+                return Err(format!("规则 {} 引用了未知分流组 {}", rule.id, target));
+            }
+        }
+    }
+    Ok(bundle)
+}
+
 pub struct AppState {
     pub nodes: Vec<narya_core::Node>,
     pub subscriptions: Vec<narya_core::Subscription>,
@@ -112,6 +209,10 @@ pub struct AppState {
     pub rule_set_draft_version: String,
     pub rule_set_draft_sha256: String,
     pub rule_set_error: Option<String>,
+    pub group_error: Option<String>,
+    pub rule_editor_error: Option<String>,
+    pub rule_io_path: String,
+    pub rule_io_status: Option<String>,
 }
 
 impl AppState {
@@ -174,6 +275,75 @@ impl AppState {
                     value if !value.trim().is_empty() => narya_rules::Action::Proxy(value.into()),
                     _ => rule.action.clone(),
                 };
+                state.save();
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn set_rule_condition(
+        model: Entity<Self>,
+        cx: &mut App,
+        rule_id: String,
+        index: usize,
+        kind: String,
+        value: String,
+    ) {
+        model.update(cx, |state, cx| {
+            let Some(rule) = state.rules.iter_mut().find(|rule| rule.id == rule_id) else {
+                return;
+            };
+            let condition = match parse_condition(&kind, &value) {
+                Ok(condition) => condition,
+                Err(error) => {
+                    state.rule_editor_error = Some(error);
+                    cx.notify();
+                    return;
+                }
+            };
+            if let Some(existing) = rule.conditions.get_mut(index) {
+                *existing = condition;
+            } else {
+                state.rule_editor_error = Some("条件索引已失效，请刷新规则页".into());
+                cx.notify();
+                return;
+            }
+            if let Err(error) = narya_rules::RuleSet::compile(state.rules.clone()) {
+                state.rule_editor_error = Some(format!("规则校验失败：{error}"));
+                cx.notify();
+                return;
+            }
+            state.rule_editor_error = None;
+            state.save();
+            cx.notify();
+        });
+    }
+
+    pub fn add_rule_condition(model: Entity<Self>, cx: &mut App, rule_id: String) {
+        model.update(cx, |state, cx| {
+            if let Some(rule) = state.rules.iter_mut().find(|rule| rule.id == rule_id) {
+                rule.conditions
+                    .push(narya_rules::Condition::DomainSuffix("example.com".into()));
+                state.rule_editor_error = None;
+                state.save();
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn remove_rule_condition(model: Entity<Self>, cx: &mut App, rule_id: String, index: usize) {
+        model.update(cx, |state, cx| {
+            let Some(rule) = state.rules.iter_mut().find(|rule| rule.id == rule_id) else {
+                return;
+            };
+            if rule.conditions.len() <= 1 {
+                state.rule_editor_error = Some("规则至少需要一个条件".into());
+                cx.notify();
+                return;
+            }
+            if index < rule.conditions.len() {
+                rule.conditions.remove(index);
+                state.rule_editor_error = None;
                 state.save();
                 cx.notify();
             }
@@ -485,6 +655,7 @@ impl AppState {
                 url: None,
                 interval_secs: None,
             });
+            state.group_error = None;
             state.save();
             cx.notify();
         });
@@ -495,14 +666,154 @@ impl AppState {
             return;
         }
         model.update(cx, |state, cx| {
-            state.groups.retain(|group| group.id != group_id);
-            for rule in &mut state.rules {
-                if matches!(&rule.action, narya_rules::Action::Proxy(target) if target == &group_id)
-                {
-                    rule.action = narya_rules::Action::Proxy("proxy".into());
-                }
+            let referenced = state.rules.iter().any(|rule| {
+                matches!(&rule.action, narya_rules::Action::Proxy(target) if target == &group_id)
+            });
+            if referenced {
+                state.group_error = Some(format!(
+                    "分流组 {} 仍被规则引用，请先修改这些规则的动作",
+                    group_id
+                ));
+                cx.notify();
+                return;
             }
+            state.groups.retain(|group| group.id != group_id);
+            state.group_error = None;
             state.save();
+            cx.notify();
+        });
+    }
+
+    pub fn set_group_strategy(model: Entity<Self>, cx: &mut App, group_id: String, index: usize) {
+        model.update(cx, |state, cx| {
+            let strategy = match index {
+                1 => narya_rules::GroupStrategy::UrlTest,
+                2 => narya_rules::GroupStrategy::Fallback,
+                3 => narya_rules::GroupStrategy::LoadBalance,
+                _ => narya_rules::GroupStrategy::Select,
+            };
+            if let Some(group) = state.groups.iter_mut().find(|group| group.id == group_id) {
+                group.strategy = strategy;
+                if matches!(
+                    strategy,
+                    narya_rules::GroupStrategy::UrlTest | narya_rules::GroupStrategy::Fallback
+                ) && group.url.is_none()
+                {
+                    group.url = Some("https://www.gstatic.com/generate_204".into());
+                }
+                if let Err(error) = group.validate() {
+                    state.group_error = Some(format!("分流组校验失败：{error}"));
+                } else {
+                    state.group_error = None;
+                    state.save();
+                }
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn set_group_members(model: Entity<Self>, cx: &mut App, group_id: String, value: String) {
+        model.update(cx, |state, cx| {
+            if let Some(group) = state.groups.iter_mut().find(|group| group.id == group_id) {
+                group.members = value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|member| !member.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect();
+                if let Err(error) = group.validate() {
+                    state.group_error = Some(format!("分流组校验失败：{error}"));
+                } else {
+                    state.group_error = None;
+                    state.save();
+                }
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn set_group_url(model: Entity<Self>, cx: &mut App, group_id: String, value: String) {
+        model.update(cx, |state, cx| {
+            if let Some(group) = state.groups.iter_mut().find(|group| group.id == group_id) {
+                group.url = (!value.trim().is_empty()).then(|| value.trim().to_string());
+                if let Err(error) = group.validate() {
+                    state.group_error = Some(format!("分流组校验失败：{error}"));
+                } else {
+                    state.group_error = None;
+                    state.save();
+                }
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn set_group_interval(model: Entity<Self>, cx: &mut App, group_id: String, value: String) {
+        model.update(cx, |state, cx| {
+            if let Some(group) = state.groups.iter_mut().find(|group| group.id == group_id) {
+                group.interval_secs = if value.trim().is_empty() {
+                    None
+                } else {
+                    match value.trim().parse::<u64>() {
+                        Ok(interval) if interval > 0 => Some(interval),
+                        _ => {
+                            state.group_error = Some("URL 测试间隔必须是正整数秒".into());
+                            cx.notify();
+                            return;
+                        }
+                    }
+                };
+                state.group_error = None;
+                state.save();
+                cx.notify();
+            }
+        });
+    }
+
+    pub fn set_rule_io_path(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_io_path = value;
+        self.rule_io_status = None;
+        cx.notify();
+    }
+
+    pub fn export_rules(model: Entity<Self>, cx: &mut App) {
+        let (path, bundle) = {
+            let state = model.read(cx);
+            (
+                state.rule_io_path.trim().to_string(),
+                RoutingBundle {
+                    version: 1,
+                    rules: state.rules.clone(),
+                    groups: state.groups.clone(),
+                    rule_sets: state.rule_sets.clone(),
+                },
+            )
+        };
+        let result = write_routing_bundle(&path, &bundle);
+        model.update(cx, |state, cx| {
+            state.rule_io_status = Some(match result {
+                Ok(()) => format!("已导出到 {}", path),
+                Err(error) => format!("导出失败：{error}"),
+            });
+            cx.notify();
+        });
+    }
+
+    pub fn import_rules(model: Entity<Self>, cx: &mut App) {
+        let path = model.read(cx).rule_io_path.trim().to_string();
+        let result = read_routing_bundle(&path);
+        model.update(cx, |state, cx| {
+            match result {
+                Ok(bundle) => {
+                    state.rules = bundle.rules;
+                    state.groups = bundle.groups;
+                    state.rule_sets = bundle.rule_sets;
+                    state.rule_io_status = Some(format!("已导入 {}", path));
+                    state.rule_editor_error = None;
+                    state.group_error = None;
+                    state.save();
+                }
+                Err(error) => state.rule_io_status = Some(format!("导入失败：{error}")),
+            }
             cx.notify();
         });
     }
@@ -984,6 +1295,10 @@ impl AppState {
                 rule_set_draft_version: String::new(),
                 rule_set_draft_sha256: String::new(),
                 rule_set_error: None,
+                group_error: None,
+                rule_editor_error: None,
+                rule_io_path: String::new(),
+                rule_io_status: None,
             };
         }
 
@@ -1206,6 +1521,10 @@ impl AppState {
             rule_set_draft_version: String::new(),
             rule_set_draft_sha256: String::new(),
             rule_set_error: None,
+            group_error: None,
+            rule_editor_error: None,
+            rule_io_path: String::new(),
+            rule_io_status: None,
         };
         state.save();
         state
