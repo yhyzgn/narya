@@ -2,6 +2,7 @@ mod config_gen;
 mod installer;
 mod kernel;
 mod proxy;
+mod ruleset_cache;
 
 use crate::kernel::KernelManager;
 use crate::proxy::{LinuxGSettings, MacOSNetworkSetup, ProxyBackend, SystemProxy};
@@ -225,6 +226,11 @@ async fn handle_request_inner(
                 generated.groups = groups;
             }
             generated.rule_sets = rule_sets;
+            for source in &generated.rule_sets {
+                if source.source.starts_with("https://") {
+                    ruleset_cache::ensure_cached(source).await?;
+                }
+            }
             crate::config_gen::validate_rule_set_sources(&generated.rule_sets)?;
             let config_json = crate::config_gen::ConfigGenerator::generate_json_for_kernel(
                 kernel_id, &node, &generated,
@@ -258,6 +264,29 @@ async fn handle_request_inner(
             Ok(serde_json::json!(true))
         }
         "GetKernelStatus" => Ok(serde_json::to_value(kernel_status(&mut state.kernel))?),
+        "FetchRuleSet" | "UpdateRuleSet" => {
+            let source: narya_rules::RuleSetSource =
+                serde_json::from_value(request.params.clone()).context("invalid ruleset source")?;
+            let cached = ruleset_cache::fetch_and_cache(&source).await?;
+            Ok(serde_json::json!({
+                "id": cached.id,
+                "version": cached.version,
+                "path": cached.path,
+                "sha256": cached.sha256,
+            }))
+        }
+        "VerifyRuleSetCache" => {
+            let source: narya_rules::RuleSetSource =
+                serde_json::from_value(request.params.clone()).context("invalid ruleset source")?;
+            let cached = ruleset_cache::ensure_cached(&source).await?;
+            Ok(serde_json::json!({
+                "id": cached.id,
+                "version": cached.version,
+                "path": cached.path,
+                "sha256": cached.sha256,
+                "verified": true,
+            }))
+        }
         "GetRoutingStatus" => Ok(serde_json::json!({
             "configured_mode": state
                 .configured_routing

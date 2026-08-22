@@ -151,6 +151,13 @@ mod tests {
             installer.contains("Ed25519") && installer.contains("signature verification"),
             "HTTPS kernel artifacts must be authenticated, not checksum-only"
         );
+        let ruleset_cache = workspace_file("crates/narya-daemon/src/ruleset_cache.rs");
+        assert!(
+            ruleset_cache.contains("verify_bytes")
+                && ruleset_cache.contains("fs::rename")
+                && ruleset_cache.contains("Signature"),
+            "remote rulesets must be verified and atomically cached by the daemon"
+        );
 
         let ipc = workspace_file("crates/narya-ipc/src/lib.rs");
         assert!(

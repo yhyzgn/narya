@@ -35,6 +35,11 @@
 - 回滚或隔离动作：未知匹配条件和不支持的内核能力必须报错，不回退到 direct。
 - 负责人和状态：Codex；规则从 UI 状态随 `StartKernel` 进入 daemon 并统一编译，已补齐多条件和分流组编辑器；仍需各内核能力矩阵 golden 测试和真实 TUN 流量探针。
 
+## 风险八：远程规则集供应链与缓存（高）
+
+- HTTPS 规则集现在必须带 Ed25519 签名、公钥和 SHA-256；daemon 下载后原子写入用户缓存，启动前重新复验版本、摘要和签名。
+- 当前仍没有官方规则集清单/固定信任根，自动更新只能使用用户明确提供的签名公钥，不能默默信任任意远程源。
+
 ## 风险五：DNS 污染与泄漏（高）
 
 - 证据和影响范围：Karing 对照提交 `ae12111876a4456cc58c7410950428345f908abb` 在 `setting_manager.dart` / `server_manager.dart` 中把 resolver、direct、proxy、outbound DNS 与 TUN `hijack_dns` 分开建模；当前 Narya 没有这些边界。

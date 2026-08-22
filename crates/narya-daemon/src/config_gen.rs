@@ -103,29 +103,35 @@ pub fn validate_rule_set_sources(rule_sets: &[RuleSetSource]) -> Result<()> {
         source
             .validate()
             .map_err(|error| anyhow!("ruleset {} is invalid: {error}", source.id))?;
-        if source.source.starts_with("https://") {
-            bail!(
-                "ruleset {}: HTTPS sources require a verified local cache",
-                source.id
-            );
-        }
-        let path = source
-            .source
-            .strip_prefix("file://")
-            .unwrap_or(&source.source);
-        let path = std::path::Path::new(path);
-        if !path.is_absolute() {
-            bail!(
-                "ruleset {}: source must be an absolute local path",
-                source.id
-            );
-        }
-        let bytes = std::fs::read(path)
-            .with_context(|| format!("ruleset {}: failed to read {}", source.id, path.display()))?;
+        let path = if source.source.starts_with("https://") {
+            narya_ipc::ruleset_cache_dir()
+                .join(&source.id)
+                .join("current")
+        } else {
+            let source_path = source
+                .source
+                .strip_prefix("file://")
+                .unwrap_or(&source.source);
+            let source_path = std::path::Path::new(source_path);
+            if !source_path.is_absolute() {
+                bail!(
+                    "ruleset {}: source must be an absolute local path",
+                    source.id
+                );
+            }
+            source_path.to_path_buf()
+        };
+        let bytes = std::fs::read(&path).with_context(|| {
+            format!(
+                "ruleset {}: verified cache is unavailable at {}",
+                source.id,
+                path.display()
+            )
+        })?;
         let actual = format!("{:x}", Sha256::digest(bytes));
         if !actual.eq_ignore_ascii_case(&source.sha256) {
             bail!(
-                "ruleset {}: checksum mismatch, expected {}, got {}",
+                "ruleset {}: cached checksum mismatch, expected {}, got {}",
                 source.id,
                 source.sha256,
                 actual
@@ -729,7 +735,11 @@ fn rule_set_metadata(rule_sets: &[RuleSetSource]) -> Result<Value> {
             Ok(json!({
                 "tag": source.id,
                 "format": "binary",
-                "url": source.source,
+                "url": if source.source.starts_with("https://") {
+                    format!("file://{}", narya_ipc::ruleset_cache_dir().join(&source.id).join("current").display())
+                } else {
+                    source.source.clone()
+                },
                 "download_detour": "direct",
                 "version": source.version,
             }))
@@ -912,6 +922,8 @@ mod tests {
             source: "https://rules.invalid/geosite-cn.srs".into(),
             version: "2026-08-22".into(),
             sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            signature: "11".repeat(64),
+            public_key: "22".repeat(32),
         }];
         let generated =
             ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
@@ -1011,9 +1023,11 @@ mod tests {
             source: "https://example.invalid/geoip.db".into(),
             version: "1".into(),
             sha256: "a".repeat(64),
+            signature: "11".repeat(64),
+            public_key: "22".repeat(32),
         };
         let error = validate_rule_set_sources(&[source]).unwrap_err();
-        assert!(error.to_string().contains("verified local cache"));
+        assert!(error.to_string().contains("verified cache is unavailable"));
     }
 
     #[test]

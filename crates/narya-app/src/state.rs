@@ -208,6 +208,8 @@ pub struct AppState {
     pub rule_set_draft_source: String,
     pub rule_set_draft_version: String,
     pub rule_set_draft_sha256: String,
+    pub rule_set_draft_signature: String,
+    pub rule_set_draft_public_key: String,
     pub rule_set_error: Option<String>,
     pub group_error: Option<String>,
     pub rule_editor_error: Option<String>,
@@ -432,20 +434,39 @@ impl AppState {
         cx.notify();
     }
 
+    pub fn set_rule_set_draft_signature(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_set_draft_signature = value;
+        self.rule_set_error = None;
+        cx.notify();
+    }
+
+    pub fn set_rule_set_draft_public_key(&mut self, value: String, cx: &mut Context<Self>) {
+        self.rule_set_draft_public_key = value;
+        self.rule_set_error = None;
+        cx.notify();
+    }
+
     pub fn add_rule_set(model: Entity<Self>, cx: &mut App) {
-        model.update(cx, |state, cx| {
-            let source = narya_rules::RuleSetSource {
+        let source = {
+            let state = model.read(cx);
+            narya_rules::RuleSetSource {
                 id: state.rule_set_draft_id.trim().to_string(),
                 source: state.rule_set_draft_source.trim().to_string(),
                 version: state.rule_set_draft_version.trim().to_string(),
                 sha256: state.rule_set_draft_sha256.trim().to_string(),
-            };
+                signature: state.rule_set_draft_signature.trim().to_string(),
+                public_key: state.rule_set_draft_public_key.trim().to_string(),
+            }
+        };
+        let remote = source.source.starts_with("https://");
+        model.update(cx, |state, cx| {
             if let Err(error) = source.validate() {
                 state.rule_set_error = Some(format!("规则集校验失败：{error}"));
                 cx.notify();
                 return;
             }
-            if !source.source.starts_with("file://")
+            if !remote
+                && !source.source.starts_with("file://")
                 && !std::path::Path::new(&source.source).is_absolute()
             {
                 state.rule_set_error = Some("规则集必须使用绝对本地路径或 file:// 路径".into());
@@ -457,7 +478,12 @@ impl AppState {
                 cx.notify();
                 return;
             }
-            state.rule_sets.push(source);
+            if remote {
+                state.rule_set_error = Some(format!("正在验证并缓存 {}…", source.id));
+                cx.notify();
+                return;
+            }
+            state.rule_sets.push(source.clone());
             state
                 .rule_sets
                 .sort_by(|left, right| left.id.cmp(&right.id));
@@ -465,10 +491,61 @@ impl AppState {
             state.rule_set_draft_source.clear();
             state.rule_set_draft_version.clear();
             state.rule_set_draft_sha256.clear();
+            state.rule_set_draft_signature.clear();
+            state.rule_set_draft_public_key.clear();
             state.rule_set_error = None;
             state.save();
             cx.notify();
         });
+        if remote {
+            let model = model.clone();
+            cx.spawn(move |cx: &mut AsyncApp| {
+                let mut cx = cx.clone();
+                async move {
+                    let result = async {
+                        let mut client = IpcClient::connect_default().await?;
+                        let response = client
+                            .send_request(IpcRequest {
+                                version: PROTOCOL_VERSION,
+                                id: 51,
+                                method: "FetchRuleSet".into(),
+                                params: serde_json::to_value(&source)?,
+                            })
+                            .await?;
+                        if let Some(error) = response.error {
+                            anyhow::bail!(error);
+                        }
+                        Ok::<(), anyhow::Error>(())
+                    }
+                    .await;
+                    model.update(&mut cx, |state, cx| {
+                        match result {
+                            Ok(()) => {
+                                if !state.rule_sets.iter().any(|item| item.id == source.id) {
+                                    state.rule_sets.push(source.clone());
+                                    state
+                                        .rule_sets
+                                        .sort_by(|left, right| left.id.cmp(&right.id));
+                                    state.rule_set_draft_id.clear();
+                                    state.rule_set_draft_source.clear();
+                                    state.rule_set_draft_version.clear();
+                                    state.rule_set_draft_sha256.clear();
+                                    state.rule_set_draft_signature.clear();
+                                    state.rule_set_draft_public_key.clear();
+                                    state.save();
+                                }
+                                state.rule_set_error = Some(format!("已验证并缓存 {}", source.id));
+                            }
+                            Err(error) => {
+                                state.rule_set_error = Some(format!("规则集更新失败：{error}"))
+                            }
+                        }
+                        cx.notify();
+                    });
+                }
+            })
+            .detach();
+        }
     }
 
     pub fn remove_rule_set(model: Entity<Self>, cx: &mut App, rule_set_id: String) {
@@ -1294,6 +1371,8 @@ impl AppState {
                 rule_set_draft_source: String::new(),
                 rule_set_draft_version: String::new(),
                 rule_set_draft_sha256: String::new(),
+                rule_set_draft_signature: String::new(),
+                rule_set_draft_public_key: String::new(),
                 rule_set_error: None,
                 group_error: None,
                 rule_editor_error: None,
@@ -1520,6 +1599,8 @@ impl AppState {
             rule_set_draft_source: String::new(),
             rule_set_draft_version: String::new(),
             rule_set_draft_sha256: String::new(),
+            rule_set_draft_signature: String::new(),
+            rule_set_draft_public_key: String::new(),
             rule_set_error: None,
             group_error: None,
             rule_editor_error: None,

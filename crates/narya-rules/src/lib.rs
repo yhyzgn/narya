@@ -113,15 +113,18 @@ pub struct RuleSet {
 
 /// Immutable metadata for an externally supplied binary ruleset.
 ///
-/// A source is only descriptive here; downloading is deliberately kept out
-/// of the compiler. Consumers must verify `sha256` before making a ruleset
-/// available to a kernel.
+/// A source describes a verified ruleset artifact. Downloading and signature
+/// verification live in the daemon cache manager, never in a kernel process.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuleSetSource {
     pub id: String,
     pub source: String,
     pub version: String,
     pub sha256: String,
+    #[serde(default)]
+    pub signature: String,
+    #[serde(default)]
+    pub public_key: String,
 }
 
 impl RuleSetSource {
@@ -140,6 +143,18 @@ impl RuleSetSource {
             return Err(RuleError::InvalidChecksum {
                 rule_id: self.id.clone(),
                 reason: "sha256 must be 64 hexadecimal characters".into(),
+            });
+        }
+        let has_signature = !self.signature.trim().is_empty();
+        let has_public_key = !self.public_key.trim().is_empty();
+        if has_signature != has_public_key {
+            return Err(RuleError::EmptyValue {
+                rule_id: self.id.clone(),
+            });
+        }
+        if self.source.starts_with("https://") && !has_signature {
+            return Err(RuleError::EmptyValue {
+                rule_id: self.id.clone(),
             });
         }
         Ok(())

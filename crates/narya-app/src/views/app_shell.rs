@@ -88,6 +88,8 @@ struct ShellSnapshot {
     rule_set_draft_source: String,
     rule_set_draft_version: String,
     rule_set_draft_sha256: String,
+    rule_set_draft_signature: String,
+    rule_set_draft_public_key: String,
     rule_set_error: Option<String>,
     group_error: Option<String>,
     rule_editor_error: Option<String>,
@@ -133,6 +135,8 @@ impl ShellSnapshot {
             rule_set_draft_source: state.rule_set_draft_source.clone(),
             rule_set_draft_version: state.rule_set_draft_version.clone(),
             rule_set_draft_sha256: state.rule_set_draft_sha256.clone(),
+            rule_set_draft_signature: state.rule_set_draft_signature.clone(),
+            rule_set_draft_public_key: state.rule_set_draft_public_key.clone(),
             rule_set_error: state.rule_set_error.clone(),
             group_error: state.group_error.clone(),
             rule_editor_error: state.rule_editor_error.clone(),
@@ -1187,6 +1191,8 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                     source: snapshot.rule_set_draft_source,
                     version: snapshot.rule_set_draft_version,
                     sha256: snapshot.rule_set_draft_sha256,
+                    signature: snapshot.rule_set_draft_signature,
+                    public_key: snapshot.rule_set_draft_public_key,
                     error: snapshot.rule_set_error,
                 }),
         ))
@@ -1520,6 +1526,8 @@ struct RuleSetForm {
     source: String,
     version: String,
     sha256: String,
+    signature: String,
+    public_key: String,
     error: Option<String>,
 }
 
@@ -1530,6 +1538,8 @@ impl NaryaRenderOnce for RuleSetForm {
         let model_version = self.model.clone();
         let model_sha = self.model.clone();
         let model_add = self.model.clone();
+        let model_signature = self.model.clone();
+        let model_public_key = self.model.clone();
         Flex::new()
             .column()
             .gap_sm()
@@ -1574,6 +1584,26 @@ impl NaryaRenderOnce for RuleSetForm {
                             .on_change(move |value, input_cx| {
                                 model_sha.update(input_cx, |state, state_cx| {
                                     state.set_rule_set_draft_sha256(value.to_string(), state_cx)
+                                });
+                            })
+                    }))
+                    .child(cx.new(|cx| {
+                        Input::new(self.signature, cx)
+                            .placeholder("Ed25519 签名（HTTPS 必填）")
+                            .width(px(320.0))
+                            .on_change(move |value, input_cx| {
+                                model_signature.update(input_cx, |state, state_cx| {
+                                    state.set_rule_set_draft_signature(value.to_string(), state_cx)
+                                });
+                            })
+                    }))
+                    .child(cx.new(|cx| {
+                        Input::new(self.public_key, cx)
+                            .placeholder("Ed25519 公钥（HTTPS 必填）")
+                            .width(px(260.0))
+                            .on_change(move |value, input_cx| {
+                                model_public_key.update(input_cx, |state, state_cx| {
+                                    state.set_rule_set_draft_public_key(value.to_string(), state_cx)
                                 });
                             })
                     }))
