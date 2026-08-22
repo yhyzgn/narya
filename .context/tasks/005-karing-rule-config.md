@@ -43,6 +43,7 @@
 - `narya-daemon::config_gen` 增加统一 `RoutingConfig`：system proxy/TUN 共用排序后的 route AST，TUN 显式生成 `auto_route`、`strict_route`、排除路由和 DNS 劫持。
 - resolver/direct/proxy/outbound DNS 独立生成，DNS 动作进入 `dns.rules`，未匹配流量使用 `route.final=block`，禁止静默 direct fallback。
 - 未支持的出站、DNS 条件、规则集字段和模式不一致均带规则 ID/能力信息 fail-closed。
+- sing-box、mihomo、xray-core 三个适配器共享路由计划校验；TUN 计划不会被意外带入 system proxy，模式不一致在生成配置前拒绝。
 - 离线测试覆盖 system proxy/TUN 规则顺序、DNS 路径、TUN 参数、规则集摘要和错误路径。
 
 ## 验证

@@ -147,14 +147,7 @@ pub fn validate_rule_set_sources(rule_sets: &[RuleSetSource]) -> Result<()> {
 impl ConfigGenerator {
     /// Compile a node and the shared routing model for sing-box.
     pub fn generate_json_with_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
-        if config.mode != config.plan.mode {
-            bail!(
-                "routing config mode mismatch: mode={} plan={}",
-                config.mode.as_str(),
-                config.plan.mode.as_str()
-            );
-        }
-        validate_system_proxy_plan(&config.plan.system_proxy)?;
+        validate_routing_plan(config)?;
 
         let group_tags = config
             .groups
@@ -239,7 +232,7 @@ impl ConfigGenerator {
 }
 
 fn generate_mihomo_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
-    validate_system_proxy_plan(&config.plan.system_proxy)?;
+    validate_routing_plan(config)?;
     validate_rule_set_references(&config.rules, &config.rule_sets)?;
     let proxy = mihomo_proxy(node)?;
     let proxies = vec![proxy];
@@ -412,7 +405,7 @@ fn mihomo_rule(rule: &narya_rules::Rule) -> Result<String> {
 }
 
 fn generate_xray_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
-    validate_system_proxy_plan(&config.plan.system_proxy)?;
+    validate_routing_plan(config)?;
     validate_rule_set_references(&config.rules, &config.rule_sets)?;
     if config.mode == ProxyMode::Tun {
         bail!("xray-core adapter does not support TUN mode yet");
@@ -517,6 +510,23 @@ fn validate_system_proxy_plan(plan: &SystemProxyPlan) -> Result<()> {
         bail!("system proxy listeners must bind to a loopback host");
     }
     Ok(())
+}
+
+fn validate_routing_plan(config: &RoutingConfig) -> Result<()> {
+    if config.mode != config.plan.mode {
+        bail!(
+            "routing config mode mismatch: mode={} plan={}",
+            config.mode.as_str(),
+            config.plan.mode.as_str()
+        );
+    }
+    if config.mode == ProxyMode::Tun && config.plan.tun.is_none() {
+        bail!("TUN mode requires an explicit TUN plan");
+    }
+    if config.mode != ProxyMode::Tun && config.plan.tun.is_some() {
+        bail!("TUN plan is only valid when routing mode is TUN");
+    }
+    validate_system_proxy_plan(&config.plan.system_proxy)
 }
 
 fn effective_dns_config(config: &RoutingConfig) -> DnsConfig {
@@ -1119,6 +1129,36 @@ mod tests {
             ConfigGenerator::generate_json_with_config(&node("ss", "aes-256-gcm:secret"), &config)
                 .unwrap_err();
         assert!(error.to_string().contains("same local bind host"));
+    }
+
+    #[test]
+    fn every_kernel_adapter_rejects_routing_plan_mismatch() {
+        let mut config = RoutingConfig {
+            mode: ProxyMode::Tun,
+            ..RoutingConfig::default()
+        };
+        let node = node("ss", "aes-256-gcm:secret");
+        for kernel in KernelId::ALL {
+            let error =
+                ConfigGenerator::generate_json_for_kernel(kernel, &node, &config).unwrap_err();
+            assert!(error.to_string().contains("routing config mode mismatch"));
+        }
+
+        config.mode = ProxyMode::SystemProxy;
+        config.plan.mode = ProxyMode::SystemProxy;
+        config.plan.tun = Some(narya_platform::TunPlan {
+            interface_name: "narya0".into(),
+            address: "172.19.0.1/30".into(),
+            auto_route: true,
+            strict_route: true,
+            hijack_dns: true,
+            excluded_routes: Vec::new(),
+        });
+        let error = ConfigGenerator::generate_json_for_kernel(KernelId::Mihomo, &node, &config)
+            .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("only valid when routing mode is TUN"));
     }
 
     #[test]
