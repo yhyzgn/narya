@@ -19,7 +19,7 @@
 - 失败模式：UI 显示已连接但流量未按预期转发，或断开后残留系统代理。
 - 缓解措施和必需验证：引入有长度前缀的 IPC、事务式 apply/rollback、内核健康检查和离线故障测试。
 - 回滚或隔离动作：在新控制面稳定前保留旧 IPC 方法但默认 fail-closed，不宣称连接成功。
-- 负责人和状态：Codex；UI 只在 `StartKernel`、`SetRoutingMode` 和健康状态均成功后显示运行，daemon 离线不再模拟流量；`SetRoutingMode` 现在要求启动配置模式匹配且内核健康，并按配置端口应用系统代理；仍需真实权限/路由/DNS 流量探针。
+- 负责人和状态：Codex；UI 只在 `StartKernel`、`SetRoutingMode` 和健康状态均成功后显示运行，daemon 离线不再模拟流量；`SetRoutingMode` 现在要求启动配置模式匹配且内核健康，并按配置端口应用系统代理；内核健康已增加 HTTP/SOCKS 本地协议握手；仍需真实权限/路由/DNS 流量探针。
 
 ## 风险七：内核工件发布者信任根（高）
 

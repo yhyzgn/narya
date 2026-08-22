@@ -4,7 +4,7 @@ use narya_kernel::{KernelId, KernelRecord, KernelRegistry, KernelState};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 use tokio::process::{Child, Command};
 use tokio::sync::broadcast;
@@ -356,10 +356,18 @@ impl KernelManager {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ListenerKind {
+    Http,
+    Socks,
+    Generic,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ListenerTarget {
     host: String,
     port: u16,
+    kind: ListenerKind,
 }
 
 async fn wait_for_configured_listeners(
@@ -402,22 +410,107 @@ async fn listener_reachable_async(target: &ListenerTarget) -> bool {
     } else {
         format!("{}:{}", target.host, target.port)
     };
-    timeout(Duration::from_millis(100), TcpStream::connect(&address))
-        .await
-        .is_ok_and(|result| result.is_ok())
+    let Ok(Ok(mut stream)) =
+        timeout(Duration::from_millis(100), TcpStream::connect(&address)).await
+    else {
+        return false;
+    };
+    timeout(
+        Duration::from_millis(150),
+        probe_listener_async(&mut stream, target.kind),
+    )
+    .await
+    .is_ok_and(|result| result.is_ok_and(|healthy| healthy))
 }
 
 fn listeners_reachable(targets: &[ListenerTarget]) -> bool {
-    targets.iter().all(|target| {
-        let address = if target.host.contains(':') {
-            format!("[{}]:{}", target.host, target.port)
-        } else {
-            format!("{}:{}", target.host, target.port)
-        };
-        address.parse().ok().is_some_and(|address| {
-            std::net::TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_ok()
-        })
-    })
+    targets.iter().all(listener_healthy_sync)
+}
+
+async fn probe_listener_async(stream: &mut TcpStream, kind: ListenerKind) -> std::io::Result<bool> {
+    match kind {
+        ListenerKind::Socks => {
+            stream.write_all(&[5, 1, 0]).await?;
+            let mut response = [0_u8; 2];
+            stream.read_exact(&mut response).await?;
+            Ok(response == [5, 0])
+        }
+        ListenerKind::Http => {
+            stream
+                .write_all(
+                    b"CONNECT 0.0.0.0:0 HTTP/1.1\r\nHost: 0.0.0.0:0\r\nConnection: close\r\n\r\n",
+                )
+                .await?;
+            let mut response = [0_u8; 256];
+            let size = stream.read(&mut response).await?;
+            Ok(valid_http_proxy_response(&response[..size]))
+        }
+        ListenerKind::Generic => Ok(true),
+    }
+}
+
+fn listener_healthy_sync(target: &ListenerTarget) -> bool {
+    let address = if target.host.contains(':') {
+        format!("[{}]:{}", target.host, target.port)
+    } else {
+        format!("{}:{}", target.host, target.port)
+    };
+    let Ok(address) = address.parse() else {
+        return false;
+    };
+    let Ok(mut stream) = std::net::TcpStream::connect_timeout(&address, Duration::from_millis(100))
+    else {
+        return false;
+    };
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(150)));
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(150)));
+    match target.kind {
+        ListenerKind::Socks => {
+            use std::io::{Read, Write};
+            if stream.write_all(&[5, 1, 0]).is_err() {
+                return false;
+            }
+            let mut response = [0_u8; 2];
+            stream.read_exact(&mut response).is_ok() && response == [5, 0]
+        }
+        ListenerKind::Http => {
+            use std::io::{Read, Write};
+            if stream
+                .write_all(
+                    b"CONNECT 0.0.0.0:0 HTTP/1.1\r\nHost: 0.0.0.0:0\r\nConnection: close\r\n\r\n",
+                )
+                .is_err()
+            {
+                return false;
+            }
+            let mut response = [0_u8; 256];
+            let size = stream.read(&mut response).unwrap_or(0);
+            valid_http_proxy_response(&response[..size])
+        }
+        ListenerKind::Generic => true,
+    }
+}
+
+fn valid_http_proxy_response(response: &[u8]) -> bool {
+    let Some(line) = response
+        .split(|byte| *byte == b'\n')
+        .next()
+        .map(|line| line.strip_suffix(&[b'\r'][..]).unwrap_or(line))
+    else {
+        return false;
+    };
+    let mut fields = line.split(|byte| *byte == b' ' || *byte == b'\t');
+    let Some(version) = fields.next() else {
+        return false;
+    };
+    let Some(status) = fields.next().and_then(|value| {
+        std::str::from_utf8(value)
+            .ok()
+            .and_then(|value| value.parse::<u16>().ok())
+    }) else {
+        return false;
+    };
+    version.starts_with(b"HTTP/1.") && (100..=599).contains(&status)
 }
 
 fn listener_targets(config_bytes: &[u8]) -> Result<Vec<ListenerTarget>> {
@@ -440,7 +533,12 @@ fn listener_targets(config_bytes: &[u8]) -> Result<Vec<ListenerTarget>> {
                 .filter(|host| !host.is_empty() && *host != "0.0.0.0" && *host != "::")
                 .unwrap_or("127.0.0.1")
                 .to_string();
-            targets.push(ListenerTarget { host, port });
+            let kind = match inbound.get("type").and_then(serde_json::Value::as_str) {
+                Some("http") => ListenerKind::Http,
+                Some("socks") => ListenerKind::Socks,
+                _ => ListenerKind::Generic,
+            };
+            targets.push(ListenerTarget { host, port, kind });
         }
     }
     for key in ["port", "socks-port"] {
@@ -452,6 +550,11 @@ fn listener_targets(config_bytes: &[u8]) -> Result<Vec<ListenerTarget>> {
             targets.push(ListenerTarget {
                 host: "127.0.0.1".into(),
                 port,
+                kind: if key == "port" {
+                    ListenerKind::Http
+                } else {
+                    ListenerKind::Socks
+                },
             });
         }
     }
@@ -500,11 +603,13 @@ mod tests {
             vec![
                 ListenerTarget {
                     host: "127.0.0.1".into(),
-                    port: 1080
+                    port: 1080,
+                    kind: ListenerKind::Socks,
                 },
                 ListenerTarget {
                     host: "127.0.0.1".into(),
-                    port: 2080
+                    port: 2080,
+                    kind: ListenerKind::Http,
                 },
             ]
         );
@@ -534,13 +639,55 @@ mod tests {
             ListenerTarget {
                 host: "127.0.0.1".into(),
                 port,
+                kind: ListenerKind::Generic,
             },
             ListenerTarget {
                 host: "127.0.0.1".into(),
                 port: port.saturating_add(1),
+                kind: ListenerKind::Generic,
             },
         ];
         assert!(!listeners_reachable(&targets));
         drop(listener);
+    }
+
+    #[test]
+    fn protocol_probes_require_socks_and_http_handshakes() {
+        use std::io::{Read, Write};
+        use std::thread;
+
+        let socks_listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let socks_port = socks_listener.local_addr().unwrap().port();
+        let socks_thread = thread::spawn(move || {
+            let (mut stream, _) = socks_listener.accept().unwrap();
+            let mut request = [0_u8; 3];
+            stream.read_exact(&mut request).unwrap();
+            assert_eq!(request, [5, 1, 0]);
+            stream.write_all(&[5, 0]).unwrap();
+        });
+        assert!(listener_healthy_sync(&ListenerTarget {
+            host: "127.0.0.1".into(),
+            port: socks_port,
+            kind: ListenerKind::Socks,
+        }));
+        socks_thread.join().unwrap();
+
+        let http_listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let http_port = http_listener.local_addr().unwrap().port();
+        let http_thread = thread::spawn(move || {
+            let (mut stream, _) = http_listener.accept().unwrap();
+            let mut request = [0_u8; 128];
+            let _ = stream.read(&mut request).unwrap();
+            stream
+                .write_all(b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n")
+                .unwrap();
+        });
+        assert!(listener_healthy_sync(&ListenerTarget {
+            host: "127.0.0.1".into(),
+            port: http_port,
+            kind: ListenerKind::Http,
+        }));
+        http_thread.join().unwrap();
+        assert!(!valid_http_proxy_response(b"not http\r\n"));
     }
 }
