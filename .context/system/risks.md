@@ -39,6 +39,15 @@
 - 回滚或隔离动作：默认关闭未验证的 fake-IP/TUN hijack；回滚时先恢复 DNS、代理和路由，再停止内核。
 - 负责人和状态：Codex；未解决。
 
+## 风险六：平台代理能力不一致（高）
+
+- 证据和影响范围：`crates/narya-daemon/src/proxy.rs` 当前只对 Linux GNOME 实现完整快照/apply/restore；macOS 与 TUN 明确返回 unsupported，Windows 尚未接入。
+- 触发条件：在未实现平台上调用 `SetRoutingMode`，或发行版没有 `gsettings`/权限不足。
+- 失败模式：连接动作被拒绝；不会假报成功，但用户需要明确的能力提示。
+- 缓解措施和必需验证：每个平台 backend 单独实现快照、apply、restore 和 fake tests；真实流量探针通过后才能开放默认模式。
+- 回滚或隔离动作：保持 fail-closed，不修改系统代理；Linux apply 失败自动恢复捕获快照。
+- 负责人和状态：Codex；进行中。
+
 ## 风险三：外部依赖副作用
 
 - 触发条件：校验或测试连接共享数据库、队列、缓存或远程接口。

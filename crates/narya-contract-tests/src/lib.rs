@@ -106,8 +106,11 @@ mod tests {
             "kernel install and upgrade must fail closed without verified artifacts"
         );
         assert!(
-            daemon.contains("read_frame") && daemon.contains("write_frame"),
-            "daemon IPC must use length-prefixed framing"
+            daemon.contains("read_frame")
+                && daemon.contains("write_frame")
+                && daemon.contains("SetRoutingMode")
+                && daemon.contains("TUN backend is not available"),
+            "daemon IPC must use framing and fail closed for unsupported routing modes"
         );
 
         let config_gen = workspace_file("crates/narya-daemon/src/config_gen.rs");

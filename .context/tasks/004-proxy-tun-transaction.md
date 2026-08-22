@@ -1,6 +1,6 @@
 # 任务 004：代理与 TUN 事务边界
 
-- 状态：待开始
+- 状态：已完成
 - 计划：`.context/plans/002-runtime-foundation.md`
 - 规模：大
 - 依赖：`.context/tasks/003-framed-ipc-kernel-registry.md`
@@ -53,4 +53,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 ## 完成记录
 
-- 待开始。
+- `narya-platform` 新增 `ProxyMode`、`RoutingPlan`、`SystemProxyPlan`、`TunPlan`、`DnsPlan`、`PlatformSnapshot` 和 `PlatformAdapter`。
+- `apply_routing` 在 system proxy/TUN/DNS 任一步失败时恢复快照；fake backend 覆盖成功、DNS 失败、TUN 缺失和 TUN 失败四种场景。
+- daemon 新增 `SetRoutingMode`；Linux GNOME backend 捕获并恢复 mode、HTTP、HTTPS、SOCKS、bypass domains，并将代理 apply/restore 接入启停边界。
+- `StopKernel` 先恢复代理，再停止内核；恢复失败时保留内核运行，避免留下未知流量路径。TUN 和 macOS 事务在无安全实现时明确 unsupported。
+- 验证：`cargo fmt --all -- --check`、`cargo check --workspace`、`cargo test --workspace`、分段 clippy、`timeout 5s cargo run -p narya-daemon` 启动烟测、`timeout 5s cargo run -p narya-app` 无显示环境诊断烟测及 daemon routing-mode smoke test 均通过。
+- 未覆盖：Windows/macOS 完整快照、Linux TUN 驱动、DNS 系统级接管和真实流量泄漏探针留在后续任务。

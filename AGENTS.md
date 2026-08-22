@@ -64,7 +64,7 @@
 ## 当前工作指针
 
 - 计划：`.context/plans/002-runtime-foundation.md`
-- 任务：`.context/tasks/004-proxy-tun-transaction.md`
+- 任务：`.context/tasks/005-karing-rule-config.md`
 
 ## 交付要求
 

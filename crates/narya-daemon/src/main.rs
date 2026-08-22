@@ -7,6 +7,7 @@ use crate::proxy::{LinuxGSettings, MacOSNetworkSetup, ProxyBackend, SystemProxy}
 use anyhow::{Context, Result};
 use narya_ipc::{decode_frame, encode_frame, IpcRequest, IpcResponse};
 use narya_kernel::KernelId;
+use narya_platform::{ProxyMode, SystemProxyPlan, SystemProxyState};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -18,6 +19,7 @@ struct DaemonState {
     kernel: KernelManager,
     proxy: ProxyBackend,
     log_tx: broadcast::Sender<String>,
+    proxy_snapshot: Option<SystemProxyState>,
 }
 
 #[tokio::main]
@@ -53,6 +55,7 @@ async fn main() -> Result<()> {
         kernel: KernelManager::new(),
         proxy,
         log_tx: log_tx.clone(),
+        proxy_snapshot: None,
     }));
 
     loop {
@@ -168,8 +171,26 @@ async fn handle_request_inner(
                 .params
                 .as_bool()
                 .ok_or_else(|| anyhow::anyhow!("SetSystemProxy requires a boolean parameter"))?;
-            state.proxy.set_enabled(enabled).await?;
+            apply_proxy_mode(
+                &mut state,
+                if enabled {
+                    ProxyMode::SystemProxy
+                } else {
+                    ProxyMode::Disabled
+                },
+            )
+            .await?;
             Ok(serde_json::json!(true))
+        }
+        "SetRoutingMode" => {
+            let mode = request
+                .params
+                .get("mode")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| anyhow::anyhow!("SetRoutingMode requires a mode string"))?
+                .parse::<ProxyMode>()?;
+            apply_proxy_mode(&mut state, mode).await?;
+            Ok(serde_json::json!({"mode": mode.as_str()}))
         }
         "StartKernel" => {
             let (kernel_id, node) = parse_start_params(&request.params)?;
@@ -197,6 +218,9 @@ async fn handle_request_inner(
             Ok(serde_json::json!({"kernel": kernel_id, "healthy": true}))
         }
         "StopKernel" => {
+            // Keep the kernel alive if the system proxy cannot be restored; stopping
+            // first would leave traffic in an unknown routing state.
+            apply_proxy_mode(&mut state, ProxyMode::Disabled).await?;
             state.kernel.stop().await?;
             Ok(serde_json::json!(true))
         }
@@ -213,6 +237,39 @@ async fn handle_request_inner(
             )
         }
         _ => anyhow::bail!("Unknown method: {}", request.method),
+    }
+}
+
+async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()> {
+    match mode {
+        ProxyMode::Disabled => {
+            if let Some(snapshot) = state.proxy_snapshot.take() {
+                state.proxy.restore(&snapshot).await
+            } else {
+                state.proxy.set_enabled(false).await
+            }
+        }
+        ProxyMode::SystemProxy => {
+            let snapshot = state.proxy.capture().await?;
+            let plan = SystemProxyPlan {
+                http_host: "127.0.0.1".into(),
+                http_port: 2080,
+                socks_host: "127.0.0.1".into(),
+                socks_port: 1080,
+                bypass_domains: vec!["localhost".into(), "127.0.0.1".into(), "::1".into()],
+            };
+            if let Err(apply_error) = state.proxy.apply_system_proxy(&plan).await {
+                return match state.proxy.restore(&snapshot).await {
+                    Ok(()) => Err(apply_error),
+                    Err(restore_error) => Err(anyhow::anyhow!(
+                        "proxy apply failed: {apply_error}; restore failed: {restore_error}"
+                    )),
+                };
+            }
+            state.proxy_snapshot = Some(snapshot);
+            Ok(())
+        }
+        ProxyMode::Tun => anyhow::bail!("TUN backend is not available on this platform yet"),
     }
 }
 

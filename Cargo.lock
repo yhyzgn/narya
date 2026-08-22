@@ -3977,6 +3977,7 @@ dependencies = [
  "narya-core",
  "narya-ipc",
  "narya-kernel",
+ "narya-platform",
  "serde",
  "serde_json",
  "tokio",
@@ -4004,6 +4005,9 @@ version = "0.1.0"
 [[package]]
 name = "narya-platform"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "narya-rules"
