@@ -1050,31 +1050,6 @@ fn settings_page(
     settings: &SettingsControls,
 ) -> impl NaryaIntoElement {
     let kernel_infos = snapshot.kernels.clone();
-    let kernel_label = snapshot
-        .kernels
-        .first()
-        .filter(|kernel| kernel.name == snapshot.active_kernel)
-        .or_else(|| {
-            snapshot
-                .kernels
-                .iter()
-                .find(|kernel| kernel.name == snapshot.active_kernel)
-        })
-        .and_then(|k| k.version.clone())
-        .map(|version| format!("{} {version}", snapshot.active_kernel))
-        .unwrap_or_else(|| format!("{} 未安装", snapshot.active_kernel));
-    let kernel_status = if snapshot.kernel_healthy {
-        "健康运行"
-    } else if snapshot.kernels.iter().any(|kernel| kernel.installed) {
-        "已安装，未运行"
-    } else {
-        "需要可信工件"
-    };
-    let kernel_tone = if snapshot.kernel_healthy {
-        NaryaStatus::Success
-    } else {
-        NaryaStatus::Warning
-    };
     let category_title = [
         "常规设置",
         "外观设置",
@@ -1174,233 +1149,192 @@ fn settings_page(
                     ),
             ),
     };
-    NaryaPage::new()
-        .row(narya_ui::page_row(vec![
-            NaryaMetric::card(
-                "应用版本",
-                "1.0.0",
-                "当前为最新版本",
-                IconName::ClipboardList,
-                NaryaStatus::Info,
+    NaryaPage::new().row(
+        Flex::new()
+            .row()
+            .gap_lg()
+            .flex_1()
+            .min_h_0()
+            .min_w_0()
+            .child(
+                NaryaCard::titled("设置分类", settings.category_menu.clone())
+                    .width(px(196.0))
+                    .no_shrink(),
             )
-            .into_any_element(),
-            NaryaMetric::card(
-                "当前内核",
-                kernel_label,
-                kernel_status,
-                IconName::Cpu,
-                kernel_tone,
+            .child(
+                Flex::new()
+                    .flex_1()
+                    .min_h_0()
+                    .min_w_0()
+                    .overflow_y_scroll()
+                    .child(center_page),
             )
-            .into_any_element(),
-            NaryaMetric::card(
-                "系统代理",
-                "2080 / 1080",
-                "HTTP / SOCKS",
-                IconName::SquareStack,
-                NaryaStatus::Info,
-            )
-            .into_any_element(),
-            NaryaMetric::card(
-                "IPv6 状态",
-                "自动 / 防泄漏",
-                "已启用",
-                IconName::Route,
-                NaryaStatus::Success,
-            )
-            .into_any_element(),
-            NaryaMetric::card(
-                "更新通道",
-                "Stable",
-                "稳定版更新",
-                IconName::RefreshCw,
-                NaryaStatus::Info,
-            )
-            .into_any_element(),
-        ]))
-        .row(
-            Flex::new()
-                .row()
-                .gap_lg()
-                .flex_1()
-                .min_h_0()
-                .min_w_0()
-                .child(
-                    NaryaCard::titled("设置分类", settings.category_menu.clone())
-                        .width(px(196.0))
-                        .no_shrink(),
-                )
-                .child(
-                    Flex::new()
-                        .flex_1()
-                        .min_h_0()
-                        .min_w_0()
-                        .overflow_y_scroll()
-                        .child(center_page),
-                )
-                .child(
-                    Flex::new()
-                        .column()
-                        .width_px(360.0)
-                        .h_full()
-                        .flex_none()
-                        .min_h_0()
-                        .min_w_0()
-                        .overflow_y_scroll()
-                        .child(
-                            SettingsPage::new("内核管理")
-                                .description("内核仅安装在 Narya 私有目录，不修改系统 PATH")
-                                .max_width(px(360.0))
-                                .group(
-                                    SettingsGroup::new("内核列表")
-                                        .description("版本、运行状态与操作集中在单行展示")
-                                        .items(
-                                            kernel_infos
-                                                .into_iter()
-                                                .map(|kernel| {
-                                                    let name = kernel.name.clone();
-                                                    let active = name == snapshot.active_kernel
-                                                        && kernel.running;
-                                                    let busy = matches!(
-                                                        kernel.state.as_str(),
-                                                        "installing"
-                                                            | "upgrading"
-                                                            | "uninstalling"
-                                                            | "starting"
-                                                            | "stopping"
-                                                    );
-                                                    let actions = if kernel.installed {
-                                                        let upgrade_model = model.clone();
-                                                        let upgrade_name = name.clone();
-                                                        let uninstall_model = model.clone();
-                                                        let uninstall_name = name.clone();
-                                                        let switch_model = model.clone();
-                                                        let switch_name = name.clone();
-                                                        Flex::new()
-                                                    .row()
-                                                    .wrap()
-                                                    .gap_sm()
-                                                    .child(
-                                                        NaryaButton::ghost("升级")
-                                                            .id(format!("narya-kernel-{name}-upgrade"))
-                                                            .small()
-                                                            .disabled(active || busy)
-                                                            .on_click(move |_, _, cx| {
-                                                                AppState::install_kernel_named(
-                                                                    upgrade_model.clone(),
-                                                                    cx,
-                                                                    upgrade_name.clone(),
-                                                                )
-                                                            }),
-                                                    )
-                                                    .child(
-                                                        NaryaButton::ghost("卸载")
-                                                            .id(format!("narya-kernel-{name}-uninstall"))
-                                                            .danger()
-                                                            .small()
-                                                            .disabled(active || busy)
-                                                            .on_click(move |_, _, cx| {
-                                                                AppState::uninstall_kernel(
-                                                                    uninstall_model.clone(),
-                                                                    cx,
-                                                                    uninstall_name.clone(),
-                                                                )
-                                                            }),
-                                                    )
-                                                    .child(
-                                                        NaryaButton::primary(if active {
-                                                            "当前运行"
-                                                        } else {
-                                                            "切换并启动"
-                                                        })
-                                                        .id(format!("narya-kernel-{name}-start"))
-                                                        .small()
-                                                        .disabled(active || busy)
-                                                        .on_click(move |_, _, cx| {
-                                                            AppState::select_kernel_and_start(
-                                                                switch_model.clone(),
-                                                                cx,
-                                                                switch_name.clone(),
-                                                            )
-                                                        }),
-                                                    )
-                                                    } else {
-                                                        let install_model = model.clone();
-                                                        let install_name = name.clone();
-                                                        Flex::new().row().child(
-                                                            NaryaButton::primary("安装")
+            .child(
+                Flex::new()
+                    .column()
+                    .width_px(360.0)
+                    .h_full()
+                    .flex_none()
+                    .min_h_0()
+                    .min_w_0()
+                    .overflow_y_scroll()
+                    .child(
+                        SettingsPage::new("内核管理")
+                            .description("内核仅安装在 Narya 私有目录，不修改系统 PATH")
+                            .max_width(px(360.0))
+                            .group(
+                                SettingsGroup::new("内核列表")
+                                    .description("版本、运行状态与操作集中在单行展示")
+                                    .items(
+                                        kernel_infos
+                                            .into_iter()
+                                            .map(|kernel| {
+                                                let name = kernel.name.clone();
+                                                let active = name == snapshot.active_kernel
+                                                    && kernel.running;
+                                                let busy = matches!(
+                                                    kernel.state.as_str(),
+                                                    "installing"
+                                                        | "upgrading"
+                                                        | "uninstalling"
+                                                        | "starting"
+                                                        | "stopping"
+                                                );
+                                                let actions = if kernel.installed {
+                                                    let upgrade_model = model.clone();
+                                                    let upgrade_name = name.clone();
+                                                    let uninstall_model = model.clone();
+                                                    let uninstall_name = name.clone();
+                                                    let switch_model = model.clone();
+                                                    let switch_name = name.clone();
+                                                    Flex::new()
+                                                        .row()
+                                                        .wrap()
+                                                        .gap_sm()
+                                                        .child(
+                                                            NaryaButton::ghost("升级")
                                                                 .id(format!(
-                                                                    "narya-kernel-{name}-install"
+                                                                    "narya-kernel-{name}-upgrade"
                                                                 ))
                                                                 .small()
-                                                                .disabled(busy)
+                                                                .disabled(active || busy)
                                                                 .on_click(move |_, _, cx| {
                                                                     AppState::install_kernel_named(
-                                                                        install_model.clone(),
+                                                                        upgrade_model.clone(),
                                                                         cx,
-                                                                        install_name.clone(),
+                                                                        upgrade_name.clone(),
                                                                     )
                                                                 }),
                                                         )
-                                                    };
-                                                    let health = if kernel.healthy {
-                                                        "健康"
-                                                    } else if kernel.running {
-                                                        "异常"
-                                                    } else {
-                                                        "未运行"
-                                                    };
-                                                    let version = kernel
-                                                        .version
-                                                        .clone()
-                                                        .unwrap_or_else(|| "无版本".into());
-                                                    let mut item = SettingsItem::new(name)
-                                                        .description(format!(
-                                                            "{version} · {} · {health}",
-                                                            kernel_state_label(&kernel.state)
-                                                        ))
-                                                        .icon(IconName::Cpu)
-                                                        .control(actions)
-                                                        .compact();
-                                                    if active {
-                                                        item = item.primary();
-                                                    }
-                                                    if let Some(failure) = kernel.failure {
-                                                        item = item.extra(
-                                                            narya_text(format!(
-                                                                "最近错误：{failure}"
+                                                        .child(
+                                                            NaryaButton::ghost("卸载")
+                                                                .id(format!(
+                                                                    "narya-kernel-{name}-uninstall"
+                                                                ))
+                                                                .danger()
+                                                                .small()
+                                                                .disabled(active || busy)
+                                                                .on_click(move |_, _, cx| {
+                                                                    AppState::uninstall_kernel(
+                                                                        uninstall_model.clone(),
+                                                                        cx,
+                                                                        uninstall_name.clone(),
+                                                                    )
+                                                                }),
+                                                        )
+                                                        .child(
+                                                            NaryaButton::primary(if active {
+                                                                "当前运行"
+                                                            } else {
+                                                                "切换并启动"
+                                                            })
+                                                            .id(format!(
+                                                                "narya-kernel-{name}-start"
                                                             ))
+                                                            .small()
+                                                            .disabled(active || busy)
+                                                            .on_click(move |_, _, cx| {
+                                                                AppState::select_kernel_and_start(
+                                                                    switch_model.clone(),
+                                                                    cx,
+                                                                    switch_name.clone(),
+                                                                )
+                                                            }),
+                                                        )
+                                                } else {
+                                                    let install_model = model.clone();
+                                                    let install_name = name.clone();
+                                                    Flex::new().row().child(
+                                                        NaryaButton::primary("安装")
+                                                            .id(format!(
+                                                                "narya-kernel-{name}-install"
+                                                            ))
+                                                            .small()
+                                                            .disabled(busy)
+                                                            .on_click(move |_, _, cx| {
+                                                                AppState::install_kernel_named(
+                                                                    install_model.clone(),
+                                                                    cx,
+                                                                    install_name.clone(),
+                                                                )
+                                                            }),
+                                                    )
+                                                };
+                                                let health = if kernel.healthy {
+                                                    "健康"
+                                                } else if kernel.running {
+                                                    "异常"
+                                                } else {
+                                                    "未运行"
+                                                };
+                                                let version = kernel
+                                                    .version
+                                                    .clone()
+                                                    .unwrap_or_else(|| "无版本".into());
+                                                let mut item = SettingsItem::new(name)
+                                                    .description(format!(
+                                                        "{version} · {} · {health}",
+                                                        kernel_state_label(&kernel.state)
+                                                    ))
+                                                    .icon(IconName::Cpu)
+                                                    .control(actions)
+                                                    .compact();
+                                                if active {
+                                                    item = item.primary();
+                                                }
+                                                if let Some(failure) = kernel.failure {
+                                                    item = item.extra(
+                                                        narya_text(format!("最近错误：{failure}"))
                                                             .xs()
                                                             .wrap(),
-                                                        );
-                                                    }
-                                                    item
-                                                })
-                                                .collect(),
-                                        ),
-                                )
-                                .group(
-                                    SettingsGroup::new("操作状态").footer(
-                                        Flex::new()
-                                            .column()
-                                            .gap_sm()
-                                            .when_some(
-                                                snapshot.kernel_operation,
-                                                |element, operation| {
-                                                    element.child(narya_text(operation).sm())
-                                                },
-                                            )
-                                            .when_some(snapshot.kernel_error, |element, error| {
-                                                element.child(
-                                                    narya_text(format!("错误：{error}"))
-                                                        .sm()
-                                                        .wrap(),
-                                                )
-                                            }),
+                                                    );
+                                                }
+                                                item
+                                            })
+                                            .collect(),
                                     ),
+                            )
+                            .group(
+                                SettingsGroup::new("操作状态").footer(
+                                    Flex::new()
+                                        .column()
+                                        .gap_sm()
+                                        .when_some(
+                                            snapshot.kernel_operation,
+                                            |element, operation| {
+                                                element.child(narya_text(operation).sm())
+                                            },
+                                        )
+                                        .when_some(snapshot.kernel_error, |element, error| {
+                                            element.child(
+                                                narya_text(format!("错误：{error}")).sm().wrap(),
+                                            )
+                                        }),
                                 ),
-                        ),
-                ),
-        )
+                            ),
+                    ),
+            ),
+    )
 }
 
 fn kernel_state_label(state: &str) -> &'static str {
