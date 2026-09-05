@@ -701,7 +701,12 @@ impl NaryaButton {
 }
 
 pub fn page_row(children: Vec<AnyElement>) -> impl IntoElement {
-    Flex::new().row().gap_px(GAP).w_full().children(children)
+    Flex::new()
+        .row()
+        .gap_px(GAP)
+        .w_full()
+        .min_w_0()
+        .children(children)
 }
 
 pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
@@ -709,9 +714,16 @@ pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl In
         .row()
         .gap_px(20.0)
         .w_full()
+        .min_w_0()
         .height_px(144.0)
-        .child(Flex::new().width_px(548.0).flex_none().child(left))
-        .child(Flex::new().flex_1().child(right))
+        .child(
+            Flex::new()
+                .width_px(548.0)
+                .flex_none()
+                .min_w_0()
+                .child(left),
+        )
+        .child(Flex::new().flex_1().min_w_0().child(right))
 }
 
 pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
@@ -719,8 +731,15 @@ pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl
         .row()
         .gap_px(20.0)
         .height_px(260.0)
-        .child(Flex::new().width_px(488.0).flex_none().child(left))
-        .child(Flex::new().flex_1().child(right))
+        .min_w_0()
+        .child(
+            Flex::new()
+                .width_px(488.0)
+                .flex_none()
+                .min_w_0()
+                .child(left),
+        )
+        .child(Flex::new().flex_1().min_w_0().child(right))
 }
 
 pub fn dashboard_bottom(
@@ -732,9 +751,10 @@ pub fn dashboard_bottom(
         .row()
         .gap_px(20.0)
         .height_px(260.0)
-        .child(Flex::new().width_px(488.0).flex_none().child(a))
-        .child(Flex::new().width_px(306.0).flex_none().child(b))
-        .child(Flex::new().flex_1().child(c))
+        .min_w_0()
+        .child(Flex::new().width_px(488.0).flex_none().min_w_0().child(a))
+        .child(Flex::new().width_px(306.0).flex_none().min_w_0().child(b))
+        .child(Flex::new().flex_1().min_w_0().child(c))
 }
 
 pub fn nodes_main(
@@ -746,9 +766,22 @@ pub fn nodes_main(
         .row()
         .gap_md()
         .height_px(360.0)
-        .child(Flex::new().width_px(280.0).flex_none().child(strategy))
+        .min_w_0()
+        .child(
+            Flex::new()
+                .width_px(280.0)
+                .flex_none()
+                .min_w_0()
+                .child(strategy),
+        )
         .child(Flex::new().flex_1().min_h_0().child(list))
-        .child(Flex::new().width_px(276.0).flex_none().child(overview))
+        .child(
+            Flex::new()
+                .width_px(276.0)
+                .flex_none()
+                .min_w_0()
+                .child(overview),
+        )
 }
 
 pub fn nodes_bottom(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
@@ -756,8 +789,15 @@ pub fn nodes_bottom(left: impl IntoElement, right: impl IntoElement) -> impl Int
         .row()
         .gap_lg()
         .height_px(156.0)
-        .child(Flex::new().flex_1().child(left))
-        .child(Flex::new().width_px(604.0).flex_none().child(right))
+        .min_w_0()
+        .child(Flex::new().flex_1().min_w_0().child(left))
+        .child(
+            Flex::new()
+                .width_px(604.0)
+                .flex_none()
+                .min_w_0()
+                .child(right),
+        )
 }
 
 pub fn node_grid(items: Vec<AnyElement>) -> impl IntoElement {
@@ -774,12 +814,14 @@ pub fn page_columns(left: impl IntoElement, right: impl IntoElement) -> impl Int
         .gap_lg()
         .flex_1()
         .min_h_0()
-        .child(Flex::new().flex_1().min_h_0().child(left))
+        .min_w_0()
+        .child(Flex::new().flex_1().min_h_0().min_w_0().child(left))
         .child(
             Flex::new()
                 .width_px(384.0)
                 .flex_none()
                 .min_h_0()
+                .min_w_0()
                 .child(right),
         )
 }
@@ -1142,7 +1184,7 @@ pub fn hero_toggle_card_with_click(
     on_click: ClickHandler,
 ) -> impl IntoElement {
     div()
-        .id(title)
+        .id(format!("narya-hero-toggle-{title}"))
         .size_full()
         .cursor_pointer()
         .child(hero_toggle_card(icon, title, desc, enabled, mode, tone))
@@ -1689,6 +1731,8 @@ struct LioraSegmentedBox {
 
 impl gpui::RenderOnce for LioraSegmentedBox {
     fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl IntoElement {
+        let labels_id = self.labels.join("-");
+        let segmented_id = format!("narya-filter-segmented-{labels_id}-{}", self.active);
         let options = self
             .labels
             .into_iter()
@@ -1696,7 +1740,7 @@ impl gpui::RenderOnce for LioraSegmentedBox {
             .collect();
         let segmented = cx.new(|_| {
             let segmented = Segmented::new(options)
-                .id("narya-filter-segmented")
+                .id(segmented_id)
                 .value(self.active)
                 .block(true);
             match self.on_change {
@@ -1704,7 +1748,10 @@ impl gpui::RenderOnce for LioraSegmentedBox {
                 None => segmented,
             }
         });
-        div().w(px(self.width)).child(segmented)
+        div()
+            .id(format!("narya-segmented-{labels_id}-{}", self.active))
+            .w(px(self.width))
+            .child(segmented)
     }
 }
 

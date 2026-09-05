@@ -4,7 +4,7 @@ Narya 是基于 Rust、GPUI 与 Liora 的桌面代理控制端。应用通过有
 
 ## 当前能力
 
-- 当前内置三种可执行内核：sing-box、mihomo/Clash Meta、xray-core；注册表和安装清单可继续扩展其他内核。
+- 当前内置四种可执行内核：sing-box、mihomo/Clash Meta、xray-core、v2ray-core；注册表和安装清单可继续扩展其他内核。
 - 节点协议与可执行内核分离：Shadowsocks（SS）可由三种内核运行；sing-box/mihomo 另支持 Hysteria2、VMess、VLESS、Trojan；xray-core 支持 VMess、VLESS、Trojan。
 - 统一规则模型、分流组、外部规则集、DNS 路径及 fail-closed 默认出口。
 - SHA-256 与 Ed25519 校验的内核工件、签名发布清单和规则集缓存。

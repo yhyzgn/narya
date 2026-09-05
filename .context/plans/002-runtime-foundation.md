@@ -2,7 +2,7 @@
 
 - 状态：进行中
 - 负责人：Codex
-- 当前任务：`.context/tasks/014-official-download-reliability.md`
+- 当前任务：`.context/tasks/015-ui-layout-interaction-audit.md`
 
 ## 目标
 

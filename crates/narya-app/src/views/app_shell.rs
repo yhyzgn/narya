@@ -81,9 +81,11 @@ impl SettingsControls {
         let switch = |key: &'static str, value: bool, state: &Entity<AppState>, cx: &mut App| {
             let state = state.clone();
             cx.new(|cx| {
-                Switch::new(value, cx).on_change(move |checked, _, cx| {
-                    state.update(cx, |state, cx| state.set_setting_value(key, checked, cx));
-                })
+                Switch::new(value, cx)
+                    .id(format!("narya-setting-{key}"))
+                    .on_change(move |checked, _, cx| {
+                        state.update(cx, |state, cx| state.set_setting_value(key, checked, cx));
+                    })
             })
         };
         let autostart = switch("autostart", state.read(cx).setting_autostart, &state, cx);
@@ -138,8 +140,10 @@ impl SettingsControls {
                 });
             })
         });
-        let update_channel =
-            cx.new(|cx| Select::new(vec!["Stable", "Beta", "Nightly"], Some(0), cx));
+        let update_channel = cx.new(|cx| {
+            Select::new(vec!["Stable", "Beta", "Nightly"], Some(0), cx)
+                .id("narya-settings-update-channel")
+        });
         Self {
             category_menu,
             autostart,
@@ -923,6 +927,7 @@ impl NaryaRenderOnce for SubscriptionDraftForm {
                     .gap_md()
                     .child(cx.new(|cx| {
                         Input::new(self.name, cx)
+                            .id("narya-subscription-name")
                             .placeholder("订阅名称")
                             .width(px(220.0))
                             .on_change(move |value, input_cx| {
@@ -933,6 +938,7 @@ impl NaryaRenderOnce for SubscriptionDraftForm {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(self.url, cx)
+                            .id("narya-subscription-url")
                             .placeholder("https://example.com/subscription")
                             .width(px(320.0))
                             .on_change(move |value, input_cx| {
@@ -1140,6 +1146,7 @@ fn settings_page(
                 .gap_lg()
                 .flex_1()
                 .min_h_0()
+                .min_w_0()
                 .child(
                     NaryaCard::titled("设置分类", settings.category_menu.clone())
                         .width(px(196.0))
@@ -1149,6 +1156,7 @@ fn settings_page(
                     Flex::new()
                         .flex_1()
                         .min_h_0()
+                        .min_w_0()
                         .overflow_y_scroll()
                         .child(center_page),
                 )
@@ -1159,6 +1167,7 @@ fn settings_page(
                         .h_full()
                         .flex_none()
                         .min_h_0()
+                        .min_w_0()
                         .overflow_y_scroll()
                         .child(
                             SettingsPage::new("内核管理")
@@ -1477,6 +1486,7 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
             search.into_any_element(),
             action_select.into_any_element(),
             NaryaButton::primary("新增规则")
+                .id("narya-rules-add")
                 .on_click(move |_, _, cx| AppState::add_rule(model_for_add.clone(), cx))
                 .into_any_element(),
         ]))
@@ -1529,9 +1539,17 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                                     .collect(),
                             })
                             .child(narya_ui::narya_tag(rule_action_summary(&rule.action), tone))
-                            .child(NaryaButton::ghost("删除").on_click(move |_, _, cx| {
-                                AppState::remove_rule(delete_model.clone(), cx, rule_id.clone())
-                            })),
+                            .child(
+                                NaryaButton::ghost("删除")
+                                    .id(format!("narya-rule-delete-{rule_id}"))
+                                    .on_click(move |_, _, cx| {
+                                        AppState::remove_rule(
+                                            delete_model.clone(),
+                                            cx,
+                                            rule_id.clone(),
+                                        )
+                                    }),
+                            ),
                     )
                     .into_any_element()
                 })),
@@ -1559,11 +1577,18 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                             group_strategy_label(group.strategy),
                             group.members.join(", ")
                         )))
-                        .child(NaryaButton::ghost("删除").disabled(!removable).on_click(
-                            move |_, _, cx| {
-                                AppState::remove_group(remove_model.clone(), cx, group_id.clone())
-                            },
-                        ))
+                        .child(
+                            NaryaButton::ghost("删除")
+                                .id(format!("narya-group-delete-{group_id}"))
+                                .disabled(!removable)
+                                .on_click(move |_, _, cx| {
+                                    AppState::remove_group(
+                                        remove_model.clone(),
+                                        cx,
+                                        group_id.clone(),
+                                    )
+                                }),
+                        )
                         .child(GroupEditor {
                             model: model.clone(),
                             group: editor_group,
@@ -1602,9 +1627,17 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                             rule_set_id: source_id.clone(),
                             enabled: source.enabled,
                         })
-                        .child(NaryaButton::ghost("删除").on_click(move |_, _, cx| {
-                            AppState::remove_rule_set(remove_model.clone(), cx, source_id.clone())
-                        }))
+                        .child(
+                            NaryaButton::ghost("删除")
+                                .id(format!("narya-ruleset-delete-{source_id}"))
+                                .on_click(move |_, _, cx| {
+                                    AppState::remove_rule_set(
+                                        remove_model.clone(),
+                                        cx,
+                                        source_id.clone(),
+                                    )
+                                }),
+                        )
                         .into_any_element()
                 }))
                 .child(RuleSetForm {
@@ -1676,9 +1709,11 @@ impl NaryaRenderOnce for RuleSetToggle {
         let model = self.model;
         let rule_set_id = self.rule_set_id;
         cx.new(|cx| {
-            Switch::new(self.enabled, cx).on_change(move |enabled, _, app| {
-                AppState::set_rule_set_enabled(model.clone(), app, rule_set_id.clone(), enabled)
-            })
+            Switch::new(self.enabled, cx)
+                .id(format!("narya-ruleset-toggle-{}", rule_set_id))
+                .on_change(move |enabled, _, app| {
+                    AppState::set_rule_set_enabled(model.clone(), app, rule_set_id.clone(), enabled)
+                })
         })
     }
 }
@@ -1707,6 +1742,7 @@ impl NaryaRenderOnce for RuleIoControls {
             .gap_md()
             .child(cx.new(|cx| {
                 Input::new(self.path, cx)
+                    .id("narya-rule-io-path")
                     .placeholder("绝对路径，例如 /tmp/narya-routes.json")
                     .width(px(420.0))
                     .on_change(move |value, input_cx| {
@@ -1773,11 +1809,14 @@ impl NaryaRenderOnce for RuleConditionEditor {
             editor = editor.child(
                 Flex::new()
                     .row()
+                    .wrap()
                     .gap_sm()
+                    .min_w_0()
                     .align_center()
                     .child(narya_text(if index == 0 { "条件" } else { "AND" }))
                     .child(cx.new(|cx| {
                         Select::new(labels, Some(selected), cx)
+                            .id(format!("narya-rule-condition-kind-{rule_id}-{index}"))
                             .width(px(130.0))
                             .on_change(move |next, _, app| {
                                 if let Some(next_kind) = kinds.get(next) {
@@ -1794,6 +1833,7 @@ impl NaryaRenderOnce for RuleConditionEditor {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(value, cx)
+                            .id(format!("narya-rule-condition-value-{rule_id}-{index}"))
                             .placeholder("条件值")
                             .width(px(210.0))
                             .on_change(move |next, input_cx| {
@@ -1866,6 +1906,7 @@ impl NaryaRenderOnce for GroupEditor {
             .gap_sm()
             .child(cx.new(|cx| {
                 Select::new(strategies, Some(selected), cx)
+                    .id(format!("narya-routing-group-strategy-{}", self.group.id))
                     .width(px(130.0))
                     .on_change(move |index, _, app| {
                         AppState::set_group_strategy(
@@ -1878,6 +1919,7 @@ impl NaryaRenderOnce for GroupEditor {
             }))
             .child(cx.new(|cx| {
                 Input::new(self.group.members.join(", "), cx)
+                    .id(format!("narya-routing-group-members-{}", self.group.id))
                     .placeholder("成员 outbound，用逗号分隔")
                     .width(px(260.0))
                     .on_change(move |value, input_cx| {
@@ -1891,6 +1933,7 @@ impl NaryaRenderOnce for GroupEditor {
             }))
             .child(cx.new(|cx| {
                 Input::new(self.group.url.unwrap_or_default(), cx)
+                    .id(format!("narya-routing-group-url-{}", self.group.id))
                     .placeholder("URL 测试地址")
                     .width(px(250.0))
                     .on_change(move |value, input_cx| {
@@ -1910,6 +1953,7 @@ impl NaryaRenderOnce for GroupEditor {
                         .unwrap_or_default(),
                     cx,
                 )
+                .id(format!("narya-routing-group-interval-{}", self.group.id))
                 .placeholder("间隔秒")
                 .width(px(100.0))
                 .on_change(move |value, input_cx| {
@@ -1997,7 +2041,9 @@ impl NaryaRenderOnce for RuleSetForm {
             .child(
                 Flex::new()
                     .row()
+                    .wrap()
                     .gap_md()
+                    .min_w_0()
                     .child(cx.new(|cx| {
                         let options = vec![
                             "sing_box_binary".to_string(),
@@ -2010,6 +2056,7 @@ impl NaryaRenderOnce for RuleSetForm {
                             .position(|value| value == &self.format)
                             .unwrap_or(0);
                         Select::new(options, Some(selected), cx)
+                            .id("narya-ruleset-format")
                             .width(px(170.0))
                             .on_change(move |index, _, app| {
                                 let value = match index {
@@ -2025,6 +2072,7 @@ impl NaryaRenderOnce for RuleSetForm {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(self.id, cx)
+                            .id("narya-ruleset-id")
                             .placeholder("ID，例如 geosite-ai")
                             .width(px(180.0))
                             .on_change(move |value, input_cx| {
@@ -2035,6 +2083,7 @@ impl NaryaRenderOnce for RuleSetForm {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(self.version, cx)
+                            .id("narya-ruleset-version")
                             .placeholder("版本")
                             .width(px(120.0))
                             .on_change(move |value, input_cx| {
@@ -2045,6 +2094,7 @@ impl NaryaRenderOnce for RuleSetForm {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(self.source, cx)
+                            .id("narya-ruleset-source")
                             .placeholder("绝对路径或 file://")
                             .width(px(320.0))
                             .on_change(move |value, input_cx| {
@@ -2055,6 +2105,7 @@ impl NaryaRenderOnce for RuleSetForm {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(self.sha256, cx)
+                            .id("narya-ruleset-sha256")
                             .placeholder("SHA-256")
                             .width(px(260.0))
                             .on_change(move |value, input_cx| {
@@ -2065,6 +2116,7 @@ impl NaryaRenderOnce for RuleSetForm {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(self.signature, cx)
+                            .id("narya-ruleset-signature")
                             .placeholder("Ed25519 签名（HTTPS 必填）")
                             .width(px(320.0))
                             .on_change(move |value, input_cx| {
@@ -2075,6 +2127,7 @@ impl NaryaRenderOnce for RuleSetForm {
                     }))
                     .child(cx.new(|cx| {
                         Input::new(self.public_key, cx)
+                            .id("narya-ruleset-public-key")
                             .placeholder("Ed25519 公钥（HTTPS 必填）")
                             .width(px(260.0))
                             .on_change(move |value, input_cx| {
@@ -2112,6 +2165,7 @@ impl NaryaRenderOnce for RuleSearchBox {
         let model = self.model;
         cx.new(|cx| {
             Input::new("", cx)
+                .id("narya-rules-search")
                 .placeholder("搜索规则、条件或动作")
                 .icon_prefix(IconName::Search)
                 .clearable(true)
@@ -2151,6 +2205,7 @@ impl NaryaRenderOnce for RuleActionFilterSelect {
         let model = self.model;
         cx.new(|cx| {
             Select::new(options, Some(selected_index), cx)
+                .id("narya-rule-action-filter")
                 .width(px(144.0))
                 .on_change(move |index, _, app| {
                     let filter = match index {
@@ -2212,8 +2267,10 @@ impl NaryaRenderOnce for RuleActionSelect {
             .collect();
         let model = self.model;
         let rule_id = self.rule_id;
+        let control_id = format!("narya-rule-target-{rule_id}");
         cx.new(|cx| {
             Select::new(labels, Some(selected_index), cx)
+                .id(control_id)
                 .width(px(116.0))
                 .on_change(move |index, _, app| {
                     if let Some(value) = values.get(index) {
@@ -2247,8 +2304,10 @@ impl NaryaRenderOnce for RulePriorityInput {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl NaryaIntoElement {
         let model = self.model;
         let rule_id = self.rule_id;
+        let control_id = format!("narya-rule-priority-{rule_id}");
         cx.new(|cx| {
             Input::new(self.priority.to_string(), cx)
+                .id(control_id)
                 .width(px(84.0))
                 .on_change(move |value, input_cx| {
                     if let Ok(priority) = value.parse::<i32>() {
