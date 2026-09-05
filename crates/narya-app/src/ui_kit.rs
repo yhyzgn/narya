@@ -16,15 +16,15 @@ use liora::components::{
 use liora_icons::Icon;
 use liora_icons_lucide::IconName;
 
-const SIDEBAR_W: f32 = 236.0;
-const HEADER_H: f32 = 92.0;
-const FOOTER_H: f32 = 56.0;
-const CONTENT_X_PAD: f32 = 24.0;
-const CONTENT_BOTTOM_PAD: f32 = 12.0;
-const GAP: f32 = 16.0;
+const SIDEBAR_W: f32 = 224.0;
+const HEADER_H: f32 = 84.0;
+const FOOTER_H: f32 = 48.0;
+const CONTENT_X_PAD: f32 = 20.0;
+const CONTENT_BOTTOM_PAD: f32 = 16.0;
+const GAP: f32 = 14.0;
 
-const FS_DISPLAY: f32 = 27.0;
-const FS_BRAND: f32 = 26.0;
+const FS_DISPLAY: f32 = 24.0;
+const FS_BRAND: f32 = 22.0;
 const FS_CARD_TITLE: f32 = 17.0;
 const FS_BODY: f32 = 14.0;
 const FS_SMALL: f32 = 13.0;
@@ -723,7 +723,7 @@ pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl In
         .w_full()
         .min_w_0()
         .overflow_hidden()
-        .height_px(144.0)
+        .height_px(136.0)
         .child(
             Flex::new()
                 .width_px(548.0)
@@ -739,7 +739,7 @@ pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl
         .row()
         .gap_px(20.0)
         .w_full()
-        .height_px(260.0)
+        .height_px(248.0)
         .min_w_0()
         .overflow_hidden()
         .child(
@@ -761,7 +761,7 @@ pub fn dashboard_bottom(
         .row()
         .gap_px(20.0)
         .w_full()
-        .height_px(260.0)
+        .height_px(248.0)
         .min_w_0()
         .overflow_hidden()
         .child(Flex::new().width_px(488.0).flex_none().min_w_0().child(a))
