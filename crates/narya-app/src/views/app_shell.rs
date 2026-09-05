@@ -5,8 +5,8 @@ use crate::ui_kit::{
 };
 use crate::views::ActiveView;
 use liora::components::{
-    Flex, Input, LocalizedText, NavigationMenu, NavigationMenuMode, Segmented, SegmentedOption,
-    Select, SettingsGroup, SettingsItem, SettingsPage, Switch, Text,
+    Drawer, Flex, Input, LocalizedText, NavigationMenu, NavigationMenuMode, Segmented,
+    SegmentedOption, Select, SettingsGroup, SettingsItem, SettingsPage, Switch, Text,
 };
 use liora_icons_lucide::IconName;
 use narya_ui::{
@@ -204,6 +204,10 @@ impl Render for AppShell {
             });
         };
 
+        // Overlay portals are rendered from the window layer after the shell
+        // builds its normal content tree.
+        liora::core::render_active_drawer_in_window(_window, cx);
+
         narya_ui::ShellFrame::new(
             narya_ui::Sidebar::new(
                 NavTarget::from(view),
@@ -214,7 +218,7 @@ impl Render for AppShell {
                 snapshot.upload_speed,
                 on_nav,
             ),
-            header(view, &self.state),
+            header(view, &self.state, cx.entity().downgrade()),
             route_page(view, &self.state, snapshot, &self.settings),
             footer,
         )
@@ -335,7 +339,11 @@ impl ShellSnapshot {
     }
 }
 
-fn header(view: ActiveView, model: &Entity<AppState>) -> impl NaryaIntoElement {
+fn header(
+    view: ActiveView,
+    model: &Entity<AppState>,
+    shell: gpui::WeakEntity<AppShell>,
+) -> impl NaryaIntoElement {
     let page = PageKind::from(view);
     let model_for_connect = model.clone();
     let mut actions = vec![
@@ -345,6 +353,70 @@ fn header(view: ActiveView, model: &Entity<AppState>) -> impl NaryaIntoElement {
         NaryaButton::icon_name(IconName::EllipsisVertical).into_any_element(),
     ];
     match view {
+        ActiveView::Config => {
+            let import_model = model.clone();
+            actions = vec![NaryaButton::primary("导入配置")
+                .id("narya-config-import-menu")
+                .on_click(move |_, window, cx| {
+                    let shell = shell.clone();
+                    let import_model = import_model.clone();
+                    Drawer::new()
+                        .id("narya-config-import-drawer")
+                        .title("导入配置")
+                        .width(px(440.0))
+                        .content(move |_, _| {
+                            Flex::new()
+                                .column()
+                                .gap_lg()
+                                .child(narya_text("选择一种方式添加配置订阅").sm())
+                                .child(narya_ui::detail_field(
+                                    "远程订阅 URL",
+                                    "HTTPS V2Ray / Clash / sing-box",
+                                ))
+                                .child(narya_ui::detail_field(
+                                    "本地配置文件",
+                                    "JSON、YAML 或 Base64 文本",
+                                ))
+                                .child(
+                                    NaryaButton::primary("读取剪贴板并导入")
+                                        .id("narya-config-import-clipboard")
+                                        .on_click({
+                                            let import_model = import_model.clone();
+                                            move |_, _, app| {
+                                                let Some(item) = app.read_from_clipboard() else {
+                                                    return;
+                                                };
+                                                let Some(text) = item.text() else {
+                                                    return;
+                                                };
+                                                import_model.update(app, |state, cx| {
+                                                    state.set_subscription_draft_name(
+                                                        "剪贴板配置".into(),
+                                                        cx,
+                                                    );
+                                                    state.set_subscription_draft_url(
+                                                        text.to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                                AppState::add_subscription(
+                                                    import_model.clone(),
+                                                    app,
+                                                );
+                                                Drawer::close(app);
+                                            }
+                                        }),
+                                )
+                                .child(
+                                    narya_text("导入后会先解析和校验，成功后才加入配置列表").xs(),
+                                )
+                        })
+                        .show(cx);
+                    window.refresh();
+                    let _ = shell.update(cx, |_, cx| cx.notify());
+                })
+                .into_any_element()];
+        }
         ActiveView::Nodes => actions.insert(
             0,
             NaryaButton::primary("一键测速")
@@ -1341,6 +1413,24 @@ fn kernel_state_label(state: &str) -> &'static str {
 }
 
 fn config_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
+    let subscriptions = snapshot
+        .subscriptions
+        .iter()
+        .map(|subscription| {
+            narya_ui::subscription_item(
+                subscription.name.clone(),
+                subscription.url.clone(),
+                subscription.node_count,
+                if subscription.traffic_total > 0.0 {
+                    (subscription.traffic_used / subscription.traffic_total) as f32
+                } else {
+                    0.0
+                },
+                snapshot.selected_subscription_id.as_deref() == Some(subscription.id.as_str()),
+            )
+            .into_any_element()
+        })
+        .collect::<Vec<_>>();
     NaryaPage::new()
         .row(narya_ui::page_row(vec![
             NaryaMetric::card(
@@ -1352,11 +1442,11 @@ fn config_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
             )
             .into_any_element(),
             NaryaMetric::card(
-                "链式代理",
-                "未启用",
-                "可视化编排",
-                IconName::ArrowLeftRight,
-                NaryaStatus::Warning,
+                "配置订阅",
+                snapshot.subscriptions.len().to_string(),
+                "已添加配置源",
+                IconName::Braces,
+                NaryaStatus::Info,
             )
             .into_any_element(),
             NaryaMetric::card(
@@ -1371,11 +1461,22 @@ fn config_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
         .row(NaryaCard::titled(
             "配置工作台",
             Flex::new()
-                .row()
+                .column()
                 .gap_lg()
-                .child(NaryaButton::ghost("可视化编辑").disabled(true))
-                .child(NaryaButton::ghost("YAML 编辑器").disabled(true))
-                .child(NaryaButton::ghost("链式代理").disabled(true)),
+                .min_w_0()
+                .child(narya_ui::detail_field(
+                    "配置说明",
+                    "配置页只管理订阅来源；节点与规则在对应页面维护",
+                ))
+                .child(narya_text("点击右上角“导入配置”选择远程、本地或剪贴板导入方式").xs()),
+        ))
+        .row(NaryaCard::titled(
+            "配置订阅列表",
+            Flex::new()
+                .column()
+                .gap_md()
+                .min_w_0()
+                .children(subscriptions),
         ))
 }
 

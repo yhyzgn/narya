@@ -10,7 +10,7 @@ pub use gpui::{
     ViewElement as NaryaViewElement, Window,
 };
 use liora::components::{
-    Button, Card, Flex, Image, Input, LineChart, LocalizedText, Progress, Segmented,
+    Button, Card, Flex, Image, Input, LineChart, LocalizedText, PortalLayer, Progress, Segmented,
     SegmentedOption, Select, SignalMeter, Space, Sparkline, Statistic, Switch, Tag, Text,
 };
 use liora_icons::Icon;
@@ -193,7 +193,8 @@ impl gpui::RenderOnce for ShellFrame {
                                         .child(self.content),
                                 ),
                             )
-                            .child(self.footer),
+                            .child(self.footer)
+                            .child(PortalLayer),
                     ),
             )
     }
