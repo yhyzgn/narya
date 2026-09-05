@@ -348,8 +348,8 @@ impl gpui::RenderOnce for SidebarMenu {
                     .cursor_pointer()
                     .block_mouse_except_scroll()
                     .w_full()
-                    .h(px(50.0))
-                    .px(px(20.0))
+                    .h(px(44.0))
+                    .px(px(16.0))
                     .rounded(px(8.0))
                     // Paint the inactive state explicitly. An unpainted GPUI
                     // layer can expose the compositor's black transparent
@@ -718,38 +718,24 @@ pub fn page_row(children: Vec<AnyElement>) -> impl IntoElement {
 
 pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
     Flex::new()
-        .row()
-        .gap_px(20.0)
+        .column()
+        .gap_px(GAP)
         .w_full()
         .min_w_0()
         .overflow_hidden()
-        .height_px(136.0)
-        .child(
-            Flex::new()
-                .width_px(548.0)
-                .flex_none()
-                .min_w_0()
-                .child(left),
-        )
-        .child(Flex::new().flex_1().min_w_0().child(right))
+        .child(Flex::new().w_full().min_w_0().child(left))
+        .child(Flex::new().w_full().min_w_0().child(right))
 }
 
 pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
     Flex::new()
-        .row()
-        .gap_px(20.0)
+        .column()
+        .gap_px(GAP)
         .w_full()
-        .height_px(248.0)
         .min_w_0()
         .overflow_hidden()
-        .child(
-            Flex::new()
-                .width_px(488.0)
-                .flex_none()
-                .min_w_0()
-                .child(left),
-        )
-        .child(Flex::new().flex_1().min_w_0().child(right))
+        .child(Flex::new().w_full().min_w_0().child(left))
+        .child(Flex::new().w_full().min_w_0().child(right))
 }
 
 pub fn dashboard_bottom(
@@ -758,15 +744,14 @@ pub fn dashboard_bottom(
     c: impl IntoElement,
 ) -> impl IntoElement {
     Flex::new()
-        .row()
-        .gap_px(20.0)
+        .column()
+        .gap_px(GAP)
         .w_full()
-        .height_px(248.0)
         .min_w_0()
         .overflow_hidden()
-        .child(Flex::new().width_px(488.0).flex_none().min_w_0().child(a))
-        .child(Flex::new().width_px(306.0).flex_none().min_w_0().child(b))
-        .child(Flex::new().flex_1().min_w_0().child(c))
+        .child(Flex::new().w_full().min_w_0().child(a))
+        .child(Flex::new().w_full().min_w_0().child(b))
+        .child(Flex::new().w_full().min_w_0().child(c))
 }
 
 pub fn nodes_main(
