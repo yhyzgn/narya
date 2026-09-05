@@ -168,25 +168,33 @@ impl gpui::RenderOnce for ShellFrame {
                 style: FontStyle::default(),
             })
             .child(
-                Flex::new().row().size_full().child(self.sidebar).child(
-                    Flex::new()
-                        .column()
-                        .flex_1()
-                        .h_full()
-                        .min_h_0()
-                        .child(self.header)
-                        .child(
-                            Flex::new().flex_1().min_h_0().child(
-                                div()
-                                    .size_full()
-                                    .overflow_hidden()
-                                    .px(px(CONTENT_X_PAD))
-                                    .pb(px(CONTENT_BOTTOM_PAD))
-                                    .child(self.content),
-                            ),
-                        )
-                        .child(self.footer),
-                ),
+                Flex::new()
+                    .row()
+                    .size_full()
+                    .min_w_0()
+                    .child(self.sidebar)
+                    .child(
+                        Flex::new()
+                            .column()
+                            .flex_1()
+                            .h_full()
+                            .min_h_0()
+                            .min_w_0()
+                            .child(self.header)
+                            .child(
+                                Flex::new().flex_1().min_h_0().min_w_0().child(
+                                    div()
+                                        .w_full()
+                                        .h_full()
+                                        .min_w_0()
+                                        .overflow_hidden()
+                                        .px(px(CONTENT_X_PAD))
+                                        .pb(px(CONTENT_BOTTOM_PAD))
+                                        .child(self.content),
+                                ),
+                            )
+                            .child(self.footer),
+                    ),
             )
     }
 }
@@ -715,6 +723,7 @@ pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl In
         .gap_px(20.0)
         .w_full()
         .min_w_0()
+        .overflow_hidden()
         .height_px(144.0)
         .child(
             Flex::new()
@@ -730,8 +739,10 @@ pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl
     Flex::new()
         .row()
         .gap_px(20.0)
+        .w_full()
         .height_px(260.0)
         .min_w_0()
+        .overflow_hidden()
         .child(
             Flex::new()
                 .width_px(488.0)
@@ -750,8 +761,10 @@ pub fn dashboard_bottom(
     Flex::new()
         .row()
         .gap_px(20.0)
+        .w_full()
         .height_px(260.0)
         .min_w_0()
+        .overflow_hidden()
         .child(Flex::new().width_px(488.0).flex_none().min_w_0().child(a))
         .child(Flex::new().width_px(306.0).flex_none().min_w_0().child(b))
         .child(Flex::new().flex_1().min_w_0().child(c))
@@ -906,6 +919,7 @@ pub fn titled_panel(title: &'static str, body: impl IntoElement) -> impl IntoEle
         Flex::new()
             .column()
             .size_full()
+            .min_w_0()
             .padding_px(16.0)
             .gap_md()
             .child(
@@ -915,7 +929,7 @@ pub fn titled_panel(title: &'static str, body: impl IntoElement) -> impl IntoEle
                     .text_color(color(TEXT).into())
                     .selectable(false),
             )
-            .child(Flex::new().flex_1().min_h_0().child(body)),
+            .child(Flex::new().flex_1().min_h_0().min_w_0().child(body)),
     )
 }
 
@@ -962,11 +976,15 @@ pub fn dashboard_network_panel(
         Flex::new()
             .row()
             .gap_lg()
+            .w_full()
+            .min_w_0()
+            .overflow_hidden()
             .child(Flex::new().flex_1().min_h_0().w_full().child(chart))
             .child(
                 Flex::new()
                     .width_px(300.0)
                     .flex_none()
+                    .min_w_0()
                     .child(metric_quad(metrics)),
             ),
     )
@@ -981,22 +999,32 @@ pub fn dashboard_traffic_panel(
         Flex::new()
             .row()
             .gap_lg()
+            .w_full()
+            .min_w_0()
+            .overflow_hidden()
             .child(
                 Flex::new()
                     .width_px(126.0)
                     .flex_none()
+                    .min_w_0()
                     .child(Flex::new().column().gap_lg().children(stats)),
             )
-            .child(Flex::new().flex_1().w_full().child(chart)),
+            .child(Flex::new().flex_1().min_w_0().w_full().child(chart)),
     )
 }
 
 pub fn metric_quad(items: Vec<AnyElement>) -> impl IntoElement {
-    Flex::new().row().wrap().gap_lg().children(
-        items
-            .into_iter()
-            .map(|item| Flex::new().width_px(126.0).child(item)),
-    )
+    Flex::new()
+        .row()
+        .wrap()
+        .gap_lg()
+        .w_full()
+        .min_w_0()
+        .children(
+            items
+                .into_iter()
+                .map(|item| Flex::new().width_px(126.0).child(item)),
+        )
 }
 
 pub fn compact_metric(
