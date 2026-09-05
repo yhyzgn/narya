@@ -158,6 +158,7 @@ impl gpui::RenderOnce for ShellFrame {
     fn render(self, _window: &mut gpui::Window, _cx: &mut gpui::App) -> impl IntoElement {
         div()
             .size_full()
+            .relative()
             .bg(color(APP_BG))
             .text_color(color(TEXT))
             .font(Font {
@@ -193,10 +194,10 @@ impl gpui::RenderOnce for ShellFrame {
                                         .child(self.content),
                                 ),
                             )
-                            .child(self.footer)
-                            .child(PortalLayer),
+                            .child(self.footer),
                     ),
             )
+            .child(PortalLayer)
     }
 }
 
