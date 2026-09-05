@@ -64,7 +64,7 @@
 ## 当前工作指针
 
 - 计划：`.context/plans/002-runtime-foundation.md`
-- 任务：`.context/tasks/014-official-download-reliability.md`
+- 任务：`.context/tasks/016-ui-redesign-from-scratch.md`
 
 ## 交付要求
 

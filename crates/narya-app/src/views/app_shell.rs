@@ -541,6 +541,25 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                 }),
             ),
         ))
+        .row(NaryaCard::titled(
+            "连接控制",
+            Flex::new()
+                .row()
+                .wrap()
+                .gap_md()
+                .min_w_0()
+                .child(narya_text(format!(
+                    "当前模式：{}",
+                    routing_mode_label(snapshot.routing_active)
+                )))
+                .child(
+                    NaryaButton::primary(toggle_label)
+                        .id("narya-dashboard-toggle-connection")
+                        .on_click(move |_, _, cx| {
+                            AppState::toggle_proxy(model_for_toggle.clone(), cx)
+                        }),
+                ),
+        ))
         .row(narya_ui::dashboard_middle(
             narya_ui::dashboard_quick_panel(
                 snapshot
@@ -647,9 +666,6 @@ fn dashboard_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl Nar
                     .column()
                     .gap_md()
                     .children(activity_rows)
-                    .child(NaryaButton::ghost(toggle_label).on_click(move |_, _, cx| {
-                        AppState::toggle_proxy(model_for_toggle.clone(), cx)
-                    }))
                     .when_some(snapshot.kernel_operation.clone(), |element, operation| {
                         element.child(narya_text(operation))
                     })

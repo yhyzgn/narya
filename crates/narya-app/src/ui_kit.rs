@@ -619,6 +619,7 @@ impl gpui::RenderOnce for NaryaPage {
             .gap_px(GAP)
             .size_full()
             .min_h_0()
+            .id("narya-page-scroll")
             .overflow_y_scroll()
             .children(self.rows)
     }
