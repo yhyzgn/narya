@@ -1,4 +1,4 @@
-#![recursion_limit = "2048"]
+#![recursion_limit = "4096"]
 pub mod assets;
 pub mod ipc;
 pub mod state;
@@ -18,7 +18,13 @@ pub fn run() {
             // Tray icon can be tricky on Linux in some environments
             let _tray = init_tray();
 
-            liora::init_liora_with_mode(cx, liora::ThemeMode::Light);
+            // Keep the user's actual fontconfig pairing: Consolas for Latin
+            // text and LXGW WenKai for Chinese glyph fallback. The explicit
+            // GPUI fallback chain avoids the Linux backend's IBM Plex alias.
+            let options = liora::Options::system()
+                .with_theme_mode(liora::ThemeMode::Light)
+                .with_fonts(liora::FontConfig::system());
+            liora::init_liora_with_options(cx, options);
             AppShell::open(cx);
             cx.activate(true);
         });

@@ -19,8 +19,20 @@ mod tests {
     fn ui_contract_launches_main_window_without_splash() {
         let lib = workspace_file("crates/narya-app/src/lib.rs");
         assert!(
-            lib.contains("liora::init_liora_with_mode(cx, liora::ThemeMode::Light)"),
-            "narya-app must initialize Liora during GPUI startup"
+            lib.contains("liora::init_liora_with_options(cx, options)")
+                && lib.contains("liora::FontConfig::system()"),
+            "narya-app must initialize Liora with the platform system font policy during GPUI startup"
+        );
+        let ui_kit = workspace_file("crates/narya-app/src/ui_kit.rs");
+        assert!(
+            ui_kit.contains("family: \"Consolas\".into()")
+                && ui_kit.contains("\"LXGW WenKai\".to_string()"),
+            "the UI font chain must preserve the configured Consolas/LXGW WenKai pairing"
+        );
+        let assets = workspace_file("crates/narya-app/src/assets.rs");
+        assert!(
+            assets.contains("IconAssetSource"),
+            "application assets must delegate virtual Liora icon paths to IconAssetSource"
         );
         assert!(
             !lib.contains("views::splash::Splash") && !lib.contains("Splash::new"),
@@ -29,6 +41,11 @@ mod tests {
         assert!(
             lib.contains("AppShell::open(cx)"),
             "startup must open the main AppShell directly"
+        );
+        let ipc = workspace_file("crates/narya-app/src/ipc.rs");
+        assert!(
+            ipc.contains("ensure_daemon") && ipc.contains("narya-daemon"),
+            "desktop startup must provision the co-located daemon instead of requiring a silent manual prerequisite"
         );
         let views_mod = workspace_file("crates/narya-app/src/views/mod.rs");
         assert!(
@@ -72,6 +89,10 @@ mod tests {
             assert!(ui_kit.contains(symbol), "ui_kit.rs must define {symbol}");
         }
         assert!(
+            !ui_kit.contains(".flex()"),
+            "ui_kit layout must be delegated to Liora components instead of raw GPUI flex calls"
+        );
+        assert!(
             ui_kit.contains("liora::components") || ui_kit.contains("liora_components"),
             "project components must wrap Liora components, not bypass the component library"
         );
@@ -85,6 +106,56 @@ mod tests {
     }
 
     #[test]
+    fn ui_contract_keeps_primary_controls_interactive() {
+        let ui_kit = workspace_file("crates/narya-app/src/ui_kit.rs");
+        let app_shell = workspace_file("crates/narya-app/src/views/app_shell.rs");
+        assert!(
+            !ui_kit.contains("readonly_shell") && !ui_kit.contains("interaction_blocker"),
+            "primary Liora controls must not be wrapped in a mouse-blocking readonly layer"
+        );
+        assert!(
+            ui_kit.contains(".on_click(move |_, _, cx| on_nav(target, cx))"),
+            "sidebar navigation must dispatch through a direct stable row click handler"
+        );
+        assert!(
+            ui_kit.contains(".when(active, |style| style.bg(color(0xEEF4FF)))"),
+            "sidebar inactive rows must remain transparent instead of using opaque black RGB"
+        );
+        assert!(
+            ui_kit.contains(".bg(color(0xFBFDFF))"),
+            "sidebar rows must paint an explicit light base to avoid black compositor surfaces"
+        );
+        assert!(
+            ui_kit.contains("WindowDecorations::Server"),
+            "window controls must remain owned by the native window manager"
+        );
+        assert!(
+            !ui_kit.contains("fn interaction_blocker()"),
+            "the application must not retain a full-size interaction blocker"
+        );
+        assert!(
+            ui_kit.contains("category_menu_with_change")
+                && ui_kit.contains("setting_row_with_change")
+                && ui_kit.contains("on_select"),
+            "settings navigation and switches must expose real Liora callbacks"
+        );
+        assert!(
+            app_shell.contains("settings_category")
+                && app_shell.contains("set_setting_value")
+                && app_shell.contains("overflow_y_scroll"),
+            "settings page must retain state and bound the kernel column"
+        );
+        assert!(
+            app_shell.contains("category_menu: Entity<NavigationMenu>")
+                && app_shell.contains("autostart: Entity<Switch>")
+                && app_shell.contains("appearance: Entity<Segmented>")
+                && app_shell.contains("SettingsPage::new")
+                && app_shell.contains("settings.category_menu.clone()"),
+            "settings controls must use persistent Liora entities and SettingsPage layout"
+        );
+    }
+
+    #[test]
     fn integration_contract_red_line_fixes_are_locked() {
         let app_shell = workspace_file("crates/narya-app/src/views/app_shell.rs");
         for callback in ["AppState::toggle_proxy", "AppState::connect_node"] {
@@ -95,9 +166,15 @@ mod tests {
         }
         let daemon = workspace_file("crates/narya-daemon/src/main.rs");
         assert!(
-            daemon.contains("KernelArtifactRequest")
-                && daemon.contains("InstallKernel")
-                && daemon.contains("UpgradeKernel"),
+            daemon.contains("InstallOfficialKernel")
+                && daemon.contains("UpgradeOfficialKernel")
+                && daemon.contains("UninstallKernel")
+                && workspace_file("crates/narya-daemon/src/installer.rs")
+                    .contains("KernelArtifactRequest")
+                && workspace_file("crates/narya-daemon/src/installer.rs")
+                    .contains("managed storage")
+                && workspace_file("crates/narya-daemon/src/kernel.rs")
+                    .contains("cannot uninstall the active kernel"),
             "kernel install and upgrade must require a verified artifact request"
         );
         assert!(
@@ -130,12 +207,13 @@ mod tests {
         assert!(
             app_state.contains("response.error.is_none()")
                 && app_state.contains("StartKernel")
-                && app_state.contains("SetSystemProxy failed"),
+                && app_state.contains("SetRoutingMode 失败"),
             "app state must inspect daemon IpcResponse.error before reporting connected state"
         );
         assert!(
-            app_state.contains("InstallKernel")
-                && app_state.contains("UpgradeKernel")
+            app_state.contains("InstallOfficialKernel")
+                && app_state.contains("UpgradeOfficialKernel")
+                && app_state.contains("UninstallKernel")
                 && !app_state.contains("Kernel installation is not implemented"),
             "kernel settings must submit real install/upgrade IPC requests"
         );
@@ -170,8 +248,8 @@ mod tests {
                 && app_shell.contains("RuleSetToggle")
                 && app_shell.contains("Switch")
                 && rules.contains("RuleSetFormat")
-                && workspace_file("crates/narya-daemon/src/config_gen.rs")
-                    .contains("mihomo_rule_providers"),
+                && workspace_file("crates/narya-daemon/src/config_gen/mihomo.rs")
+                    .contains("rule_providers"),
             "ruleset lifecycle and cross-kernel provider formats must be explicit and exposed through Liora"
         );
         let catalog = workspace_file("crates/narya-daemon/src/kernel_catalog.rs");
@@ -184,6 +262,34 @@ mod tests {
                 && daemon.contains("GetKernelCatalog"),
             "kernel HTTPS installs must be constrained by a verified signed catalog"
         );
+        assert!(
+            workspace_file("crates/narya-app/src/state.rs")
+                .contains("InstallOfficialKernel")
+                && !workspace_file("crates/narya-app/src/views/app_shell.rs")
+                    .contains("KernelArtifactForm")
+                && !workspace_file("crates/narya-app/src/views/app_shell.rs")
+                    .contains("KernelCatalogForm"),
+            "settings page must use official catalog actions without exposing artifact or catalog forms"
+        );
+        for action in ["install", "upgrade", "uninstall", "start"] {
+            assert!(
+                app_shell.contains(&format!("narya-kernel-{{name}}-{action}")),
+                "each kernel row must assign a unique stable id to its {action} button"
+            );
+        }
+        let official_release = workspace_file("crates/narya-daemon/src/official_release.rs");
+        for repository in ["SagerNet", "MetaCubeX", "XTLS", "v2fly"] {
+            assert!(
+                official_release.contains(repository),
+                "official installer must pin the {repository} release repository"
+            );
+        }
+        assert!(
+            official_release.contains("release-assets.githubusercontent.com")
+                && official_release.contains("extract_binary")
+                && official_release.contains("MAX_DOWNLOAD_SIZE"),
+            "official installer must constrain redirects, extraction, and download size"
+        );
 
         let ipc = workspace_file("crates/narya-ipc/src/lib.rs");
         assert!(
@@ -193,6 +299,13 @@ mod tests {
                 && ipc.contains("MAX_FRAME_SIZE")
                 && !ipc.contains("/tmp/narya.sock"),
             "IPC paths must use a per-user runtime directory and framed messages"
+        );
+        let kernel = workspace_file("crates/narya-kernel/src/lib.rs");
+        assert!(
+            kernel.contains("probe_managed")
+                && !kernel.contains("split_paths")
+                && !kernel.contains("find_on_path"),
+            "kernel discovery must be limited to Narya managed storage"
         );
     }
 
@@ -236,6 +349,10 @@ mod tests {
             assert!(
                 source.contains("narya_ui") || source.contains("crate::ui_kit"),
                 "page layer {page} must compose through the local reusable Narya UI layer"
+            );
+            assert!(
+                source.contains("toggle_routing_mode") && source.contains("switch_routing_mode"),
+                "dashboard routing cards must dispatch mode changes through the daemon transaction"
             );
         }
     }

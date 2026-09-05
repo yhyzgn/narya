@@ -27,6 +27,22 @@ pub struct NodeDetails {
     pub skip_cert_verify: bool,
     pub transport: String,
     pub last_test: String,
+    #[serde(default)]
+    pub options: ProtocolOptions,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ProtocolOptions {
+    pub server_name: Option<String>,
+    pub alpn: Vec<String>,
+    pub transport_path: Option<String>,
+    pub transport_host: Option<String>,
+    pub grpc_service_name: Option<String>,
+    pub flow: Option<String>,
+    pub reality_public_key: Option<String>,
+    pub reality_short_id: Option<String>,
+    pub vmess_security: Option<String>,
+    pub vmess_alter_id: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -59,6 +75,7 @@ mod tests {
             skip_cert_verify: false,
             transport: "tcp".to_string(),
             last_test: "Just now".to_string(),
+            options: ProtocolOptions::default(),
         };
         let node = Node {
             id: "1".to_string(),

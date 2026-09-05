@@ -8,6 +8,9 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 
+mod mihomo;
+mod xray;
+
 /// Explicit DNS paths used by the generated sing-box configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DnsConfig {
@@ -225,272 +228,10 @@ impl ConfigGenerator {
     ) -> Result<Value> {
         match kernel {
             KernelId::SingBox => Self::generate_json_with_config(node, config),
-            KernelId::Mihomo => generate_mihomo_config(node, config),
-            KernelId::Xray => generate_xray_config(node, config),
+            KernelId::Mihomo => mihomo::generate(node, config),
+            KernelId::Xray | KernelId::V2Ray => xray::generate(node, config),
         }
     }
-}
-
-fn generate_mihomo_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
-    validate_routing_plan(config)?;
-    validate_rule_set_references(&config.rules, &config.rule_sets)?;
-    let proxy = mihomo_proxy(node)?;
-    let proxies = vec![proxy];
-    let mut groups = Vec::new();
-    for group in &config.groups {
-        group
-            .validate()
-            .map_err(|error| anyhow!("group {} is invalid: {error}", group.id))?;
-        let group_type = match group.strategy {
-            GroupStrategy::Select => "select",
-            GroupStrategy::UrlTest => "url-test",
-            GroupStrategy::Fallback => "fallback",
-            GroupStrategy::LoadBalance => "load-balance",
-        };
-        let mut value = json!({
-            "name": group.id,
-            "type": group_type,
-            "proxies": group.members,
-        });
-        if let Some(url) = &group.url {
-            value["url"] = Value::String(url.clone());
-        }
-        if let Some(interval) = group.interval_secs {
-            value["interval"] = Value::Number(interval.into());
-        }
-        groups.push(value);
-    }
-    let mut rules = Vec::new();
-    for rule in config.rules.rules() {
-        rules.push(mihomo_rule(rule)?);
-    }
-    if rules.is_empty() || !rules.iter().any(|rule| rule.ends_with(",REJECT")) {
-        rules.push("MATCH,REJECT".into());
-    }
-    let mut root = json!({
-        "port": config.plan.system_proxy.http_port,
-        "socks-port": config.plan.system_proxy.socks_port,
-        "bind-address": config.plan.system_proxy.http_host,
-        "allow-lan": false,
-        "mode": "rule",
-        "log-level": "info",
-        "proxies": proxies,
-        "proxy-groups": groups,
-        "rules": rules,
-        "dns": {
-            "enable": true,
-            "listen": "127.0.0.1:1053",
-            "nameserver": config.dns.proxy,
-            "fallback": config.dns.resolver,
-            "respect-rules": true
-        }
-    });
-    let providers = mihomo_rule_providers(&config.rules, &config.rule_sets)?;
-    if !providers.is_empty() {
-        root["rule-providers"] = Value::Object(providers);
-    }
-    if let Some(tun) = &config.plan.tun {
-        root["tun"] = json!({
-            "enable": true,
-            "stack": "system",
-            "auto-route": tun.auto_route,
-            "strict-route": tun.strict_route,
-            "dns-hijack": if tun.hijack_dns { vec!["any:53"] } else { Vec::new() },
-            "route-exclude-address": tun.excluded_routes,
-        });
-    }
-    Ok(root)
-}
-
-fn mihomo_rule_providers(rules: &RuleSet, sources: &[RuleSetSource]) -> Result<Map<String, Value>> {
-    let referenced = rules
-        .rules()
-        .iter()
-        .flat_map(|rule| rule.conditions.iter())
-        .filter_map(|condition| match condition {
-            Condition::RuleSet(id) => Some(id.as_str()),
-            _ => None,
-        })
-        .collect::<std::collections::HashSet<_>>();
-    let mut providers = Map::new();
-    for source in sources
-        .iter()
-        .filter(|source| source.enabled && referenced.contains(source.id.as_str()))
-    {
-        let behavior = source.format.mihomo_behavior().ok_or_else(|| {
-            anyhow!(
-                "ruleset {} uses sing-box binary format, which mihomo cannot consume",
-                source.id
-            )
-        })?;
-        let path = rule_set_local_path(source);
-        providers.insert(
-            source.id.clone(),
-            json!({
-                "type": "file",
-                "behavior": behavior,
-                "format": "text",
-                "path": path,
-                "interval": 0
-            }),
-        );
-    }
-    Ok(providers)
-}
-
-fn rule_set_local_path(source: &RuleSetSource) -> String {
-    if source.source.starts_with("https://") {
-        narya_ipc::ruleset_cache_dir()
-            .join(&source.id)
-            .join("current")
-            .display()
-            .to_string()
-    } else {
-        source
-            .source
-            .strip_prefix("file://")
-            .unwrap_or(&source.source)
-            .to_string()
-    }
-}
-
-fn mihomo_proxy(node: &Node) -> Result<Value> {
-    let (server, port) = split_host_port(&node.details.address)?;
-    match node.protocol.to_ascii_lowercase().as_str() {
-        "shadowsocks" | "ss" => {
-            let (cipher, password) = split_shadowsocks_credentials(&node.details.encryption)?;
-            Ok(json!({
-                "name": "proxy-node",
-                "type": "ss",
-                "server": server,
-                "port": port,
-                "cipher": cipher,
-                "password": password,
-            }))
-        }
-        protocol => bail!("mihomo adapter does not support proxy protocol {protocol}"),
-    }
-}
-
-fn mihomo_rule(rule: &narya_rules::Rule) -> Result<String> {
-    if rule.conditions.len() != 1 {
-        bail!(
-            "rule {}: mihomo adapter requires one condition per rule",
-            rule.id
-        );
-    }
-    let target = match &rule.action {
-        Action::Proxy(group) => group.clone(),
-        Action::Direct => "DIRECT".into(),
-        Action::Block => "REJECT".into(),
-        Action::Dns(_) => bail!(
-            "rule {}: mihomo adapter does not support DNS actions",
-            rule.id
-        ),
-    };
-    let condition = match &rule.conditions[0] {
-        Condition::Domain(value) => format!("DOMAIN,{value},{target}"),
-        Condition::DomainSuffix(value) => format!("DOMAIN-SUFFIX,{value},{target}"),
-        Condition::IpCidr { network, prefix } => format!("IP-CIDR,{network}/{prefix},{target}"),
-        Condition::RuleSet(value) => format!("RULE-SET,{value},{target}"),
-        Condition::Any => format!("MATCH,{target}"),
-        Condition::Port(_) | Condition::Process(_) => {
-            bail!(
-                "rule {}: mihomo adapter does not support port/process conditions",
-                rule.id
-            )
-        }
-    };
-    Ok(condition)
-}
-
-fn generate_xray_config(node: &Node, config: &RoutingConfig) -> Result<Value> {
-    validate_routing_plan(config)?;
-    validate_rule_set_references(&config.rules, &config.rule_sets)?;
-    if config.mode == ProxyMode::Tun {
-        bail!("xray-core adapter does not support TUN mode yet");
-    }
-    let (server, port) = split_host_port(&node.details.address)?;
-    let (method, password) = split_shadowsocks_credentials(&node.details.encryption)?;
-    let outbounds = vec![
-        json!({
-            "protocol": "shadowsocks",
-            "tag": "proxy-node",
-            "settings": {"servers": [{"address": server, "port": port, "method": method, "password": password}]}
-        }),
-        json!({"protocol": "freedom", "tag": "direct"}),
-        json!({"protocol": "blackhole", "tag": "block"}),
-    ];
-    let mut balancers = Vec::new();
-    for group in &config.groups {
-        group
-            .validate()
-            .map_err(|error| anyhow!("group {} is invalid: {error}", group.id))?;
-        balancers.push(json!({
-            "tag": group.id,
-            "selector": group.members,
-        }));
-    }
-    let mut routing_rules = Vec::new();
-    for rule in config.rules.rules() {
-        if rule.conditions.len() != 1 {
-            bail!(
-                "rule {}: xray adapter requires one condition per rule",
-                rule.id
-            );
-        }
-        let mut value = Map::new();
-        match &rule.conditions[0] {
-            Condition::Domain(domain) => {
-                value.insert("domain".into(), json!([format!("domain:{domain}")]))
-            }
-            Condition::DomainSuffix(domain) => {
-                value.insert("domain".into(), json!([format!("domain:{domain}")]))
-            }
-            Condition::IpCidr { network, prefix } => {
-                value.insert("ip".into(), json!([format!("{network}/{prefix}")]))
-            }
-            Condition::RuleSet(_) => bail!(
-                "rule {}: xray adapter requires downloaded rule-set translation",
-                rule.id
-            ),
-            Condition::Any => None,
-            Condition::Port(_) | Condition::Process(_) => bail!(
-                "rule {}: xray adapter does not support port/process conditions",
-                rule.id
-            ),
-        };
-        match &rule.action {
-            Action::Proxy(group) => {
-                value.insert("balancerTag".into(), Value::String(group.clone()));
-            }
-            Action::Direct => {
-                value.insert("outboundTag".into(), Value::String("direct".into()));
-            }
-            Action::Block => {
-                value.insert("outboundTag".into(), Value::String("block".into()));
-            }
-            Action::Dns(_) => bail!(
-                "rule {}: xray adapter does not support DNS actions",
-                rule.id
-            ),
-        }
-        routing_rules.push(Value::Object(value));
-    }
-    routing_rules.push(json!({"outboundTag": "block"}));
-    let mut root = json!({
-        "log": {"loglevel": "warning"},
-        "inbounds": [
-            {"listen": config.plan.system_proxy.socks_host, "port": config.plan.system_proxy.socks_port, "protocol": "socks", "settings": {"udp": true}},
-            {"listen": config.plan.system_proxy.http_host, "port": config.plan.system_proxy.http_port, "protocol": "http"}
-        ],
-        "outbounds": outbounds,
-        "routing": {"domainStrategy": "AsIs", "rules": routing_rules}
-    });
-    if !balancers.is_empty() {
-        root["routing"]["balancers"] = Value::Array(balancers);
-    }
-    Ok(root)
 }
 
 fn validate_system_proxy_plan(plan: &SystemProxyPlan) -> Result<()> {
@@ -557,6 +298,7 @@ fn validate_rule_set_references(rules: &RuleSet, sources: &[RuleSetSource]) -> R
 
 fn proxy_outbound(node: &Node, tag: &str) -> Result<Value> {
     let (server, port) = split_host_port(&node.details.address)?;
+    let options = &node.details.options;
     match node.protocol.to_ascii_lowercase().as_str() {
         "shadowsocks" | "ss" => {
             let (method, password) = split_shadowsocks_credentials(&node.details.encryption)?;
@@ -570,9 +312,126 @@ fn proxy_outbound(node: &Node, tag: &str) -> Result<Value> {
                 "udp_over_tcp": false
             }))
         }
+        "hysteria2" | "hy2" => {
+            let password = prefixed_credential(&node.details.encryption, "password")?;
+            let mut value = json!({
+                "type": "hysteria2",
+                "tag": tag,
+                "server": server,
+                "server_port": port,
+                "password": password,
+                "tls": {"enabled": node.details.tls, "insecure": node.details.skip_cert_verify}
+            });
+            apply_tls_options(&mut value, options);
+            Ok(value)
+        }
+        "vmess" => {
+            let uuid = prefixed_credential(&node.details.encryption, "uuid")?;
+            let mut value = json!({
+                "type": "vmess",
+                "tag": tag,
+                "server": server,
+                "server_port": port,
+                "uuid": uuid,
+                "security": options.vmess_security.as_deref().unwrap_or("auto"),
+                "tls": {"enabled": node.details.tls, "insecure": node.details.skip_cert_verify}
+            });
+            if options.vmess_alter_id > 0 {
+                value["alter_id"] = json!(options.vmess_alter_id);
+            }
+            apply_transport_and_tls(&mut value, &node.details.transport, options)?;
+            Ok(value)
+        }
+        "vless" | "vless reality" => {
+            let uuid = prefixed_credential(&node.details.encryption, "uuid")?;
+            let mut value = json!({
+                "type": "vless",
+                "tag": tag,
+                "server": server,
+                "server_port": port,
+                "uuid": uuid,
+                "tls": {"enabled": node.details.tls, "insecure": node.details.skip_cert_verify}
+            });
+            if let Some(flow) = &options.flow {
+                value["flow"] = json!(flow);
+            }
+            apply_transport_and_tls(&mut value, &node.details.transport, options)?;
+            Ok(value)
+        }
+        "trojan" => {
+            let password = prefixed_credential(&node.details.encryption, "password")?;
+            let mut value = json!({
+                "type": "trojan",
+                "tag": tag,
+                "server": server,
+                "server_port": port,
+                "password": password,
+                "tls": {"enabled": node.details.tls, "insecure": node.details.skip_cert_verify}
+            });
+            apply_tls_options(&mut value, options);
+            Ok(value)
+        }
         protocol => Err(anyhow!(
             "unsupported proxy protocol for sing-box config generation: {protocol}"
         )),
+    }
+}
+
+fn prefixed_credential<'a>(value: &'a str, prefix: &str) -> Result<&'a str> {
+    let credential = value
+        .strip_prefix(&format!("{prefix}:"))
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| anyhow!("node is missing {prefix} credential"))?;
+    Ok(credential)
+}
+
+fn sing_box_transport(transport: &str) -> Result<Value> {
+    match transport.to_ascii_lowercase().as_str() {
+        "tcp" | "" => Ok(json!({"type": "tcp"})),
+        "ws" | "websocket" => Ok(json!({"type": "ws"})),
+        "grpc" => Ok(json!({"type": "grpc"})),
+        other => bail!("unsupported sing-box transport {other}"),
+    }
+}
+
+fn apply_transport_and_tls(
+    value: &mut Value,
+    transport: &str,
+    options: &narya_core::ProtocolOptions,
+) -> Result<()> {
+    if !transport.eq_ignore_ascii_case("tcp") && !transport.is_empty() {
+        let mut transport_value = sing_box_transport(transport)?;
+        if let Some(path) = &options.transport_path {
+            transport_value["path"] = json!(path);
+        }
+        if let Some(host) = &options.transport_host {
+            transport_value["headers"] = json!({"Host": host});
+        }
+        if let Some(service) = &options.grpc_service_name {
+            transport_value["service_name"] = json!(service);
+        }
+        value["transport"] = transport_value;
+    }
+    apply_tls_options(value, options);
+    Ok(())
+}
+
+fn apply_tls_options(value: &mut Value, options: &narya_core::ProtocolOptions) {
+    if let Some(server_name) = &options.server_name {
+        value["tls"]["server_name"] = json!(server_name);
+    }
+    if !options.alpn.is_empty() {
+        value["tls"]["alpn"] = json!(options.alpn);
+    }
+    if options.reality_public_key.is_some() || options.reality_short_id.is_some() {
+        let mut reality = json!({"enabled": true});
+        if let Some(key) = &options.reality_public_key {
+            reality["public_key"] = json!(key);
+        }
+        if let Some(id) = &options.reality_short_id {
+            reality["short_id"] = json!(id);
+        }
+        value["tls"]["reality"] = reality;
     }
 }
 
@@ -892,6 +751,7 @@ mod tests {
                 skip_cert_verify: false,
                 transport: "tcp".to_string(),
                 last_test: "Never".to_string(),
+                options: narya_core::ProtocolOptions::default(),
             },
         }
     }
@@ -1290,10 +1150,220 @@ mod tests {
     #[test]
     fn unsupported_protocol_fails_closed() {
         let err = ConfigGenerator::generate_json_with_config(
-            &node("vmess", "auto"),
+            &node("wireguard", "auto"),
             &RoutingConfig::default(),
         )
         .unwrap_err();
         assert!(err.to_string().contains("unsupported proxy protocol"));
+    }
+
+    #[test]
+    fn sing_box_supports_subscription_protocols_with_explicit_credentials() {
+        let cases = [
+            ("hysteria2", "password:secret", "hysteria2"),
+            (
+                "vmess",
+                "uuid:00000000-0000-0000-0000-000000000001",
+                "vmess",
+            ),
+            (
+                "vless",
+                "uuid:00000000-0000-0000-0000-000000000002",
+                "vless",
+            ),
+            ("trojan", "password:secret", "trojan"),
+        ];
+        for (protocol, credentials, expected_type) in cases {
+            let config = ConfigGenerator::generate_json_with_config(
+                &node(protocol, credentials),
+                &RoutingConfig::default(),
+            )
+            .unwrap();
+            assert_eq!(config["outbounds"][0]["type"], expected_type);
+        }
+    }
+
+    #[test]
+    fn mihomo_and_xray_compile_supported_subscription_protocols() {
+        let mihomo = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Mihomo,
+            &node("hysteria2", "password:secret"),
+            &RoutingConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(mihomo["proxies"][0]["type"], "hysteria2");
+
+        for protocol in ["vmess", "vless"] {
+            let xray = ConfigGenerator::generate_json_for_kernel(
+                KernelId::Xray,
+                &node(protocol, "uuid:00000000-0000-0000-0000-000000000005"),
+                &RoutingConfig::default(),
+            )
+            .unwrap();
+            assert_eq!(xray["outbounds"][0]["protocol"], protocol);
+        }
+        let xray = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Xray,
+            &node("trojan", "password:secret"),
+            &RoutingConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(xray["outbounds"][0]["protocol"], "trojan");
+    }
+
+    #[test]
+    fn mihomo_emits_tls_reality_ws_and_grpc_fields() {
+        let mut node = node("vless", "uuid:00000000-0000-0000-0000-000000000006");
+        node.details.tls = true;
+        node.details.transport = "ws".into();
+        node.details.options = narya_core::ProtocolOptions {
+            server_name: Some("sni.example.com".into()),
+            alpn: vec!["h2".into(), "http/1.1".into()],
+            transport_path: Some("/ws".into()),
+            transport_host: Some("ws.example.com".into()),
+            grpc_service_name: Some("liora".into()),
+            flow: Some("xtls-rprx-vision".into()),
+            reality_public_key: Some("pubkey".into()),
+            reality_short_id: Some("sid".into()),
+            ..narya_core::ProtocolOptions::default()
+        };
+        let ws = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Mihomo,
+            &node,
+            &RoutingConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(ws["proxies"][0]["servername"], "sni.example.com");
+        assert_eq!(ws["proxies"][0]["alpn"][0], "h2");
+        assert_eq!(ws["proxies"][0]["ws-opts"]["path"], "/ws");
+        assert_eq!(
+            ws["proxies"][0]["ws-opts"]["headers"]["Host"],
+            "ws.example.com"
+        );
+        assert_eq!(ws["proxies"][0]["reality-opts"]["public-key"], "pubkey");
+        assert_eq!(ws["proxies"][0]["reality-opts"]["short-id"], "sid");
+
+        node.details.transport = "grpc".into();
+        let grpc = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Mihomo,
+            &node,
+            &RoutingConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(grpc["proxies"][0]["network"], "grpc");
+        assert_eq!(
+            grpc["proxies"][0]["grpc-opts"]["grpc-service-name"],
+            "liora"
+        );
+    }
+
+    #[test]
+    fn sing_box_emits_tls_reality_ws_and_grpc_fields() {
+        let mut node = node("vmess", "uuid:00000000-0000-0000-0000-000000000008");
+        node.details.tls = true;
+        node.details.transport = "grpc".into();
+        node.details.options = narya_core::ProtocolOptions {
+            server_name: Some("sb.example.com".into()),
+            alpn: vec!["h2".into()],
+            grpc_service_name: Some("sb-grpc".into()),
+            reality_public_key: Some("sb-public".into()),
+            reality_short_id: Some("sb-short".into()),
+            vmess_security: Some("auto".into()),
+            vmess_alter_id: 17,
+            ..narya_core::ProtocolOptions::default()
+        };
+        let reality =
+            ConfigGenerator::generate_json_with_config(&node, &RoutingConfig::default()).unwrap();
+        assert_eq!(reality["outbounds"][0]["transport"]["type"], "grpc");
+        assert_eq!(
+            reality["outbounds"][0]["transport"]["service_name"],
+            "sb-grpc"
+        );
+        assert_eq!(
+            reality["outbounds"][0]["tls"]["server_name"],
+            "sb.example.com"
+        );
+        assert_eq!(reality["outbounds"][0]["tls"]["alpn"][0], "h2");
+        assert_eq!(
+            reality["outbounds"][0]["tls"]["reality"]["public_key"],
+            "sb-public"
+        );
+        assert_eq!(
+            reality["outbounds"][0]["tls"]["reality"]["short_id"],
+            "sb-short"
+        );
+    }
+
+    #[test]
+    fn xray_emits_stream_settings_for_tls_reality_ws_and_grpc() {
+        let mut node = node("vless", "uuid:00000000-0000-0000-0000-000000000007");
+        node.details.tls = true;
+        node.details.transport = "grpc".into();
+        node.details.options = narya_core::ProtocolOptions {
+            server_name: Some("reality.example.com".into()),
+            alpn: vec!["h2".into()],
+            grpc_service_name: Some("liora".into()),
+            transport_host: Some("authority.example.com".into()),
+            reality_public_key: Some("public-key".into()),
+            reality_short_id: Some("short-id".into()),
+            ..narya_core::ProtocolOptions::default()
+        };
+        let reality = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Xray,
+            &node,
+            &RoutingConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            reality["outbounds"][0]["streamSettings"]["security"],
+            "reality"
+        );
+        assert_eq!(
+            reality["outbounds"][0]["streamSettings"]["realitySettings"]["password"],
+            "public-key"
+        );
+        assert_eq!(
+            reality["outbounds"][0]["streamSettings"]["realitySettings"]["shortId"],
+            "short-id"
+        );
+        assert_eq!(
+            reality["outbounds"][0]["streamSettings"]["grpcSettings"]["serviceName"],
+            "liora"
+        );
+
+        node.details.transport = "ws".into();
+        node.details.options.reality_public_key = None;
+        node.details.options.reality_short_id = None;
+        node.details.options.transport_path = Some("/ws".into());
+        node.details.options.transport_host = Some("ws.example.com".into());
+        let ws = ConfigGenerator::generate_json_for_kernel(
+            KernelId::Xray,
+            &node,
+            &RoutingConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(ws["outbounds"][0]["streamSettings"]["security"], "tls");
+        assert_eq!(
+            ws["outbounds"][0]["streamSettings"]["tlsSettings"]["serverName"],
+            "reality.example.com"
+        );
+        assert_eq!(
+            ws["outbounds"][0]["streamSettings"]["wsSettings"]["path"],
+            "/ws"
+        );
+        assert_eq!(
+            ws["outbounds"][0]["streamSettings"]["wsSettings"]["host"],
+            "ws.example.com"
+        );
+    }
+
+    #[test]
+    fn sing_box_rejects_protocol_without_required_credentials() {
+        let error = ConfigGenerator::generate_json_with_config(
+            &node("vless", "none"),
+            &RoutingConfig::default(),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("uuid credential"));
     }
 }

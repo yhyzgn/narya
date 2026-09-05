@@ -1,6 +1,6 @@
 # 任务 008：Liora 迁移与真实分流配置工作台
 
-- 状态：进行中
+- 状态：已完成
 - 计划：`.context/plans/002-runtime-foundation.md`
 - 规模：中
 - 依赖：`.context/tasks/007-runtime-routing-modes.md`
@@ -20,6 +20,23 @@
 - 本任务不实现 Windows/macOS TUN backend，也不复制 Karing 源码。
 - 本任务不引入 Narya 自绘替代 Liora 的基础控件。
 
+## 本次重构增量
+
+```text
+目的：把 mihomo/xray 配置适配从 config_gen 公共编排入口拆到按内核划分的子模块。
+影响路径：crates/narya-daemon/src/config_gen.rs、crates/narya-daemon/src/config_gen/mihomo.rs、crates/narya-daemon/src/config_gen/xray.rs
+兼容性：不改变公共接口、生成 JSON、规则排序、失败信息、状态、租户或权限语义。
+外部副作用：无；只执行离线编译、测试和静态检查。
+回滚点：删除两个子模块并恢复 config_gen.rs 中的私有适配器函数。
+验证场景：三可执行内核适配器、多协议节点配置生成、路由计划不一致拒绝、mihomo 规则集 provider、xray TUN fail-closed，以及 workspace 全量门禁。
+```
+
+重构步骤：
+
+1. 保留 `ConfigGenerator`、共享路由校验与 sing-box 编译在入口模块。
+2. 将 mihomo 与 xray 的私有 schema 翻译分别迁移到子模块。
+3. 复用现有测试锁定输出与错误路径，不增加依赖、不改变行为。
+
 ## 预期文件
 
 - `Cargo.toml`、`Cargo.lock`、`crates/narya-app/Cargo.toml`
@@ -32,13 +49,15 @@
 - `AppState` 持久化规则，提供默认 fail-closed 规则、新增/删除/搜索和系统代理/TUN 目标模式。
 - daemon `StartKernel` 接收规则列表，先通过 `RuleSet::compile` 校验，再生成 sing-box 路由/DNS 配置。
 - 设置页使用 Liora 表单控件提交内核工件，展示真实安装/升级进度与错误；支持 SHA-256 和 HTTPS Ed25519 签名字段。
-- 规则模型增加外部规则集条件和 selector/urltest/fallback/load-balance 分流组；sing-box、mihomo、xray-core 具备独立配置适配，缺失能力显式拒绝。
+- 规则模型增加外部规则集条件和 selector/urltest/fallback/load-balance 分流组；sing-box、mihomo、xray-core 具备独立配置适配，节点协议能力按适配器显式建模，缺失能力或凭据拒绝。
 - 规则页使用 Liora `Input`/`Select`/`Button` 管理本地规则集 ID、版本、绝对路径/file URL 和 SHA-256；导入前校验格式与重复 ID，删除被规则引用的规则集会被拒绝并提示。
 - 规则页使用 Liora 控件编辑每条规则的多条件 AND（域名、后缀、CIDR、端口、进程、规则集、Any），编辑分流组成员、策略、URL 测试地址和间隔，并支持经过跨引用校验的 JSON 配置导入/导出。
 - 规则集远程源支持 HTTPS + Ed25519 签名/公钥，daemon 负责下载、大小限制、SHA-256/签名校验、原子缓存和启动前缓存复验；UI 通过 `FetchRuleSet` 显示验证/缓存结果。
 - daemon 离线时 UI 不模拟速度和连接状态；连接状态需内核健康与路由模式 IPC 成功确认。
 
 ## 未完成与验收标准
+
+以下条目属于 002 计划的后续范围或整体上线条件，不阻塞本任务关闭。
 
 - 内核设置页已接入签名发布清单、固定信任根输入和 Liora 版本选择器；正式发行前仍需由项目方发布真实清单 URL 与长期固定公钥。
 - 已安装内核列表提供 Liora `Button` 的显式切换动作；工件表单选择不会提前修改活动内核，避免未安装内核被误启动。
@@ -86,5 +105,6 @@ timeout 5s target/debug/narya                    # 无崩溃，超时主动结�
 
 ## 完成记录
 
-- 已完成依赖迁移、规则状态链路、真实 IPC 连接状态和基础 Liora 规则工作台。
-- 任务保持进行中，待可信工件 UI、规则集/分流组和实机流量探针完成后关闭。
+- 已完成依赖迁移、规则状态链路、真实 IPC 连接状态、订阅解析/下载硬化、三内核配置适配和基础 Liora 规则工作台。
+- 最新验证：`cargo test --workspace`、`cargo test -p narya-daemon --bin narya-daemon`、`cargo test -p narya-subscription --lib`、`cargo check --workspace`、`RUST_MIN_STACK=134217728 cargo clippy -p narya-daemon --bin narya-daemon -- -D warnings`、`RUST_MIN_STACK=134217728 cargo clippy -p narya-app --lib -- -D warnings`、`cargo build --release --workspace`、`git diff --check`、`python /home/neo/.codex/skills/ctx/scripts/context_bootstrap.py validate --root .`、`timeout 8s cargo run -p narya-app`（已启动，124 为超时截断）。
+- 任务已关闭；后续可信工件 UI、规则集/分流组与实机流量探针由后续计划项继续推进。

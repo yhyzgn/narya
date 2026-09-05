@@ -40,7 +40,19 @@ pub struct InstalledKernel {
 /// must not be treated as proof that the executable is still the verified
 /// artifact.
 pub async fn verify_installed(binary_path: &Path) -> Result<()> {
-    let expected = fs::read_to_string(binary_path.with_file_name("sha256"))
+    let digest_path = binary_path.with_file_name("sha256");
+    for path in [binary_path, digest_path.as_path()] {
+        let metadata = fs::symlink_metadata(path)
+            .await
+            .with_context(|| format!("missing managed kernel file {}", path.display()))?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            bail!(
+                "managed kernel path is not a regular file: {}",
+                path.display()
+            );
+        }
+    }
+    let expected = fs::read_to_string(&digest_path)
         .await
         .with_context(|| format!("missing integrity record for {}", binary_path.display()))?;
     let expected = expected.trim();
@@ -175,6 +187,81 @@ pub async fn install(
     })
 }
 
+/// Remove one kernel from the application-private managed install root.
+///
+/// This intentionally accepts a kernel id and root separately instead of an
+/// arbitrary path, so callers cannot turn the uninstall operation into a
+/// system-wide file delete. Unknown files are preserved for recovery/debugging.
+pub async fn uninstall(kernel: KernelId, install_root: &Path) -> Result<()> {
+    let kernel_dir = install_root.join(kernel.as_str());
+    let directory = fs::symlink_metadata(&kernel_dir)
+        .await
+        .with_context(|| format!("kernel {kernel} is not installed in managed storage"))?;
+    if !directory.is_dir() {
+        bail!(
+            "managed kernel path is not a directory: {}",
+            kernel_dir.display()
+        );
+    }
+
+    let names = ["current", "version", "sha256"];
+    let mut managed_files = Vec::new();
+    for name in names {
+        let path = kernel_dir.join(name);
+        let metadata = match fs::symlink_metadata(&path).await {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error).with_context(|| format!("failed to inspect {}", path.display()))
+            }
+        };
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            bail!(
+                "refusing to uninstall unexpected managed path: {}",
+                path.display()
+            );
+        }
+        managed_files.push(path);
+    }
+    if !managed_files.iter().any(|path| path.ends_with("current")) {
+        bail!("kernel {kernel} is not installed in managed storage");
+    }
+
+    let suffix = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|value| value.as_nanos())
+            .unwrap_or_default()
+    );
+    let mut staged = Vec::new();
+    for path in managed_files {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| anyhow!("invalid managed kernel filename"))?;
+        let backup = kernel_dir.join(format!(".narya-uninstall-{suffix}-{name}"));
+        if let Err(error) = fs::rename(&path, &backup).await {
+            for (original, staged_path) in staged.into_iter().rev() {
+                let _ = fs::rename(staged_path, original).await;
+            }
+            return Err(error).with_context(|| {
+                format!("failed to stage managed kernel file {}", path.display())
+            });
+        }
+        staged.push((path, backup));
+    }
+    for (_, backup) in &staged {
+        let _ = fs::remove_file(backup).await;
+    }
+    let mut entries = fs::read_dir(&kernel_dir).await?;
+    if entries.next_entry().await?.is_none() {
+        fs::remove_dir(&kernel_dir).await?;
+    }
+    Ok(())
+}
+
 fn validate_request(request: &KernelArtifactRequest) -> Result<()> {
     if request.version.trim().is_empty() {
         bail!("kernel artifact version must not be empty");
@@ -216,6 +303,51 @@ fn verify_signature_if_present(request: &KernelArtifactRequest, bytes: &[u8]) ->
     public_key
         .verify(bytes, &signature)
         .map_err(|error| anyhow!("kernel artifact signature verification failed: {error}"))
+}
+
+#[cfg(test)]
+mod uninstall_tests {
+    use super::*;
+
+    fn test_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../target/narya-installer-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    #[tokio::test]
+    async fn uninstall_removes_only_managed_kernel_files() {
+        let root = test_root();
+        let dir = root.join(KernelId::Mihomo.as_str());
+        fs::create_dir_all(&dir).await.unwrap();
+        fs::write(dir.join("current"), b"binary").await.unwrap();
+        fs::write(dir.join("version"), b"1.0.0").await.unwrap();
+        fs::write(dir.join("sha256"), "0".repeat(64)).await.unwrap();
+        fs::write(dir.join("keep.txt"), b"leave unknown files")
+            .await
+            .unwrap();
+
+        uninstall(KernelId::Mihomo, &root).await.unwrap();
+        assert!(!dir.join("current").exists());
+        assert!(!dir.join("version").exists());
+        assert!(!dir.join("sha256").exists());
+        assert!(dir.join("keep.txt").exists());
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn uninstall_rejects_missing_managed_kernel() {
+        let root = test_root();
+        let error = uninstall(KernelId::Xray, &root).await.unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("not installed in managed storage"));
+    }
 }
 
 fn decode_hex(value: &str, expected_len: usize, label: &str) -> Result<Vec<u8>> {
@@ -288,8 +420,8 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_root() -> PathBuf {
-        std::env::temp_dir().join(format!(
-            "narya-installer-test-{}",
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../target/narya-installer-test-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()

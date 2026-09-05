@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -11,16 +12,19 @@ pub enum KernelId {
     Mihomo,
     #[serde(rename = "xray-core", alias = "xray")]
     Xray,
+    #[serde(rename = "v2ray-core", alias = "v2ray")]
+    V2Ray,
 }
 
 impl KernelId {
-    pub const ALL: [Self; 3] = [Self::SingBox, Self::Mihomo, Self::Xray];
+    pub const ALL: [Self; 4] = [Self::SingBox, Self::Mihomo, Self::Xray, Self::V2Ray];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Self::SingBox => "sing-box",
             Self::Mihomo => "mihomo",
             Self::Xray => "xray-core",
+            Self::V2Ray => "v2ray-core",
         }
     }
 
@@ -29,6 +33,7 @@ impl KernelId {
             Self::SingBox => &["sing-box"],
             Self::Mihomo => &["mihomo", "clash-meta"],
             Self::Xray => &["xray", "xray-core"],
+            Self::V2Ray => &["v2ray", "v2ray-core"],
         }
     }
 
@@ -37,13 +42,16 @@ impl KernelId {
             Self::SingBox => &["version"],
             Self::Mihomo => &["-v"],
             Self::Xray => &["version"],
+            Self::V2Ray => &["version"],
         }
     }
 
     pub fn config_args(self, config: &Path) -> Vec<String> {
         let config = config.to_string_lossy().into_owned();
         match self {
-            Self::SingBox | Self::Xray => vec!["run".into(), "-c".into(), config],
+            Self::SingBox | Self::Xray | Self::V2Ray => {
+                vec!["run".into(), "-c".into(), config]
+            }
             Self::Mihomo => vec!["-f".into(), config],
         }
     }
@@ -63,6 +71,7 @@ impl std::str::FromStr for KernelId {
             "sing-box" | "singbox" => Ok(Self::SingBox),
             "mihomo" | "clash-meta" => Ok(Self::Mihomo),
             "xray" | "xray-core" => Ok(Self::Xray),
+            "v2ray" | "v2ray-core" => Ok(Self::V2Ray),
             other => Err(KernelError::Unknown(other.to_string())),
         }
     }
@@ -78,6 +87,7 @@ pub enum KernelState {
     Starting,
     Running,
     Stopping,
+    Uninstalling,
     Failed,
 }
 
@@ -91,6 +101,7 @@ impl KernelState {
             Self::Starting => "starting",
             Self::Running => "running",
             Self::Stopping => "stopping",
+            Self::Uninstalling => "uninstalling",
             Self::Failed => "failed",
         }
     }
@@ -158,49 +169,49 @@ impl KernelRegistry {
         Self::default()
     }
 
-    pub fn probe() -> Self {
+    pub fn probe_managed(install_root: &Path) -> Self {
         let mut registry = Self::new();
-        registry.refresh();
-        registry
-    }
-
-    pub fn refresh(&mut self) {
         for id in KernelId::ALL {
-            let record = self.records.get_mut(&id).expect("all kernels registered");
-            let found = id
-                .binary_candidates()
-                .iter()
-                .find_map(|candidate| find_on_path(candidate));
-            match found {
-                Some(path) => {
-                    record.binary_path = Some(path.clone());
-                    record.version = Command::new(&path)
-                        .args(id.version_args())
-                        .output()
-                        .ok()
-                        .filter(|output| output.status.success())
-                        .and_then(|output| {
-                            let stdout = String::from_utf8_lossy(&output.stdout);
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            stdout
-                                .lines()
-                                .chain(stderr.lines())
-                                .map(str::trim)
-                                .find(|line| !line.is_empty())
-                                .map(ToOwned::to_owned)
-                        });
-                    record.state = KernelState::Installed;
-                    record.healthy = false;
-                    record.failure = None;
-                }
-                None => {
-                    record.binary_path = None;
-                    record.version = None;
-                    record.state = KernelState::NotInstalled;
-                    record.healthy = false;
-                }
+            let record = registry
+                .records
+                .get_mut(&id)
+                .expect("all kernels registered");
+            let path = install_root.join(id.as_str()).join("current");
+            let binary_is_regular = fs::symlink_metadata(&path)
+                .map(|metadata| metadata.file_type().is_file())
+                .unwrap_or(false);
+            let digest_is_regular = fs::symlink_metadata(path.with_file_name("sha256"))
+                .map(|metadata| metadata.file_type().is_file())
+                .unwrap_or(false);
+            if binary_is_regular && digest_is_regular {
+                record.binary_path = Some(path.clone());
+                record.version = fs::read_to_string(path.with_file_name("version"))
+                    .ok()
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+                    .or_else(|| {
+                        Command::new(&path)
+                            .args(id.version_args())
+                            .output()
+                            .ok()
+                            .filter(|output| output.status.success())
+                            .and_then(|output| {
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                let stderr = String::from_utf8_lossy(&output.stderr);
+                                stdout
+                                    .lines()
+                                    .chain(stderr.lines())
+                                    .map(str::trim)
+                                    .find(|line| !line.is_empty())
+                                    .map(ToOwned::to_owned)
+                            })
+                    });
+                record.state = KernelState::Installed;
+                record.healthy = false;
+                record.failure = None;
             }
         }
+        registry
     }
 
     pub fn records(&self) -> impl Iterator<Item = &KernelRecord> {
@@ -232,6 +243,11 @@ impl KernelRegistry {
         record.failure = None;
     }
 
+    pub fn set_not_installed(&mut self, id: KernelId) {
+        let record = self.record_mut(id);
+        *record = KernelRecord::unavailable(id);
+    }
+
     pub fn set_state(
         &mut self,
         id: KernelId,
@@ -246,24 +262,13 @@ impl KernelRegistry {
     }
 }
 
-fn find_on_path(candidate: &str) -> Option<PathBuf> {
-    let candidate_path = Path::new(candidate);
-    if candidate_path.components().count() > 1 && candidate_path.is_file() {
-        return Some(candidate_path.to_path_buf());
-    }
-    let path = std::env::var_os("PATH")?;
-    std::env::split_paths(&path)
-        .map(|directory| directory.join(candidate))
-        .find(|path| path.is_file())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn builtins_have_distinct_commands_and_capabilities() {
-        assert_eq!(KernelId::ALL.len(), 3);
+        assert_eq!(KernelId::ALL.len(), 4);
         assert_eq!(
             KernelId::SingBox.config_args(Path::new("config.json")),
             ["run", "-c", "config.json"]
@@ -286,6 +291,55 @@ mod tests {
             registry.record(KernelId::Mihomo).state,
             KernelState::NotInstalled
         );
+    }
+
+    #[test]
+    fn probe_managed_ignores_path_and_requires_integrity_record() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../target/narya-kernel-probe-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let dir = root.join(KernelId::SingBox.as_str());
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("current"), b"not-a-real-kernel").unwrap();
+        let registry = KernelRegistry::probe_managed(&root);
+        assert!(registry.record(KernelId::SingBox).binary_path.is_none());
+        fs::write(dir.join("sha256"), "0".repeat(64)).unwrap();
+        fs::write(dir.join("version"), "test-version").unwrap();
+        let registry = KernelRegistry::probe_managed(&root);
+        assert_eq!(
+            registry.record(KernelId::SingBox).binary_path,
+            Some(dir.join("current"))
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn probe_managed_rejects_symlinked_binary() {
+        use std::os::unix::fs::symlink;
+
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../target/narya-kernel-symlink-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let dir = root.join(KernelId::Xray.as_str());
+        fs::create_dir_all(&dir).unwrap();
+        let outside = root.join("outside-binary");
+        fs::write(&outside, b"outside").unwrap();
+        symlink(&outside, dir.join("current")).unwrap();
+        fs::write(dir.join("sha256"), "0".repeat(64)).unwrap();
+        let registry = KernelRegistry::probe_managed(&root);
+        assert!(registry.record(KernelId::Xray).binary_path.is_none());
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

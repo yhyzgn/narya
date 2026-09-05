@@ -3,14 +3,15 @@
 ## 已验证事实
 
 - 语言与构建：Rust 2021 workspace，根清单为 `Cargo.toml`，成员由 `crates/*` 扫描加入。
-- UI：`crates/narya-app` 使用 GPUI 0.2.2（锁定 Zed revision）与本地 `../../lib/liora` 0.3.0 源码；启动入口为 `src/main.rs` -> `narya_app::run()`，应用初始化在 `crates/narya-app/src/lib.rs`。页面控件通过 Liora `Button`、`Input`、`Select`、`Segmented`、`Switch`、`NavigationMenu` 组合。
+- UI：`crates/narya-app` 使用 GPUI 0.2.2（锁定 Zed revision）与本地 `../../lib/liora` 0.3.0 源码；启动入口为 `src/main.rs` -> `narya_app::run()`，应用初始化在 `crates/narya-app/src/lib.rs`。页面控件通过 Liora `Button`、`Input`、`Select`、`Segmented`、`Switch`、`NavigationMenu` 组合。应用启动会复用或自动启动同目录 `narya-daemon`，IPC 失败会在 UI 显示错误。
 - 领域模型：`crates/narya-core/src/lib.rs` 目前仅有 `Node`、`Subscription` 等基础结构。
 - 控制面：`crates/narya-daemon/src/main.rs` 通过 Unix socket 接收 JSON IPC；`crates/narya-ipc/src/lib.rs` 定义请求、响应、通知和运行目录。
-- 内核：`crates/narya-daemon/src/kernel.rs` 管理单个活动子进程，并通过 `installer.rs` 支持本地/HTTPS 内核安装和升级；所有工件必须有 SHA-256，HTTPS 工件还需匹配本地固定 Ed25519 信任根验证过的发布清单（内核、版本、平台、架构、来源、摘要、工件签名/公钥）；注册表区分安装、运行和健康状态，启动健康要求生成配置中的全部本地 HTTP/SOCKS 监听通过协议级握手，运行中任一监听握手失联即 fail-closed。
-- 代理：`crates/narya-daemon/src/proxy.rs` 支持 Linux GNOME gsettings 事务和 Linux TUN 前置检查；macOS/Windows 事务 backend 未实现且会明确拒绝，Windows 不会误调用 Linux 命令。
-- 配置：`crates/narya-daemon/src/config_gen.rs` 以统一 `RoutingConfig` 生成 sing-box、mihomo、xray-core 配置；system proxy/TUN 共用规则语义，DNS resolver/direct/proxy/outbound、分流组和 TUN 参数显式生成，未匹配流量 block。
+- 内核：`crates/narya-daemon/src/kernel.rs` 管理单个活动子进程，并通过 `installer.rs` 支持本地/HTTPS 内核安装、升级和卸载；当前注册表包含 sing-box、mihomo/Clash Meta、xray-core 三种可执行引擎，模型保留可扩展入口，不把 Shadowsocks 等节点协议误当作独立内核；内核只从 Narya 私有托管目录发现和启动，不采用系统 `PATH` 中的同名程序；非活动内核可后台安装/升级/卸载，活动内核禁止原地覆盖或卸载；`SwitchKernel` 复用启动健康检查和失败回滚，在运行中切换后沿用已确认的路由模式；所有工件必须有 SHA-256，HTTPS 工件还需匹配本地固定 Ed25519 信任根验证过的发布清单（内核、版本、平台、架构、来源、摘要、工件签名/公钥）；注册表区分安装、运行和健康状态，启动健康要求生成配置中的全部本地 HTTP/SOCKS 监听通过协议级握手，运行中任一监听握手失联即 fail-closed。
+- 代理：`crates/narya-daemon/src/proxy.rs` 支持 Linux GNOME gsettings 事务和 Linux TUN 前置检查；System Proxy/TUN 运行中互切会重新生成内核配置并热生效；macOS/Windows 事务 backend 未实现且会明确拒绝，Windows 不会误调用 Linux 命令。
+- 配置：`crates/narya-daemon/src/config_gen.rs` 以统一 `RoutingConfig` 分发到 sing-box、mihomo、xray-core 适配器；节点协议与可执行内核分离，当前三种适配器支持 Shadowsocks，sing-box/mihomo 另支持 Hysteria2、VMess、VLESS、Trojan，xray-core 支持 VMess、VLESS、Trojan；不具备凭据或能力的组合显式拒绝。sing-box 适配器会显式生成 TLS、Reality、WebSocket、gRPC 传输字段；mihomo 适配器会生成 `servername`/`sni`、`alpn`、`reality-opts`、`ws-opts`、`grpc-opts`；xray 适配器会生成 `streamSettings` 的 `tlsSettings`、`realitySettings`、`wsSettings`、`grpcSettings`。system proxy/TUN 共用规则语义，DNS resolver/direct/proxy/outbound、分流组和 TUN 参数显式生成，未匹配流量 block。
 - 规则：`crates/narya-rules/src/lib.rs` 提供可序列化 `RuleSet`、确定性优先级排序、规则集来源版本/SHA-256/Ed25519 元数据、显式格式、持久化启停和 fail-closed 决策；daemon 通过规则集缓存管理器下载、验证并原子缓存 HTTPS 源，`StartKernel` 只消费启用且启动前复验的缓存，再编译到 sing-box、mihomo、xray-core（mihomo 文本规则集生成 `rule-providers`，不兼容格式拒绝）；Liora 规则页支持搜索、新增、删除、多条件 AND、目标模式、分流组编辑、规则集格式与启停、本地/HTTPS 规则集导入和 JSON 配置导入导出。
-- 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。
+- 订阅：`crates/narya-subscription` 解析 Clash YAML、sing-box JSON、V2Ray Base64、vmess/vless/trojan URI，并把 TLS、Reality、WebSocket、gRPC 字段写入 `ProtocolOptions`；远程订阅只允许 HTTPS，下载有状态码和 8 MiB 大小上限，空内容或零节点结果会拒绝。
+- 测试：`crates/narya-contract-tests` 是源码契约测试；各 crate 另有少量单元测试。测试不应连接真实共享基础设施。最新验证已覆盖 `cargo test --workspace`、`cargo clippy -p narya-daemon --bin narya-daemon -- -D warnings`、`cargo clippy -p narya-app --lib -- -D warnings`、`cargo build --release --workspace`、`cargo check --workspace`、`git diff --check`，以及 8 秒 `cargo run -p narya-app` 启动探针。
 - 外部依赖：仓库扫描未发现数据库、缓存或消息队列；`narya-subscription` 依赖 `reqwest`，真实网络访问需由明确测试场景隔离。
 
 ## 当前未知项

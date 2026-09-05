@@ -2,7 +2,7 @@
 
 - 状态：进行中
 - 负责人：Codex
-- 当前任务：`.context/tasks/005-karing-rule-config.md`
+- 当前任务：`.context/tasks/014-official-download-reliability.md`
 
 ## 目标
 

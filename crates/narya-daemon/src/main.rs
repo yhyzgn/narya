@@ -2,6 +2,7 @@ mod config_gen;
 mod installer;
 mod kernel;
 mod kernel_catalog;
+mod official_release;
 mod proxy;
 mod ruleset_cache;
 
@@ -212,7 +213,7 @@ async fn handle_request_inner(
             apply_proxy_mode(&mut state, mode).await?;
             Ok(serde_json::json!({"mode": mode.as_str()}))
         }
-        "StartKernel" => {
+        "StartKernel" | "SwitchKernel" => {
             let start = parse_start_params(&request.params)?;
             let kernel_id = start.kernel;
             let node = start.node;
@@ -302,20 +303,56 @@ async fn handle_request_inner(
                 record.healthy && record.state == narya_kernel::KernelState::Running
             })
         })),
-        "InstallKernel" | "UpgradeKernel" => {
-            let artifact: installer::KernelArtifactRequest =
-                serde_json::from_value(request.params.clone())
-                    .context("invalid kernel artifact request")?;
+        "GetDaemonInfo" => Ok(serde_json::json!({
+            "version": env!("CARGO_PKG_VERSION"),
+            "protocol": narya_ipc::PROTOCOL_VERSION,
+            "capabilities": [
+                "InstallOfficialKernel",
+                "UpgradeOfficialKernel",
+                "UninstallKernel",
+                "GetKernelStatus"
+            ]
+        })),
+        "InstallOfficialKernel" | "UpgradeOfficialKernel" => {
+            let kernel: KernelId = serde_json::from_value(
+                request
+                    .params
+                    .get("kernel")
+                    .cloned()
+                    .ok_or_else(|| anyhow::anyhow!("kernel is required"))?,
+            )
+            .context("invalid kernel id")?;
             let log_tx = state.log_tx.clone();
             let installed = state
                 .kernel
-                .install(&artifact, log_tx, request.method == "UpgradeKernel")
+                .install_official(kernel, log_tx, request.method == "UpgradeOfficialKernel")
                 .await?;
             Ok(serde_json::json!({
                 "kernel": installed.kernel,
                 "version": installed.version,
                 "binary_path": installed.binary_path,
                 "operation": request.method.to_ascii_lowercase()
+            }))
+        }
+        "InstallKernel" | "UpgradeKernel" => {
+            anyhow::bail!(
+                "manual kernel artifact requests are disabled; use the verified official catalog"
+            )
+        }
+        "UninstallKernel" => {
+            let kernel: KernelId = serde_json::from_value(
+                request
+                    .params
+                    .get("kernel")
+                    .cloned()
+                    .ok_or_else(|| anyhow::anyhow!("kernel is required"))?,
+            )
+            .context("invalid kernel id")?;
+            let log_tx = state.log_tx.clone();
+            state.kernel.uninstall(kernel, log_tx).await?;
+            Ok(serde_json::json!({
+                "kernel": kernel,
+                "operation": "uninstall"
             }))
         }
         "RefreshKernelCatalog" => {
@@ -369,11 +406,6 @@ async fn apply_proxy_mode(state: &mut DaemonState, mode: ProxyMode) -> Result<()
         ProxyMode::SystemProxy => {
             if state.active_mode == ProxyMode::SystemProxy {
                 return Ok(());
-            }
-            if state.active_mode == ProxyMode::Tun {
-                anyhow::bail!(
-                    "cannot switch from TUN to system proxy without restarting the kernel configuration"
-                );
             }
             let routing = state
                 .configured_routing

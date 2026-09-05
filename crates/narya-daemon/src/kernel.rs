@@ -20,8 +20,7 @@ pub struct KernelManager {
 
 impl KernelManager {
     pub fn new() -> Self {
-        let mut registry = KernelRegistry::probe();
-        discover_managed_kernels(&mut registry);
+        let registry = KernelRegistry::probe_managed(&narya_ipc::kernel_install_dir());
         Self {
             registry,
             child: None,
@@ -37,8 +36,11 @@ impl KernelManager {
         log_tx: broadcast::Sender<String>,
         requested_upgrade: bool,
     ) -> Result<InstalledKernel> {
-        if self.active.is_some() {
-            anyhow::bail!("cannot install or upgrade a kernel while another kernel is running")
+        if self.active == Some(request.kernel) {
+            anyhow::bail!(
+                "cannot install or upgrade the active kernel {}; switch to another installed kernel first",
+                request.kernel
+            )
         }
         let upgrading = self.registry.record(request.kernel).binary_path.is_some();
         if requested_upgrade && !upgrading {
@@ -126,6 +128,115 @@ impl KernelManager {
                     false,
                     Some(error.to_string()),
                 );
+                Err(error)
+            }
+        }
+    }
+
+    pub async fn install_official(
+        &mut self,
+        kernel: KernelId,
+        log_tx: broadcast::Sender<String>,
+        requested_upgrade: bool,
+    ) -> Result<InstalledKernel> {
+        if self.active == Some(kernel) {
+            bail!(
+                "cannot install or upgrade the active kernel {}; switch to another installed kernel first",
+                kernel
+            );
+        }
+        let upgrading = self.registry.record(kernel).binary_path.is_some();
+        if requested_upgrade && !upgrading {
+            bail!("cannot upgrade kernel {kernel} because it is not installed");
+        }
+        if !requested_upgrade && upgrading {
+            bail!("kernel {kernel} is already installed; use UpgradeOfficialKernel to replace it");
+        }
+        self.registry.set_state(
+            kernel,
+            if upgrading {
+                KernelState::Upgrading
+            } else {
+                KernelState::Installing
+            },
+            false,
+            None,
+        );
+        let artifact = match crate::official_release::download_latest(kernel).await {
+            Ok(artifact) => artifact,
+            Err(error) => {
+                self.registry.set_state(
+                    kernel,
+                    if upgrading {
+                        KernelState::Installed
+                    } else {
+                        KernelState::Failed
+                    },
+                    false,
+                    Some(error.to_string()),
+                );
+                return Err(error);
+            }
+        };
+        let kernel_dir = narya_ipc::kernel_install_dir().join(kernel.as_str());
+        tokio::fs::create_dir_all(&kernel_dir).await?;
+        let staged = kernel_dir.join(format!(
+            ".narya-official-{}-{}.download",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or_default()
+        ));
+        tokio::fs::write(&staged, &artifact.binary).await?;
+        let request = KernelArtifactRequest {
+            kernel,
+            version: artifact.version,
+            source: staged.to_string_lossy().into_owned(),
+            sha256: artifact.sha256,
+            signature: String::new(),
+            public_key: String::new(),
+            catalog_version: String::new(),
+            catalog_platform: String::new(),
+            catalog_architecture: String::new(),
+        };
+        let _ = log_tx.send(format!(
+            "INFO installing official {} artifact from {}",
+            artifact.kernel, artifact.source
+        ));
+        let result = self.install(&request, log_tx, requested_upgrade).await;
+        let _ = tokio::fs::remove_file(staged).await;
+        result
+    }
+
+    pub async fn uninstall(
+        &mut self,
+        id: KernelId,
+        log_tx: broadcast::Sender<String>,
+    ) -> Result<()> {
+        if self.active == Some(id) {
+            bail!("cannot uninstall the active kernel {id}; switch to another kernel first");
+        }
+        let managed_path = narya_ipc::kernel_install_dir()
+            .join(id.as_str())
+            .join("current");
+        let record = self.registry.record(id).clone();
+        if record.binary_path.as_deref() != Some(managed_path.as_path()) {
+            bail!("kernel {id} is not installed in Narya's managed directory");
+        }
+        self.registry
+            .set_state(id, KernelState::Uninstalling, false, None);
+        match installer::uninstall(id, &narya_ipc::kernel_install_dir()).await {
+            Ok(()) => {
+                self.registry.set_not_installed(id);
+                let _ = log_tx.send(format!(
+                    "INFO kernel {id} uninstalled from Narya managed storage"
+                ));
+                Ok(())
+            }
+            Err(error) => {
+                self.registry
+                    .set_state(id, KernelState::Installed, false, Some(error.to_string()));
                 Err(error)
             }
         }
@@ -566,26 +677,6 @@ fn listener_targets(config_bytes: &[u8]) -> Result<Vec<ListenerTarget>> {
     Ok(targets)
 }
 
-fn discover_managed_kernels(registry: &mut KernelRegistry) {
-    let root = narya_ipc::kernel_install_dir();
-    for id in KernelId::ALL {
-        let path = root.join(id.as_str()).join("current");
-        // Managed binaries are only discoverable when their persisted digest
-        // exists. The digest is rechecked asynchronously before every start;
-        // this prevents silently adopting an unverified or tampered binary
-        // left by an older installer.
-        if !path.is_file() || !path.with_file_name("sha256").is_file() {
-            continue;
-        }
-        let version = std::fs::read_to_string(path.with_file_name("version"))
-            .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
-            .unwrap_or_else(|| "managed-unknown".into());
-        registry.set_installed(id, path, version);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -649,6 +740,20 @@ mod tests {
         ];
         assert!(!listeners_reachable(&targets));
         drop(listener);
+    }
+
+    #[tokio::test]
+    async fn active_kernel_cannot_be_uninstalled() {
+        let (log_tx, _) = broadcast::channel(1);
+        let mut manager = KernelManager::new();
+        manager.active = Some(KernelId::SingBox);
+        let error = manager
+            .uninstall(KernelId::SingBox, log_tx)
+            .await
+            .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("cannot uninstall the active kernel"));
     }
 
     #[test]

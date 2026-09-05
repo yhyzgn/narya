@@ -165,7 +165,17 @@ fn runtime_owner() -> String {
 }
 
 pub fn socket_path() -> PathBuf {
-    runtime_dir().join("narya.sock")
+    let name = std::env::var("NARYA_SOCKET_NAME")
+        .ok()
+        .filter(|name| {
+            !name.is_empty()
+                && name.len() <= 120
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
+        })
+        .unwrap_or_else(|| "narya.sock".into());
+    runtime_dir().join(name)
 }
 
 pub fn kernel_config_path() -> PathBuf {

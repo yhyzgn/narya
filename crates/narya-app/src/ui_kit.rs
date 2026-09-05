@@ -1,7 +1,8 @@
 pub use gpui::prelude::FluentBuilder as NaryaFluentBuilder;
 pub use gpui::px;
 use gpui::{
-    div, prelude::*, rgb, AnyElement, Entity, IntoElement, ParentElement, Rgba, ViewElement,
+    div, prelude::*, rgb, AnyElement, Entity, Font, FontFallbacks, FontFeatures, FontStyle,
+    FontWeight, IntoElement, ParentElement, Rgba, ViewElement,
 };
 pub use gpui::{
     App, AppContext as NaryaAppContext, Context, Entity as NaryaEntity,
@@ -9,18 +10,18 @@ pub use gpui::{
     ViewElement as NaryaViewElement, Window,
 };
 use liora::components::{
-    Button, Card, Flex, Image, Input, LineChart, Progress, Segmented, SegmentedOption, Select,
-    SignalMeter, Space, Sparkline, Statistic, Switch, Tag, Text,
+    Button, Card, Flex, Image, Input, LineChart, LocalizedText, Progress, Segmented,
+    SegmentedOption, Select, SignalMeter, Space, Sparkline, Statistic, Switch, Tag, Text,
 };
 use liora_icons::Icon;
 use liora_icons_lucide::IconName;
 
-const SIDEBAR_W: f32 = 256.0;
-const HEADER_H: f32 = 120.0;
-const FOOTER_H: f32 = 68.0;
-const CONTENT_X_PAD: f32 = 36.0;
-const CONTENT_BOTTOM_PAD: f32 = 16.0;
-const GAP: f32 = 24.0;
+const SIDEBAR_W: f32 = 236.0;
+const HEADER_H: f32 = 92.0;
+const FOOTER_H: f32 = 56.0;
+const CONTENT_X_PAD: f32 = 24.0;
+const CONTENT_BOTTOM_PAD: f32 = 12.0;
+const GAP: f32 = 16.0;
 
 const FS_DISPLAY: f32 = 27.0;
 const FS_BRAND: f32 = 26.0;
@@ -29,6 +30,10 @@ const FS_BODY: f32 = 14.0;
 const FS_SMALL: f32 = 13.0;
 const FS_CAPTION: f32 = 12.0;
 const FS_NUMBER: f32 = 23.0;
+
+fn narya_text(content: impl Into<LocalizedText>) -> Text {
+    Text::new(content)
+}
 
 pub const APP_BG: u32 = 0xF8FBFF;
 pub const SURFACE: u32 = 0xFFFFFF;
@@ -96,25 +101,13 @@ impl NavTarget {
             NavTarget::Settings => "settings",
         }
     }
-
-    fn from_id(id: &str) -> Option<Self> {
-        match id {
-            "dashboard" => Some(NavTarget::Dashboard),
-            "nodes" => Some(NavTarget::Nodes),
-            "config" => Some(NavTarget::Config),
-            "subscriptions" => Some(NavTarget::Subscriptions),
-            "connections" => Some(NavTarget::Connections),
-            "rules" => Some(NavTarget::Rules),
-            "logs" => Some(NavTarget::Logs),
-            "tools" => Some(NavTarget::Tools),
-            "settings" => Some(NavTarget::Settings),
-            _ => None,
-        }
-    }
 }
 
 type NavHandler = std::rc::Rc<dyn Fn(NavTarget, &mut gpui::App)>;
 pub type ClickHandler = Box<dyn Fn(&gpui::ClickEvent, &mut gpui::Window, &mut gpui::App)>;
+type BoolChangeHandler = Box<dyn Fn(bool, &mut gpui::Window, &mut gpui::App)>;
+type IndexChangeHandler = Box<dyn Fn(usize, &mut gpui::Window, &mut gpui::App)>;
+type ValueChangeHandler = Box<dyn Fn(gpui::SharedString, &mut gpui::Window, &mut gpui::App)>;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PageKind {
@@ -154,33 +147,46 @@ impl ShellFrame {
 }
 
 impl IntoElement for ShellFrame {
-    type Element = gpui::Div;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
+        ViewElement::new(self)
+    }
+}
+
+impl gpui::RenderOnce for ShellFrame {
+    fn render(self, _window: &mut gpui::Window, _cx: &mut gpui::App) -> impl IntoElement {
         div()
-            .flex()
             .size_full()
             .bg(color(APP_BG))
             .text_color(color(TEXT))
-            .child(self.sidebar)
+            .font(Font {
+                family: "Consolas".into(),
+                features: FontFeatures::default(),
+                fallbacks: Some(FontFallbacks::from_fonts(vec!["LXGW WenKai".to_string()])),
+                weight: FontWeight::default(),
+                style: FontStyle::default(),
+            })
             .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .h_full()
-                    .min_h_0()
-                    .child(self.header)
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_h_0()
-                            .overflow_hidden()
-                            .px(px(CONTENT_X_PAD))
-                            .pb(px(CONTENT_BOTTOM_PAD))
-                            .child(self.content),
-                    )
-                    .child(self.footer),
+                Flex::new().row().size_full().child(self.sidebar).child(
+                    Flex::new()
+                        .column()
+                        .flex_1()
+                        .h_full()
+                        .min_h_0()
+                        .child(self.header)
+                        .child(
+                            Flex::new().flex_1().min_h_0().child(
+                                div()
+                                    .size_full()
+                                    .overflow_hidden()
+                                    .px(px(CONTENT_X_PAD))
+                                    .pb(px(CONTENT_BOTTOM_PAD))
+                                    .child(self.content),
+                            ),
+                        )
+                        .child(self.footer),
+                ),
             )
     }
 }
@@ -218,9 +224,15 @@ impl Sidebar {
 }
 
 impl IntoElement for Sidebar {
-    type Element = gpui::Div;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
+        ViewElement::new(self)
+    }
+}
+
+impl gpui::RenderOnce for Sidebar {
+    fn render(self, _window: &mut gpui::Window, _cx: &mut gpui::App) -> impl IntoElement {
         let nav_items = [
             ("仪表盘", NavTarget::Dashboard),
             ("节点", NavTarget::Nodes),
@@ -233,66 +245,68 @@ impl IntoElement for Sidebar {
             ("设置", NavTarget::Settings),
         ];
         let on_nav = self.on_nav.clone();
-
         div()
             .w(px(SIDEBAR_W))
             .h_full()
             .flex_none()
-            .flex()
-            .flex_col()
-            .justify_between()
             .bg(color(0xFBFDFF))
             .border_r_1()
             .border_color(color(BORDER))
             .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .child(brand_block())
-                    .child(sidebar_menu(nav_items, self.active, on_nav)),
+                Flex::new()
+                    .column()
+                    .h_full()
+                    .justify_between()
+                    .child(
+                        Flex::new()
+                            .column()
+                            .child(brand_block())
+                            .child(sidebar_menu(nav_items, self.active, on_nav)),
+                    )
+                    .child(sidebar_status(
+                        self.running,
+                        self.node,
+                        self.latency,
+                        self.down,
+                        self.up,
+                    )),
             )
-            .child(sidebar_status(
-                self.running,
-                self.node,
-                self.latency,
-                self.down,
-                self.up,
-            ))
     }
 }
 
-fn brand_block() -> gpui::Div {
-    div()
-        .flex()
-        .items_center()
-        .gap_4()
-        .h(px(146.0))
-        .px(px(36.0))
-        .child(
-            Image::local("ui/icons/narya-logo-v2.png")
-                .width(px(62.0))
-                .height(px(62.0))
-                .shadow(false)
-                .bordered(false),
-        )
-        .child(
-            Flex::new()
-                .column()
-                .gap_px(2.0)
-                .child(
-                    Text::new("Narya")
-                        .size(px(FS_BRAND))
-                        .bold()
-                        .text_color(color(TEXT).into())
-                        .selectable(false),
-                )
-                .child(
-                    Text::new("v1.0.0")
-                        .size(px(FS_SMALL))
-                        .text_color(color(MUTED).into())
-                        .selectable(false),
-                ),
-        )
+fn brand_block() -> impl IntoElement {
+    div().h(px(112.0)).px(px(28.0)).child(
+        Flex::new()
+            .row()
+            .h_full()
+            .align_center()
+            .gap_lg()
+            .child(
+                Image::local("ui/icons/narya-logo-v2.png")
+                    .width(px(62.0))
+                    .height(px(62.0))
+                    .shadow(false)
+                    .bordered(false),
+            )
+            .child(
+                Flex::new()
+                    .column()
+                    .gap_px(2.0)
+                    .child(
+                        narya_text("Narya")
+                            .size(px(FS_BRAND))
+                            .bold()
+                            .text_color(color(TEXT).into())
+                            .selectable(false),
+                    )
+                    .child(
+                        narya_text(concat!("v", env!("CARGO_PKG_VERSION")))
+                            .size(px(FS_SMALL))
+                            .text_color(color(MUTED).into())
+                            .selectable(false),
+                    ),
+            ),
+    )
 }
 
 fn sidebar_menu(
@@ -314,21 +328,41 @@ struct SidebarMenu {
 }
 
 impl gpui::RenderOnce for SidebarMenu {
-    fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl IntoElement {
+    fn render(self, _window: &mut gpui::Window, _cx: &mut gpui::App) -> impl IntoElement {
         let on_nav = self.on_nav.clone();
-        let menu = self.nav_items.into_iter().fold(
-            liora::components::NavigationMenu::new()
-                .id("narya-sidebar-menu")
-                .default_active(self.active.id())
-                .on_select(move |id, _, cx| {
-                    if let Some(target) = NavTarget::from_id(id.as_ref()) {
-                        on_nav(target, cx);
-                    }
-                }),
-            |menu, (label, target)| menu.item(target.id(), label, Some(target.icon())),
-        );
-        let menu = cx.new(|_| menu);
-        div().px(px(22.0)).child(menu)
+        Flex::new()
+            .column()
+            .padding_x_px(22.0)
+            .children(self.nav_items.into_iter().map(|(label, target)| {
+                let active = target == self.active;
+                let on_nav = on_nav.clone();
+                div()
+                    .id(format!("narya-sidebar-{}", target.id()))
+                    .cursor_pointer()
+                    .block_mouse_except_scroll()
+                    .w_full()
+                    .h(px(50.0))
+                    .px(px(20.0))
+                    .rounded(px(8.0))
+                    // Paint the inactive state explicitly. An unpainted GPUI
+                    // layer can expose the compositor's black transparent
+                    // surface on Linux, which turns the whole row into a
+                    // black block.
+                    .bg(color(0xFBFDFF))
+                    .text_color(color(if active { BRAND } else { TEXT }))
+                    .when(active, |style| style.bg(color(0xEEF4FF)))
+                    .hover(|style| style.bg(color(0xF1F5FF)))
+                    .on_click(move |_, _, cx| on_nav(target, cx))
+                    .child(
+                        Flex::new()
+                            .row()
+                            .h_full()
+                            .align_center()
+                            .gap_sm()
+                            .child(Icon::new(target.icon()).size(px(18.0)))
+                            .child(narya_text(label).size(px(FS_BODY)).selectable(false)),
+                    )
+            }))
     }
 }
 
@@ -340,68 +374,73 @@ impl IntoElement for SidebarMenu {
     }
 }
 
-fn sidebar_status(running: bool, node: String, latency: u32, down: f32, up: f32) -> gpui::Div {
-    div()
-        .px(px(22.0))
-        .pb(px(26.0))
-        .flex()
-        .flex_col()
-        .gap_5()
-        .child(NaryaCard::plain(
-            Flex::new()
-                .column()
-                .gap_md()
-                .child(
-                    Space::new().gap_sm().child(status_dot(running)).child(
-                        Text::new(if running { "已连接" } else { "未连接" })
-                            .size(px(FS_BODY))
-                            .bold()
-                            .selectable(false),
-                    ),
-                )
-                .child(
-                    Text::new("当前节点")
-                        .size(px(FS_CAPTION))
-                        .text_color(color(MUTED).into())
-                        .selectable(false),
-                )
-                .child(
-                    Space::new()
-                        .gap_sm()
-                        .child(flag_badge_for_name(&node))
-                        .child(
-                            Text::new(node)
+fn sidebar_status(
+    running: bool,
+    node: String,
+    latency: u32,
+    down: f32,
+    up: f32,
+) -> impl IntoElement {
+    div().px(px(22.0)).pb(px(26.0)).child(
+        Flex::new()
+            .column()
+            .gap_lg()
+            .child(NaryaCard::plain(
+                Flex::new()
+                    .column()
+                    .gap_md()
+                    .child(
+                        Space::new().gap_sm().child(status_dot(running)).child(
+                            narya_text(if running { "已连接" } else { "未连接" })
                                 .size(px(FS_BODY))
-                                .text_color(color(TEXT).into())
-                                .selectable(false),
-                        )
-                        .child(narya_tag(format!("{} ms", latency), NaryaStatus::Info)),
-                )
-                .child(key_value("代理模式", "规则模式 ›"))
-                .child(
-                    Space::new()
-                        .gap_lg()
-                        .child(
-                            Text::new(format!("↓ {:.2} MB/s", down))
-                                .size(px(FS_CAPTION))
-                                .text_color(color(SUCCESS).into())
-                                .selectable(false),
-                        )
-                        .child(
-                            Text::new(format!("↑ {:.2} MB/s", up))
-                                .size(px(FS_CAPTION))
-                                .text_color(color(VIOLET).into())
+                                .bold()
                                 .selectable(false),
                         ),
-                )
-                .child(
-                    Sparkline::new([6.0, 8.0, 7.0, 12.0, 9.0, 15.0, 10.0, 13.0, 8.0, 11.0])
-                        .height(px(52.0))
-                        .color(color(BRAND).into())
-                        .area_fill(true),
-                ),
-        ))
-        .child(sidebar_footer_icons())
+                    )
+                    .child(
+                        narya_text("当前节点")
+                            .size(px(FS_CAPTION))
+                            .text_color(color(MUTED).into())
+                            .selectable(false),
+                    )
+                    .child(
+                        Space::new()
+                            .gap_sm()
+                            .child(flag_badge_for_name(&node))
+                            .child(
+                                narya_text(node)
+                                    .size(px(FS_BODY))
+                                    .text_color(color(TEXT).into())
+                                    .selectable(false),
+                            )
+                            .child(narya_tag(format!("{} ms", latency), NaryaStatus::Info)),
+                    )
+                    .child(key_value("代理模式", "规则模式 ›"))
+                    .child(
+                        Space::new()
+                            .gap_lg()
+                            .child(
+                                narya_text(format!("↓ {:.2} MB/s", down))
+                                    .size(px(FS_CAPTION))
+                                    .text_color(color(SUCCESS).into())
+                                    .selectable(false),
+                            )
+                            .child(
+                                narya_text(format!("↑ {:.2} MB/s", up))
+                                    .size(px(FS_CAPTION))
+                                    .text_color(color(VIOLET).into())
+                                    .selectable(false),
+                            ),
+                    )
+                    .child(
+                        Sparkline::new([6.0, 8.0, 7.0, 12.0, 9.0, 15.0, 10.0, 13.0, 8.0, 11.0])
+                            .height(px(52.0))
+                            .color(color(BRAND).into())
+                            .area_fill(true),
+                    ),
+            ))
+            .child(sidebar_footer_icons()),
+    )
 }
 
 pub struct HeaderBar {
@@ -418,7 +457,7 @@ impl HeaderBar {
             PageKind::Config => ("配置", "管理代理配置、链式代理与 YAML 编辑"),
             PageKind::Subscriptions => ("订阅", "管理远程订阅源、流量信息与自动更新策略"),
             PageKind::Connections => ("连接", "查看活跃连接、目标地址与出口链路"),
-            PageKind::Rules => ("规则", "规则分流、模拟器与命中统计"),
+            PageKind::Rules => ("规则", "规则分流、条件与出口配置"),
             PageKind::Logs => ("日志", "内核日志、诊断导出与错误追踪"),
             PageKind::Tools => ("工具箱", "Ping、DNS、MTR、端口检查与报告导出"),
             PageKind::Settings => ("设置", "调整应用、内核、网络、IPv6、安全与更新偏好"),
@@ -433,106 +472,104 @@ impl HeaderBar {
 }
 
 impl IntoElement for HeaderBar {
-    type Element = gpui::Div;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
+        ViewElement::new(self)
+    }
+}
+
+impl gpui::RenderOnce for HeaderBar {
+    fn render(self, _window: &mut gpui::Window, _cx: &mut gpui::App) -> impl IntoElement {
         div()
             .h(px(HEADER_H))
-            .flex_none()
-            .flex()
-            .items_start()
-            .justify_between()
             .px(px(CONTENT_X_PAD))
-            .pt(px(24.0))
+            .pt(px(16.0))
             .child(
                 Flex::new()
-                    .column()
-                    .gap_px(6.0)
+                    .row()
+                    .h_full()
+                    .align_start()
+                    .justify_between()
                     .child(
-                        Text::new(self.title)
-                            .size(px(FS_DISPLAY))
-                            .bold()
-                            .text_color(color(TEXT).into())
-                            .selectable(false),
+                        Flex::new()
+                            .column()
+                            .gap_px(6.0)
+                            .child(
+                                narya_text(self.title)
+                                    .size(px(FS_DISPLAY))
+                                    .bold()
+                                    .text_color(color(TEXT).into())
+                                    .selectable(false),
+                            )
+                            .child(
+                                narya_text(self.subtitle)
+                                    .size(px(FS_SMALL))
+                                    .text_color(color(MUTED).into())
+                                    .selectable(false),
+                            ),
                     )
                     .child(
-                        Text::new(self.subtitle)
-                            .size(px(FS_SMALL))
-                            .text_color(color(MUTED).into())
-                            .selectable(false),
+                        Flex::new()
+                            .column()
+                            .align_end()
+                            .gap_xl()
+                            .child(Space::new().gap_md().children(self.actions)),
                     ),
-            )
-            .child(
-                Flex::new()
-                    .column()
-                    .align_end()
-                    .gap_xl()
-                    .child(window_controls())
-                    .child(Space::new().gap_md().children(self.actions)),
             )
     }
 }
 
-fn window_controls() -> gpui::Div {
-    div()
-        .flex()
-        .items_center()
-        .gap_5()
-        .pr(px(4.0))
-        .child(
-            Icon::new(IconName::Minus)
-                .size(px(16.0))
-                .color(color(TEXT).into()),
-        )
-        .child(
-            Icon::new(IconName::Square)
-                .size(px(14.0))
-                .color(color(TEXT).into()),
-        )
-        .child(
-            Icon::new(IconName::X)
-                .size(px(18.0))
-                .color(color(TEXT).into()),
-        )
+pub struct FooterBar {
+    pub kernel: String,
+    pub config: String,
+    pub subscriptions: String,
 }
 
-pub struct FooterBar;
-
 impl IntoElement for FooterBar {
-    type Element = gpui::Div;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
+        ViewElement::new(self)
+    }
+}
+
+impl gpui::RenderOnce for FooterBar {
+    fn render(self, _window: &mut gpui::Window, _cx: &mut gpui::App) -> impl IntoElement {
         div()
             .h(px(FOOTER_H))
-            .flex_none()
-            .flex()
-            .items_center()
-            .justify_between()
-            .px(px(CONTENT_X_PAD))
             .bg(color(SURFACE))
             .border_t_1()
             .border_color(color(BORDER))
+            .px(px(CONTENT_X_PAD))
             .child(
-                Space::new()
-                    .gap_xl()
-                    .child(status_line("内核", "● sing-box"))
-                    .child(status_line("配置", "▤ Narya Default"))
-                    .child(status_line("订阅", "▣ 机场 A · 128 节点")),
-            )
-            .child(
-                Space::new()
-                    .gap_xl()
+                Flex::new()
+                    .row()
+                    .h_full()
+                    .align_center()
+                    .justify_between()
                     .child(
-                        Text::new("检查更新")
-                            .size(px(FS_SMALL))
-                            .text_color(color(BRAND).into())
-                            .selectable(false),
+                        Space::new()
+                            .gap_xl()
+                            .child(status_line("内核", self.kernel))
+                            .child(status_line("配置", self.config))
+                            .child(status_line("订阅", self.subscriptions)),
                     )
                     .child(
-                        Text::new("1.0.0")
-                            .size(px(FS_SMALL))
-                            .text_color(color(MUTED).into())
-                            .selectable(false),
+                        Space::new()
+                            .gap_xl()
+                            .child(
+                                narya_text("检查更新")
+                                    .size(px(FS_SMALL))
+                                    .text_color(color(BRAND).into())
+                                    .selectable(false),
+                            )
+                            .child(
+                                narya_text(env!("CARGO_PKG_VERSION"))
+                                    .size(px(FS_SMALL))
+                                    .text_color(color(MUTED).into())
+                                    .selectable(false),
+                            ),
                     ),
             )
     }
@@ -560,15 +597,21 @@ impl Default for NaryaPage {
 }
 
 impl IntoElement for NaryaPage {
-    type Element = gpui::Div;
+    type Element = ViewElement<Self>;
 
     fn into_element(self) -> Self::Element {
-        div()
-            .flex()
-            .flex_col()
-            .gap(px(GAP))
+        ViewElement::new(self)
+    }
+}
+
+impl gpui::RenderOnce for NaryaPage {
+    fn render(self, _window: &mut gpui::Window, _cx: &mut gpui::App) -> impl IntoElement {
+        Flex::new()
+            .column()
+            .gap_px(GAP)
             .size_full()
-            .overflow_hidden()
+            .min_h_0()
+            .overflow_y_scroll()
             .children(self.rows)
     }
 }
@@ -620,7 +663,7 @@ impl NaryaCard {
                                 .vertical(),
                         )
                         .child(
-                            Text::new(caption.into())
+                            narya_text(caption.into())
                                 .size(px(FS_CAPTION))
                                 .text_color(color(MUTED).into())
                                 .selectable(false),
@@ -664,9 +707,9 @@ pub fn page_row(children: Vec<AnyElement>) -> impl IntoElement {
 pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
     Flex::new()
         .row()
-        .gap_px(28.0)
+        .gap_px(20.0)
         .w_full()
-        .height_px(164.0)
+        .height_px(144.0)
         .child(Flex::new().width_px(548.0).flex_none().child(left))
         .child(Flex::new().flex_1().child(right))
 }
@@ -674,8 +717,8 @@ pub fn dashboard_top(left: impl IntoElement, right: impl IntoElement) -> impl In
 pub fn dashboard_middle(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
     Flex::new()
         .row()
-        .gap_px(28.0)
-        .height_px(310.0)
+        .gap_px(20.0)
+        .height_px(260.0)
         .child(Flex::new().width_px(488.0).flex_none().child(left))
         .child(Flex::new().flex_1().child(right))
 }
@@ -687,8 +730,8 @@ pub fn dashboard_bottom(
 ) -> impl IntoElement {
     Flex::new()
         .row()
-        .gap_px(28.0)
-        .height_px(284.0)
+        .gap_px(20.0)
+        .height_px(260.0)
         .child(Flex::new().width_px(488.0).flex_none().child(a))
         .child(Flex::new().width_px(306.0).flex_none().child(b))
         .child(Flex::new().flex_1().child(c))
@@ -702,7 +745,7 @@ pub fn nodes_main(
     Flex::new()
         .row()
         .gap_md()
-        .height_px(420.0)
+        .height_px(360.0)
         .child(Flex::new().width_px(280.0).flex_none().child(strategy))
         .child(Flex::new().flex_1().min_h_0().child(list))
         .child(Flex::new().width_px(276.0).flex_none().child(overview))
@@ -712,7 +755,7 @@ pub fn nodes_bottom(left: impl IntoElement, right: impl IntoElement) -> impl Int
     Flex::new()
         .row()
         .gap_lg()
-        .height_px(188.0)
+        .height_px(156.0)
         .child(Flex::new().flex_1().child(left))
         .child(Flex::new().width_px(604.0).flex_none().child(right))
 }
@@ -732,7 +775,13 @@ pub fn page_columns(left: impl IntoElement, right: impl IntoElement) -> impl Int
         .flex_1()
         .min_h_0()
         .child(Flex::new().flex_1().min_h_0().child(left))
-        .child(Flex::new().width_px(366.0).flex_none().child(right))
+        .child(
+            Flex::new()
+                .width_px(384.0)
+                .flex_none()
+                .min_h_0()
+                .child(right),
+        )
 }
 
 pub fn toolbar(children: Vec<AnyElement>) -> impl IntoElement {
@@ -749,7 +798,6 @@ pub fn search_input(placeholder: impl Into<gpui::SharedString>, width: f32) -> i
     LioraInputBox {
         placeholder: placeholder.into(),
         width,
-        interactive: false,
     }
 }
 
@@ -766,7 +814,21 @@ pub fn segmented_control(
         labels: labels.to_vec(),
         active,
         width,
-        interactive: false,
+        on_change: None,
+    }
+}
+
+pub fn segmented_control_with_change(
+    labels: &[&'static str],
+    active: &'static str,
+    width: f32,
+    on_change: Option<ValueChangeHandler>,
+) -> impl IntoElement {
+    LioraSegmentedBox {
+        labels: labels.to_vec(),
+        active,
+        width,
+        on_change,
     }
 }
 
@@ -775,7 +837,6 @@ pub fn sort_select(options: &[&'static str], selected_idx: usize, width: f32) ->
         options: options.to_vec(),
         selected_idx,
         width,
-        interactive: false,
     }
 }
 
@@ -787,7 +848,7 @@ pub fn grid_two(items: Vec<AnyElement>) -> impl IntoElement {
     )
 }
 
-pub fn design_card(body: impl IntoElement) -> impl IntoElement {
+pub fn design_card(body: impl IntoElement) -> gpui::Div {
     div()
         .size_full()
         .rounded(px(12.0))
@@ -803,10 +864,10 @@ pub fn titled_panel(title: &'static str, body: impl IntoElement) -> impl IntoEle
         Flex::new()
             .column()
             .size_full()
-            .padding_px(20.0)
+            .padding_px(16.0)
             .gap_md()
             .child(
-                Text::new(title)
+                narya_text(title)
                     .size(px(FS_CARD_TITLE))
                     .bold()
                     .text_color(color(TEXT).into())
@@ -822,14 +883,14 @@ pub fn panel_header(title: &'static str, action: &'static str) -> impl IntoEleme
         .align_center()
         .justify_between()
         .child(
-            Text::new(title)
+            narya_text(title)
                 .size(px(FS_CARD_TITLE))
                 .bold()
                 .text_color(color(TEXT).into())
                 .selectable(false),
         )
         .child(
-            Text::new(action)
+            narya_text(action)
                 .sm()
                 .text_color(color(BRAND).into())
                 .selectable(false),
@@ -837,7 +898,17 @@ pub fn panel_header(title: &'static str, action: &'static str) -> impl IntoEleme
 }
 
 pub fn dashboard_quick_panel(items: Vec<AnyElement>) -> impl IntoElement {
-    titled_panel("快速连接", Flex::new().column().gap_sm().children(items))
+    let body = if items.is_empty() {
+        Flex::new().flex_1().center().child(
+            narya_text("暂无节点，请先导入订阅")
+                .size(px(FS_SMALL))
+                .text_color(color(MUTED).into())
+                .selectable(false),
+        )
+    } else {
+        Flex::new().column().gap_sm().children(items)
+    };
+    titled_panel("快速连接", body)
 }
 
 pub fn dashboard_network_panel(
@@ -849,7 +920,7 @@ pub fn dashboard_network_panel(
         Flex::new()
             .row()
             .gap_lg()
-            .child(Flex::new().flex_1().min_h_0().child(chart))
+            .child(Flex::new().flex_1().min_h_0().w_full().child(chart))
             .child(
                 Flex::new()
                     .width_px(300.0)
@@ -874,7 +945,7 @@ pub fn dashboard_traffic_panel(
                     .flex_none()
                     .child(Flex::new().column().gap_lg().children(stats)),
             )
-            .child(Flex::new().flex_1().child(chart)),
+            .child(Flex::new().flex_1().w_full().child(chart)),
     )
 }
 
@@ -900,7 +971,7 @@ pub fn compact_metric(
                 .vertical(),
         )
         .child(
-            Text::new(caption.into())
+            narya_text(caption.into())
                 .size(px(FS_CAPTION))
                 .text_color(color(MUTED).into())
                 .selectable(false),
@@ -932,7 +1003,7 @@ pub fn sidebar_footer_icons() -> impl IntoElement {
 }
 
 pub fn nodes_top_controls(items: Vec<AnyElement>) -> impl IntoElement {
-    Flex::new().row().gap_lg().height_px(80.0).children(items)
+    Flex::new().row().gap_lg().height_px(64.0).children(items)
 }
 
 pub fn control_card(
@@ -963,14 +1034,14 @@ pub fn control_card(
                             .column()
                             .gap_sm()
                             .child(
-                                Text::new(title)
+                                narya_text(title)
                                     .size(px(FS_CAPTION))
                                     .bold()
                                     .text_color(color(TEXT).into())
                                     .selectable(false),
                             )
                             .child(
-                                Text::new(value.into())
+                                narya_text(value.into())
                                     .size(px(FS_BODY))
                                     .text_color(color(TEXT).into())
                                     .selectable(false),
@@ -1000,13 +1071,13 @@ pub fn hero_toggle_card(
     enabled: bool,
     mode: &'static str,
     tone: NaryaStatus,
-) -> impl IntoElement {
+) -> gpui::Div {
     design_card(
         Flex::new()
             .column()
             .justify_between()
             .size_full()
-            .padding_px(28.0)
+            .padding_px(20.0)
             .child(
                 Flex::new()
                     .row()
@@ -1018,14 +1089,14 @@ pub fn hero_toggle_card(
                                 .column()
                                 .gap_sm()
                                 .child(
-                                    Text::new(title)
+                                    narya_text(title)
                                         .size(px(FS_CARD_TITLE))
                                         .bold()
                                         .text_color(color(TEXT).into())
                                         .selectable(false),
                                 )
                                 .child(
-                                    Text::new(desc)
+                                    narya_text(desc)
                                         .size(px(FS_SMALL))
                                         .text_color(color(MUTED).into())
                                         .selectable(false),
@@ -1034,7 +1105,8 @@ pub fn hero_toggle_card(
                     )
                     .child(LioraSwitchView {
                         checked: enabled,
-                        disabled: true,
+                        disabled: false,
+                        on_change: None,
                     }),
             )
             .child(
@@ -1044,20 +1116,37 @@ pub fn hero_toggle_card(
                     .align_center()
                     .child(
                         Space::new().gap_sm().child(status_dot(enabled)).child(
-                            Text::new(if enabled { "已启用" } else { "未启用" })
+                            narya_text(if enabled { "已启用" } else { "未启用" })
                                 .size(px(FS_SMALL))
                                 .text_color(color(if enabled { SUCCESS } else { MUTED }).into())
                                 .selectable(false),
                         ),
                     )
                     .child(
-                        Text::new(mode)
+                        narya_text(mode)
                             .size(px(FS_SMALL))
                             .text_color(color(TEXT).into())
                             .selectable(false),
                     ),
             ),
     )
+}
+
+pub fn hero_toggle_card_with_click(
+    icon: IconName,
+    title: &'static str,
+    desc: &'static str,
+    enabled: bool,
+    mode: &'static str,
+    tone: NaryaStatus,
+    on_click: ClickHandler,
+) -> impl IntoElement {
+    div()
+        .id(title)
+        .size_full()
+        .cursor_pointer()
+        .child(hero_toggle_card(icon, title, desc, enabled, mode, tone))
+        .on_click(on_click)
 }
 
 pub fn quick_node(
@@ -1084,13 +1173,13 @@ pub fn quick_node(
                     Flex::new()
                         .column()
                         .child(
-                            Text::new(name)
+                            narya_text(name)
                                 .size(px(FS_SMALL))
                                 .text_color(color(TEXT).into())
                                 .selectable(false),
                         )
                         .child(
-                            Text::new(protocol.into())
+                            narya_text(protocol.into())
                                 .size(px(FS_CAPTION))
                                 .text_color(color(MUTED).into())
                                 .selectable(false),
@@ -1146,7 +1235,7 @@ pub fn node_card(data: NodeCardData, on_connect: ClickHandler) -> impl IntoEleme
                         Space::new()
                             .gap_md()
                             .child(
-                                Text::new(if data.active { "◉" } else { "○" })
+                                narya_text(if data.active { "◉" } else { "○" })
                                     .text_color(
                                         color(if data.active { BRAND } else { MUTED }).into(),
                                     )
@@ -1157,13 +1246,13 @@ pub fn node_card(data: NodeCardData, on_connect: ClickHandler) -> impl IntoEleme
                                 Flex::new()
                                     .column()
                                     .child(
-                                        Text::new(data.name)
+                                        narya_text(data.name)
                                             .bold()
                                             .text_color(color(TEXT).into())
                                             .selectable(false),
                                     )
                                     .child(
-                                        Text::new(data.protocol)
+                                        narya_text(data.protocol)
                                             .xs()
                                             .text_color(color(MUTED).into())
                                             .selectable(false),
@@ -1199,19 +1288,19 @@ pub fn node_card(data: NodeCardData, on_connect: ClickHandler) -> impl IntoEleme
                 Space::new()
                     .gap_lg()
                     .child(
-                        Text::new(format!("● {}%", data.load))
+                        narya_text(format!("● {}%", data.load))
                             .size(px(FS_CAPTION))
                             .text_color(color(MUTED).into())
                             .selectable(false),
                     )
                     .child(
-                        Text::new(format!("↓ {:.1} MB/s", data.down))
+                        narya_text(format!("↓ {:.1} MB/s", data.down))
                             .size(px(FS_CAPTION))
                             .text_color(color(BRAND).into())
                             .selectable(false),
                     )
                     .child(
-                        Text::new(format!("↑ {:.1} MB/s", data.up))
+                        narya_text(format!("↑ {:.1} MB/s", data.up))
                             .size(px(FS_CAPTION))
                             .text_color(color(VIOLET).into())
                             .selectable(false),
@@ -1254,19 +1343,19 @@ pub fn subscription_item(
                             .column()
                             .gap_px(4.0)
                             .child(
-                                Text::new(name.into())
+                                narya_text(name.into())
                                     .bold()
                                     .text_color(color(TEXT).into())
                                     .selectable(false),
                             )
                             .child(
-                                Text::new(url.into())
+                                narya_text(url.into())
                                     .xs()
                                     .text_color(color(MUTED).into())
                                     .selectable(false),
                             )
                             .child(
-                                Text::new(format!("{} 节点    更新：刚刚", nodes))
+                                narya_text(format!("{} 节点    更新：刚刚", nodes))
                                     .xs()
                                     .text_color(color(MUTED).into())
                                     .selectable(false),
@@ -1279,7 +1368,7 @@ pub fn subscription_item(
                     .gap_sm()
                     .width_px(100.0)
                     .child(
-                        Text::new(format!("流量 {:.0}%", usage))
+                        narya_text(format!("流量 {:.0}%", usage))
                             .size(px(FS_CAPTION))
                             .text_color(color(MUTED).into())
                             .selectable(false),
@@ -1294,13 +1383,13 @@ pub fn detail_field(label: impl Into<String>, value: impl Into<String>) -> impl 
         .row()
         .justify_between()
         .child(
-            Text::new(label.into())
+            narya_text(label.into())
                 .size(px(FS_SMALL))
                 .text_color(color(MUTED).into())
                 .selectable(false),
         )
         .child(
-            Text::new(value.into())
+            narya_text(value.into())
                 .size(px(FS_BODY))
                 .text_color(color(TEXT).into())
                 .selectable(false),
@@ -1358,7 +1447,7 @@ pub fn ratio_row(label: &'static str, pct: f32, tone: NaryaStatus) -> impl IntoE
         .align_center()
         .gap_md()
         .child(
-            Text::new(label)
+            narya_text(label)
                 .size(px(FS_BODY))
                 .text_color(color(TEXT).into())
                 .selectable(false),
@@ -1369,7 +1458,7 @@ pub fn ratio_row(label: &'static str, pct: f32, tone: NaryaStatus) -> impl IntoE
                 .child(Progress::new(pct).show_text(false).stroke_width(px(6.0))),
         )
         .child(
-            Text::new(format!("{:.1}%", pct))
+            narya_text(format!("{:.1}%", pct))
                 .size(px(FS_SMALL))
                 .text_color(status_color(tone).into())
                 .selectable(false),
@@ -1386,18 +1475,18 @@ pub fn log_line(
         .gap_lg()
         .align_center()
         .child(
-            Text::new("●")
+            narya_text("●")
                 .text_color(status_color(tone).into())
                 .selectable(false),
         )
         .child(
-            Text::new(time.into())
+            narya_text(time.into())
                 .size(px(FS_SMALL))
                 .text_color(color(MUTED).into())
                 .selectable(false),
         )
         .child(
-            Text::new(message.into())
+            narya_text(message.into())
                 .size(px(FS_BODY))
                 .text_color(color(TEXT).into())
                 .selectable(false),
@@ -1405,19 +1494,28 @@ pub fn log_line(
 }
 
 pub fn setting_row(label: &'static str, enabled: bool) -> impl IntoElement {
+    setting_row_with_change(label, enabled, None)
+}
+
+pub fn setting_row_with_change(
+    label: &'static str,
+    enabled: bool,
+    on_change: Option<BoolChangeHandler>,
+) -> impl IntoElement {
     Flex::new()
         .row()
         .justify_between()
         .align_center()
         .child(
-            Text::new(label)
+            narya_text(label)
                 .size(px(FS_BODY))
                 .text_color(color(TEXT).into())
                 .selectable(false),
         )
         .child(LioraSwitchView {
             checked: enabled,
-            disabled: true,
+            disabled: false,
+            on_change,
         })
 }
 
@@ -1432,11 +1530,19 @@ pub fn category_menu(
     items: Vec<(&'static str, IconName)>,
     active_index: usize,
 ) -> impl IntoElement {
+    category_menu_with_change(items, active_index, None)
+}
+
+pub fn category_menu_with_change(
+    items: Vec<(&'static str, IconName)>,
+    active_index: usize,
+    on_select: Option<IndexChangeHandler>,
+) -> impl IntoElement {
     LioraMenuGroup {
         id: "narya-category-menu",
         items,
         active_index,
-        interactive: false,
+        on_select,
     }
 }
 
@@ -1451,22 +1557,22 @@ pub fn narya_tag(label: impl Into<gpui::SharedString>, status: NaryaStatus) -> T
 }
 
 pub fn status_dot(on: bool) -> impl IntoElement {
-    Text::new(if on { "●" } else { "○" })
+    narya_text(if on { "●" } else { "○" })
         .text_color(color(if on { SUCCESS } else { MUTED }).into())
         .selectable(false)
 }
 
-fn status_line(label: &'static str, value: &'static str) -> impl IntoElement {
+fn status_line(label: &'static str, value: impl Into<String>) -> impl IntoElement {
     Space::new()
         .gap_sm()
         .child(
-            Text::new(label)
+            narya_text(label)
                 .size(px(FS_SMALL))
                 .text_color(color(MUTED).into())
                 .selectable(false),
         )
         .child(
-            Text::new(value)
+            narya_text(value.into())
                 .size(px(FS_BODY))
                 .text_color(color(TEXT).into())
                 .selectable(false),
@@ -1478,13 +1584,13 @@ fn key_value(label: &'static str, value: &'static str) -> impl IntoElement {
         .row()
         .justify_between()
         .child(
-            Text::new(label)
+            narya_text(label)
                 .size(px(FS_CAPTION))
                 .text_color(color(MUTED).into())
                 .selectable(false),
         )
         .child(
-            Text::new(value)
+            narya_text(value)
                 .size(px(FS_CAPTION))
                 .text_color(color(TEXT).into())
                 .selectable(false),
@@ -1496,10 +1602,12 @@ fn hero_icon(icon: IconName, tone: NaryaStatus) -> impl IntoElement {
         .size(px(56.0))
         .rounded(px(12.0))
         .bg(status_color(tone))
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(Icon::new(icon).size(px(27.0)).color(color(SURFACE).into()))
+        .child(
+            Flex::new()
+                .size_full()
+                .center()
+                .child(Icon::new(icon).size(px(27.0)).color(color(SURFACE).into())),
+        )
 }
 
 fn flag_badge_for_name(name: &str) -> impl IntoElement {
@@ -1520,20 +1628,15 @@ fn flag_badge_for_name(name: &str) -> impl IntoElement {
     } else {
         ("GL", 0xEEF4FF, MUTED)
     };
-    div()
-        .size(px(32.0))
-        .rounded(px(999.0))
-        .bg(color(bg))
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(
-            Text::new(label)
+    div().size(px(32.0)).rounded(px(999.0)).bg(color(bg)).child(
+        Flex::new().size_full().center().child(
+            narya_text(label)
                 .size(px(10.5))
                 .bold()
                 .text_color(color(fg).into())
                 .selectable(false),
-        )
+        ),
+    )
 }
 
 fn metric_icon(icon: IconName, tone: NaryaStatus) -> impl IntoElement {
@@ -1541,34 +1644,31 @@ fn metric_icon(icon: IconName, tone: NaryaStatus) -> impl IntoElement {
         .size(px(56.0))
         .rounded(px(12.0))
         .bg(status_soft_color(tone))
-        .flex()
-        .items_center()
-        .justify_center()
         .child(
-            Icon::new(icon)
-                .size(px(FS_NUMBER))
-                .color(status_color(tone).into()),
+            Flex::new().size_full().center().child(
+                Icon::new(icon)
+                    .size(px(FS_NUMBER))
+                    .color(status_color(tone).into()),
+            ),
         )
 }
 
 struct LioraInputBox {
     placeholder: gpui::SharedString,
     width: f32,
-    interactive: bool,
 }
 
 impl gpui::RenderOnce for LioraInputBox {
     fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl IntoElement {
         let placeholder = self.placeholder.clone();
-        let input = cx.new(|cx| {
+        cx.new(|cx| {
             Input::new("", cx)
                 .placeholder(placeholder)
                 .icon_prefix(IconName::Search)
                 .clearable(false)
                 .width(px(self.width))
                 .height(px(38.0))
-        });
-        readonly_shell(input, self.interactive)
+        })
     }
 }
 
@@ -1584,7 +1684,7 @@ struct LioraSegmentedBox {
     labels: Vec<&'static str>,
     active: &'static str,
     width: f32,
-    interactive: bool,
+    on_change: Option<ValueChangeHandler>,
 }
 
 impl gpui::RenderOnce for LioraSegmentedBox {
@@ -1595,12 +1695,16 @@ impl gpui::RenderOnce for LioraSegmentedBox {
             .map(|label| SegmentedOption::new(label, label))
             .collect();
         let segmented = cx.new(|_| {
-            Segmented::new(options)
+            let segmented = Segmented::new(options)
                 .id("narya-filter-segmented")
                 .value(self.active)
-                .block(true)
+                .block(true);
+            match self.on_change {
+                Some(on_change) => segmented.on_change(on_change),
+                None => segmented,
+            }
         });
-        readonly_shell(div().w(px(self.width)).child(segmented), self.interactive)
+        div().w(px(self.width)).child(segmented)
     }
 }
 
@@ -1616,7 +1720,6 @@ struct LioraSelectBox {
     options: Vec<&'static str>,
     selected_idx: usize,
     width: f32,
-    interactive: bool,
 }
 
 impl gpui::RenderOnce for LioraSelectBox {
@@ -1626,13 +1729,12 @@ impl gpui::RenderOnce for LioraSelectBox {
         } else {
             Some(self.selected_idx.min(self.options.len() - 1))
         };
-        let select = cx.new(|cx| {
+        cx.new(|cx| {
             Select::new(self.options, selected, cx)
                 .width(px(self.width))
                 .text_sm()
                 .padding_x_sm()
-        });
-        readonly_shell(select, self.interactive)
+        })
     }
 }
 
@@ -1647,11 +1749,18 @@ impl IntoElement for LioraSelectBox {
 struct LioraSwitchView {
     checked: bool,
     disabled: bool,
+    on_change: Option<BoolChangeHandler>,
 }
 
 impl gpui::RenderOnce for LioraSwitchView {
     fn render(self, _window: &mut gpui::Window, cx: &mut gpui::App) -> impl IntoElement {
-        cx.new(|cx| Switch::new(self.checked, cx).disabled(self.disabled))
+        cx.new(|cx| {
+            let switch = Switch::new(self.checked, cx).disabled(self.disabled);
+            match self.on_change {
+                Some(on_change) => switch.on_change(on_change),
+                None => switch,
+            }
+        })
     }
 }
 
@@ -1667,7 +1776,7 @@ struct LioraMenuGroup {
     id: &'static str,
     items: Vec<(&'static str, IconName)>,
     active_index: usize,
-    interactive: bool,
+    on_select: Option<IndexChangeHandler>,
 }
 
 impl gpui::RenderOnce for LioraMenuGroup {
@@ -1677,6 +1786,7 @@ impl gpui::RenderOnce for LioraMenuGroup {
         } else {
             String::new()
         };
+        let on_select = self.on_select;
         let menu = self.items.into_iter().enumerate().fold(
             liora::components::NavigationMenu::new()
                 .id(self.id)
@@ -1685,8 +1795,15 @@ impl gpui::RenderOnce for LioraMenuGroup {
                 menu.item(format!("{}-{}", self.id, index), label, Some(icon))
             },
         );
-        let menu = cx.new(|_| menu);
-        readonly_shell(menu, self.interactive)
+        cx.new(|_| match on_select {
+            Some(on_select) => menu.on_select(move |id, window, app| {
+                let Some(index) = id.rsplit('-').next().and_then(|value| value.parse().ok()) else {
+                    return;
+                };
+                on_select(index, window, app);
+            }),
+            None => menu,
+        })
     }
 }
 
@@ -1696,22 +1813,6 @@ impl IntoElement for LioraMenuGroup {
     fn into_element(self) -> Self::Element {
         ViewElement::new(self)
     }
-}
-
-fn readonly_shell(child: impl IntoElement, interactive: bool) -> impl IntoElement {
-    div()
-        .relative()
-        .child(child)
-        .when(!interactive, |el| el.child(interaction_blocker()))
-}
-
-fn interaction_blocker() -> gpui::Div {
-    div()
-        .absolute()
-        .top_0()
-        .left_0()
-        .size_full()
-        .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
 }
 
 fn status_color(status: NaryaStatus) -> Rgba {
@@ -1755,7 +1856,7 @@ pub fn entity_window_options(cx: &mut gpui::App) -> gpui::WindowOptions {
             appears_transparent: true,
             ..Default::default()
         }),
-        window_decorations: Some(gpui::WindowDecorations::Client),
+        window_decorations: Some(gpui::WindowDecorations::Server),
         app_id: Some("narya".into()),
         ..Default::default()
     }

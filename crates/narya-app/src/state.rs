@@ -39,6 +39,10 @@ fn default_rules() -> Vec<narya_rules::Rule> {
     ]
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SubscriptionTab {
     Overview,
@@ -71,6 +75,18 @@ pub struct PersistedState {
     pub groups: Vec<narya_rules::RoutingGroup>,
     #[serde(default)]
     pub rule_sets: Vec<narya_rules::RuleSetSource>,
+    #[serde(default)]
+    pub setting_autostart: bool,
+    #[serde(default)]
+    pub setting_start_minimized: bool,
+    #[serde(default = "default_true")]
+    pub setting_close_to_tray: bool,
+    #[serde(default = "default_true")]
+    pub setting_restore_proxy: bool,
+    #[serde(default = "default_true")]
+    pub setting_auto_update: bool,
+    #[serde(default)]
+    pub appearance_mode: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,6 +215,30 @@ fn read_routing_bundle(path: &str) -> Result<RoutingBundle, String> {
     Ok(bundle)
 }
 
+fn subscription_refresh_failure_summary(stage: &str, error: &str) -> String {
+    let mut message = error.trim().replace('\n', " ");
+    const MAX_ERROR_LEN: usize = 180;
+    if message.chars().count() > MAX_ERROR_LEN {
+        message = message.chars().take(MAX_ERROR_LEN).collect::<String>();
+        message.push_str("...");
+    }
+    if message.is_empty() {
+        format!("{stage}：未知错误")
+    } else {
+        format!("{stage}：{message}")
+    }
+}
+
+fn mark_subscription_refresh_failed(
+    subscriptions: &mut [narya_core::Subscription],
+    sub_id: &str,
+    summary: &str,
+) {
+    if let Some(sub) = subscriptions.iter_mut().find(|s| s.id == sub_id) {
+        sub.status = summary.to_string();
+    }
+}
+
 pub struct AppState {
     pub nodes: Vec<narya_core::Node>,
     pub subscriptions: Vec<narya_core::Subscription>,
@@ -212,6 +252,9 @@ pub struct AppState {
     pub selected_subscription_id: Option<String>,
     pub active_subscription_tab: SubscriptionTab,
     pub subscription_filter_text: String,
+    pub subscription_draft_name: String,
+    pub subscription_draft_url: String,
+    pub subscription_error: Option<String>,
 
     pub subscription_list_state: ListState,
 
@@ -249,9 +292,40 @@ pub struct AppState {
     pub rule_editor_error: Option<String>,
     pub rule_io_path: String,
     pub rule_io_status: Option<String>,
+    pub settings_category: usize,
+    pub setting_autostart: bool,
+    pub setting_start_minimized: bool,
+    pub setting_close_to_tray: bool,
+    pub setting_restore_proxy: bool,
+    pub setting_auto_update: bool,
+    pub appearance_mode: usize,
 }
 
 impl AppState {
+    pub fn set_settings_category(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.settings_category = index;
+        cx.notify();
+    }
+
+    pub fn set_setting_value(&mut self, key: &'static str, value: bool, cx: &mut Context<Self>) {
+        match key {
+            "autostart" => self.setting_autostart = value,
+            "start_minimized" => self.setting_start_minimized = value,
+            "close_to_tray" => self.setting_close_to_tray = value,
+            "restore_proxy" => self.setting_restore_proxy = value,
+            "auto_update" => self.setting_auto_update = value,
+            _ => return,
+        }
+        self.save();
+        cx.notify();
+    }
+
+    pub fn set_appearance_mode(&mut self, mode: usize, cx: &mut Context<Self>) {
+        self.appearance_mode = mode.min(2);
+        self.save();
+        cx.notify();
+    }
+
     pub fn config_path() -> PathBuf {
         let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
         path.push("narya");
@@ -271,10 +345,29 @@ impl AppState {
             rules: self.rules.clone(),
             groups: self.groups.clone(),
             rule_sets: self.rule_sets.clone(),
+            setting_autostart: self.setting_autostart,
+            setting_start_minimized: self.setting_start_minimized,
+            setting_close_to_tray: self.setting_close_to_tray,
+            setting_restore_proxy: self.setting_restore_proxy,
+            setting_auto_update: self.setting_auto_update,
+            appearance_mode: self.appearance_mode,
         };
-        if let Ok(json) = serde_json::to_string_pretty(&persisted) {
-            let _ = std::fs::write(Self::config_path(), json);
+        if let Err(error) = Self::save_persisted(&persisted) {
+            eprintln!("failed to persist Narya state: {error}");
         }
+    }
+
+    fn save_persisted(persisted: &PersistedState) -> std::io::Result<()> {
+        let path = Self::config_path();
+        let temp = path.with_extension("json.tmp");
+        let json = serde_json::to_vec_pretty(persisted).map_err(std::io::Error::other)?;
+        std::fs::write(&temp, json)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&temp, std::fs::Permissions::from_mode(0o600))?;
+        }
+        std::fs::rename(temp, path)
     }
 
     pub fn load_persisted() -> PersistedState {
@@ -426,13 +519,103 @@ impl AppState {
             });
             return;
         }
+        if !model.read(cx).kernel_running {
+            model.update(cx, |state, cx| {
+                state.active_kernel = kernel;
+                state.kernel_error = None;
+                state.save();
+                cx.notify();
+            });
+            Self::set_proxy_running(model, cx, true);
+            return;
+        }
+        Self::switch_kernel(model, cx, kernel);
+    }
+
+    pub fn switch_kernel(model: Entity<Self>, cx: &mut App, kernel: String) {
+        let (active_node, routing_mode, rules, groups, rule_sets) = {
+            let state = model.read(cx);
+            (
+                state
+                    .active_node_id
+                    .as_ref()
+                    .and_then(|id| state.nodes.iter().find(|node| node.id == *id))
+                    .cloned(),
+                state.routing_mode,
+                state.rules.clone(),
+                state.groups.clone(),
+                state.rule_sets.clone(),
+            )
+        };
+        let Some(node) = active_node else {
+            model.update(cx, |state, cx| {
+                state.kernel_error = Some("没有活动节点，无法热切换内核".into());
+                cx.notify();
+            });
+            return;
+        };
         model.update(cx, |state, cx| {
-            state.active_kernel = kernel;
+            state.kernel_operation = Some(format!("正在热切换到 {kernel}…"));
             state.kernel_error = None;
-            state.save();
             cx.notify();
         });
-        Self::set_proxy_running(model, cx, true);
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            let model = model.clone();
+            async move {
+                let result = async {
+                    let mut client = IpcClient::connect_default().await?;
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 7,
+                            method: "SwitchKernel".into(),
+                            params: serde_json::json!({
+                                "kernel": kernel,
+                                "node": node,
+                                "routing": routing_plan(routing_mode),
+                                "rules": rules,
+                                "groups": groups,
+                                "rule_sets": rule_sets,
+                            }),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 8,
+                            method: "SetRoutingMode".into(),
+                            params: serde_json::json!({ "mode": routing_mode.as_str() }),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    Ok::<(), anyhow::Error>(())
+                }
+                .await;
+                model.update(&mut cx, |state, cx| {
+                    match result {
+                        Ok(()) => {
+                            state.active_kernel = kernel.clone();
+                            state.kernel_running = true;
+                            state.kernel_healthy = true;
+                            state.kernel_operation = Some(format!("已切换到 {kernel}"));
+                            state.save();
+                        }
+                        Err(error) => {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(format!("内核热切换失败：{error}"));
+                        }
+                    }
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
     }
 
     pub fn set_kernel_artifact_version(&mut self, version: String, cx: &mut Context<Self>) {
@@ -846,7 +1029,6 @@ impl AppState {
                 match result {
                     Ok((kernel, version)) => {
                         model.update(&mut cx, |state, cx| {
-                            state.active_kernel = kernel.clone();
                             if let Some(info) =
                                 state.kernels.iter_mut().find(|info| info.name == kernel)
                             {
@@ -875,9 +1057,218 @@ impl AppState {
         .detach();
     }
 
+    pub fn install_kernel_named(model: Entity<Self>, cx: &mut App, kernel: String) {
+        let upgrade = model
+            .read(cx)
+            .kernels
+            .iter()
+            .any(|info| info.name == kernel && info.installed);
+        model.update(cx, |state, cx| {
+            state.kernel_operation = Some(if upgrade {
+                format!("正在从官方目录升级 {kernel}…")
+            } else {
+                format!("正在从官方目录安装 {kernel}…")
+            });
+            state.kernel_error = None;
+            cx.notify();
+        });
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            let model = model.clone();
+            async move {
+                let result = async {
+                    let mut client = IpcClient::connect_default().await?;
+                    let method = if upgrade {
+                        "UpgradeOfficialKernel"
+                    } else {
+                        "InstallOfficialKernel"
+                    };
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 20,
+                            method: method.into(),
+                            params: serde_json::json!({"kernel": kernel}),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    let result = response.result.unwrap_or_default();
+                    let installed_version = result
+                        .get("version")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("unknown")
+                        .to_string();
+                    Ok::<(String, String), anyhow::Error>((kernel, installed_version))
+                }
+                .await;
+                match result {
+                    Ok((kernel, version)) => {
+                        model.update(&mut cx, |state, cx| {
+                            if let Some(info) =
+                                state.kernels.iter_mut().find(|info| info.name == kernel)
+                            {
+                                info.installed = true;
+                                info.version = Some(version.clone());
+                                info.state = "installed".into();
+                                info.running = false;
+                                info.healthy = false;
+                                info.failure = None;
+                            }
+                            state.kernel_operation = Some(format!("已完成：{kernel} {version}"));
+                            state.save();
+                            cx.notify();
+                        });
+                    }
+                    Err(error) => {
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(error.to_string());
+                            cx.notify();
+                        });
+                    }
+                }
+            }
+        })
+        .detach();
+    }
+
+    pub fn uninstall_kernel(model: Entity<Self>, cx: &mut App, kernel: String) {
+        let installed = model
+            .read(cx)
+            .kernels
+            .iter()
+            .any(|info| info.name == kernel && info.installed);
+        if !installed {
+            model.update(cx, |state, cx| {
+                state.kernel_error = Some(format!("内核 {kernel} 当前未安装"));
+                cx.notify();
+            });
+            return;
+        }
+        model.update(cx, |state, cx| {
+            state.kernel_operation = Some(format!("正在卸载 {kernel}…"));
+            state.kernel_error = None;
+            cx.notify();
+        });
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            let model = model.clone();
+            async move {
+                let result = async {
+                    let mut client = IpcClient::connect_default().await?;
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 21,
+                            method: "UninstallKernel".into(),
+                            params: serde_json::json!({"kernel": kernel}),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    Ok::<(), anyhow::Error>(())
+                }
+                .await;
+                match result {
+                    Ok(()) => {
+                        model.update(&mut cx, |state, cx| {
+                            if let Some(info) =
+                                state.kernels.iter_mut().find(|info| info.name == kernel)
+                            {
+                                info.installed = false;
+                                info.version = None;
+                                info.running = false;
+                                info.healthy = false;
+                                info.state = "not_installed".into();
+                                info.failure = None;
+                            }
+                            state.kernel_operation = Some(format!("已卸载 {kernel}"));
+                            state.save();
+                            cx.notify();
+                        });
+                    }
+                    Err(error) => model.update(&mut cx, |state, cx| {
+                        state.kernel_operation = None;
+                        state.kernel_error = Some(format!("卸载失败：{error}"));
+                        cx.notify();
+                    }),
+                }
+            }
+        })
+        .detach();
+    }
+
     pub fn set_subscription_filter_text(&mut self, text: String, cx: &mut Context<Self>) {
         self.subscription_filter_text = text;
         cx.notify();
+    }
+
+    pub fn set_subscription_draft_name(&mut self, value: String, cx: &mut Context<Self>) {
+        self.subscription_draft_name = value;
+        self.subscription_error = None;
+        cx.notify();
+    }
+
+    pub fn set_subscription_draft_url(&mut self, value: String, cx: &mut Context<Self>) {
+        self.subscription_draft_url = value;
+        self.subscription_error = None;
+        cx.notify();
+    }
+
+    pub fn add_subscription(model: Entity<Self>, cx: &mut App) {
+        let (name, url) = {
+            let state = model.read(cx);
+            (
+                state.subscription_draft_name.trim().to_string(),
+                state.subscription_draft_url.trim().to_string(),
+            )
+        };
+        if name.is_empty() || !url.starts_with("https://") {
+            model.update(cx, |state, cx| {
+                state.subscription_error = Some("订阅名称必填，地址必须使用 HTTPS".into());
+                cx.notify();
+            });
+            return;
+        }
+        if model
+            .read(cx)
+            .subscriptions
+            .iter()
+            .any(|item| item.url == url)
+        {
+            model.update(cx, |state, cx| {
+                state.subscription_error = Some("该订阅地址已存在".into());
+                cx.notify();
+            });
+            return;
+        }
+        let id = format!("sub-{}", chrono::Utc::now().timestamp_micros());
+        model.update(cx, |state, cx| {
+            state.subscriptions.push(narya_core::Subscription {
+                id: id.clone(),
+                name,
+                url,
+                icon: "globe".into(),
+                node_count: 0,
+                used_nodes: 0,
+                update_time: "尚未更新".into(),
+                traffic_used: 0.0,
+                traffic_total: 0.0,
+                expiration: "未知".into(),
+                status: "等待更新".into(),
+                format: None,
+            });
+            state.selected_subscription_id = Some(id.clone());
+            state.subscription_draft_name.clear();
+            state.subscription_draft_url.clear();
+            state.subscription_error = None;
+            state.save();
+            cx.notify();
+        });
+        Self::refresh_subscription(model, cx, id);
     }
 
     pub fn select_subscription(&mut self, id: String, cx: &mut Context<Self>) {
@@ -1146,6 +1537,93 @@ impl AppState {
         Self::set_proxy_running(model, cx, next_state);
     }
 
+    pub fn switch_routing_mode(model: Entity<Self>, cx: &mut App, mode: narya_platform::ProxyMode) {
+        let (active_node, kernel, rules, groups, rule_sets) = {
+            let state = model.read(cx);
+            (
+                state
+                    .active_node_id
+                    .as_ref()
+                    .and_then(|id| state.nodes.iter().find(|node| node.id == *id))
+                    .cloned(),
+                state.active_kernel.clone(),
+                state.rules.clone(),
+                state.groups.clone(),
+                state.rule_sets.clone(),
+            )
+        };
+        let Some(node) = active_node else {
+            model.update(cx, |state, cx| {
+                state.kernel_error = Some("没有活动节点，无法切换路由模式".into());
+                cx.notify();
+            });
+            return;
+        };
+        model.update(cx, |state, cx| {
+            state.kernel_operation = Some(format!("正在切换到 {}…", mode.as_str()));
+            state.kernel_error = None;
+            cx.notify();
+        });
+        cx.spawn(move |cx: &mut AsyncApp| {
+            let mut cx = cx.clone();
+            let model = model.clone();
+            async move {
+                let result = async {
+                    let mut client = IpcClient::connect_default().await?;
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 9,
+                            method: "SwitchKernel".into(),
+                            params: serde_json::json!({
+                                "kernel": kernel,
+                                "node": node,
+                                "routing": routing_plan(mode),
+                                "rules": rules,
+                                "groups": groups,
+                                "rule_sets": rule_sets,
+                            }),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    let response = client
+                        .send_request(IpcRequest {
+                            version: PROTOCOL_VERSION,
+                            id: 10,
+                            method: "SetRoutingMode".into(),
+                            params: serde_json::json!({ "mode": mode.as_str() }),
+                        })
+                        .await?;
+                    if let Some(error) = response.error {
+                        anyhow::bail!(error);
+                    }
+                    Ok::<(), anyhow::Error>(())
+                }
+                .await;
+                model.update(&mut cx, |state, cx| {
+                    match result {
+                        Ok(()) => {
+                            state.routing_mode = mode;
+                            state.routing_active = mode;
+                            state.kernel_running = true;
+                            state.kernel_healthy = true;
+                            state.kernel_operation = Some(format!("已切换到 {}", mode.as_str()));
+                            state.save();
+                        }
+                        Err(error) => {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(format!("路由模式切换失败：{error}"));
+                        }
+                    }
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
+    }
+
     pub fn set_proxy_running(model: Entity<Self>, cx: &mut App, next_state: bool) {
         let (active_node, routing_mode, rules, groups, rule_sets, active_kernel) = {
             let state = model.read(cx);
@@ -1167,8 +1645,16 @@ impl AppState {
             let mut cx = cx.clone();
             let model = model.clone();
             async move {
-                let Some(mut client) = IpcClient::connect_default().await.ok() else {
-                    return;
+                let mut client = match IpcClient::connect_default().await {
+                    Ok(client) => client,
+                    Err(error) => {
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(format!("无法连接 daemon：{error}"));
+                            cx.notify();
+                        });
+                        return;
+                    }
                 };
 
                 let method = if next_state {
@@ -1178,6 +1664,11 @@ impl AppState {
                 };
                 let params = if next_state {
                     let Some(node) = active_node else {
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some("没有活动节点，无法启动内核".into());
+                            cx.notify();
+                        });
                         return;
                     };
                     serde_json::json!({
@@ -1202,17 +1693,22 @@ impl AppState {
                 match client.send_request(req_kernel).await {
                     Ok(response) if response.error.is_none() => {}
                     Ok(response) => {
-                        eprintln!(
-                            "{} failed: {}",
-                            method,
-                            response
-                                .error
-                                .unwrap_or_else(|| "unknown daemon error".to_string())
-                        );
+                        let error = response
+                            .error
+                            .unwrap_or_else(|| "unknown daemon error".to_string());
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(format!("{method} 失败：{error}"));
+                            cx.notify();
+                        });
                         return;
                     }
                     Err(error) => {
-                        eprintln!("{} transport failed: {}", method, error);
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(format!("{method} 传输失败：{error}"));
+                            cx.notify();
+                        });
                         return;
                     }
                 }
@@ -1253,10 +1749,11 @@ impl AppState {
                         let error = response
                             .error
                             .unwrap_or_else(|| "unknown daemon error".to_string());
-                        eprintln!(
-                            "SetRoutingMode failed (legacy SetSystemProxy failed path): {}",
-                            error
-                        );
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(format!("SetRoutingMode 失败：{error}"));
+                            cx.notify();
+                        });
                         if next_state {
                             let _ = client
                                 .send_request(IpcRequest {
@@ -1269,7 +1766,11 @@ impl AppState {
                         }
                     }
                     Err(error) => {
-                        eprintln!("SetRoutingMode transport failed: {}", error);
+                        model.update(&mut cx, |state, cx| {
+                            state.kernel_operation = None;
+                            state.kernel_error = Some(format!("SetRoutingMode 传输失败：{error}"));
+                            cx.notify();
+                        });
                         if next_state {
                             let _ = client
                                 .send_request(IpcRequest {
@@ -1361,10 +1862,26 @@ impl AppState {
                         })
                         .await;
 
-                    if let Ok(content) = fetch_result {
-                        if let Ok((format, new_nodes)) =
-                            narya_subscription::parse_subscription(&content)
-                        {
+                    let result = match fetch_result {
+                        Ok(content) => {
+                            narya_subscription::parse_subscription(&content).map_err(|error| {
+                                subscription_refresh_failure_summary(
+                                    "订阅解析失败",
+                                    &error.to_string(),
+                                )
+                            })
+                        }
+                        Err(error) => Err(subscription_refresh_failure_summary(
+                            "订阅下载失败",
+                            &error.to_string(),
+                        )),
+                    };
+
+                    match result {
+                        Ok((format, mut new_nodes)) => {
+                            for node in &mut new_nodes {
+                                node.tag = Some(sub_id.clone());
+                            }
                             model.update(&mut cx, |state, cx| {
                                 if let Some(sub) =
                                     state.subscriptions.iter_mut().find(|s| s.id == sub_id)
@@ -1375,8 +1892,10 @@ impl AppState {
                                     sub.format = Some(format.as_str().to_string());
                                 }
 
-                                // Replace nodes for this demo. In a real app, we'd tag them and keep others.
-                                state.nodes = new_nodes;
+                                state
+                                    .nodes
+                                    .retain(|node| node.tag.as_deref() != Some(sub_id.as_str()));
+                                state.nodes.extend(new_nodes);
                                 if let Some(first_node) = state.nodes.first() {
                                     state.active_node_id = Some(first_node.id.clone());
                                 }
@@ -1384,17 +1903,17 @@ impl AppState {
                                 state.save();
                                 cx.notify();
                             });
-                            return;
                         }
-                    }
-
-                    // If failed
-                    model.update(&mut cx, |state, cx| {
-                        if let Some(sub) = state.subscriptions.iter_mut().find(|s| s.id == sub_id) {
-                            sub.status = "更新失败".to_string();
+                        Err(summary) => model.update(&mut cx, |state, cx| {
+                            mark_subscription_refresh_failed(
+                                &mut state.subscriptions,
+                                &sub_id,
+                                &summary,
+                            );
+                            state.subscription_error = Some(summary);
                             cx.notify();
-                        }
-                    });
+                        }),
+                    }
                 }
             })
             .detach();
@@ -1480,11 +1999,15 @@ impl AppState {
     }
 
     pub fn test_all_latency(model: Entity<Self>, cx: &mut App) {
-        // Collect IDs first to avoid borrow checker issues with model.read(cx) and model.update(cx)
-        let ids: Vec<String> = model.read(cx).nodes.iter().map(|n| n.id.clone()).collect();
+        let nodes = model
+            .read(cx)
+            .nodes
+            .iter()
+            .map(|node| (node.id.clone(), node.details.address.clone()))
+            .collect::<Vec<_>>();
         let weak_model = model.downgrade();
 
-        for id in ids {
+        for (id, address) in nodes {
             let weak_model = weak_model.clone();
 
             // Clear current latency to show loading state
@@ -1499,12 +2022,7 @@ impl AppState {
                 let mut cx = cx.clone();
                 let id = id.clone();
                 async move {
-                    // Simulate network delay
-                    let delay = 500 + rand::random::<u64>() % 2000;
-                    cx.background_executor()
-                        .timer(Duration::from_millis(delay))
-                        .await;
-                    let new_latency = Some(20 + rand::random::<u32>() % 200);
+                    let new_latency = crate::ipc::measure_tcp_latency(address).await.ok();
 
                     let _ = weak_model.update(&mut cx, |state, cx| {
                         if let Some(node) = state.nodes.iter_mut().find(|n| n.id == id) {
@@ -1518,7 +2036,7 @@ impl AppState {
         }
     }
 
-    pub fn init_or_mock() -> Self {
+    pub fn load_or_default() -> Self {
         let persisted = Self::load_persisted();
         if !persisted.subscriptions.is_empty() {
             let active_kernel = if persisted.active_kernel.is_empty() {
@@ -1539,6 +2057,9 @@ impl AppState {
                 selected_subscription_id: persisted.selected_subscription_id,
                 active_subscription_tab: SubscriptionTab::Overview,
                 subscription_filter_text: String::new(),
+                subscription_draft_name: String::new(),
+                subscription_draft_url: String::new(),
+                subscription_error: None,
                 subscription_list_state: ListState::new(0, ListAlignment::Top, px(100.0)),
                 log_lines: Vec::new(),
                 kernels: Vec::new(),
@@ -1582,9 +2103,17 @@ impl AppState {
                 rule_editor_error: None,
                 rule_io_path: String::new(),
                 rule_io_status: None,
+                settings_category: 0,
+                setting_autostart: persisted.setting_autostart,
+                setting_start_minimized: persisted.setting_start_minimized,
+                setting_close_to_tray: persisted.setting_close_to_tray,
+                setting_restore_proxy: persisted.setting_restore_proxy,
+                setting_auto_update: persisted.setting_auto_update,
+                appearance_mode: persisted.appearance_mode.min(2),
             };
         }
 
+        #[cfg(feature = "demo-data")]
         let nodes = vec![
             narya_core::Node {
                 id: "hk-01".to_string(),
@@ -1604,6 +2133,7 @@ impl AppState {
                     skip_cert_verify: false,
                     transport: "tcp".to_string(),
                     last_test: "刚刚".to_string(),
+                    options: narya_core::ProtocolOptions::default(),
                 },
             },
             narya_core::Node {
@@ -1618,12 +2148,13 @@ impl AppState {
                 upload_speed: 4.1,
                 details: narya_core::NodeDetails {
                     address: "sgp01.narya.net:443".to_string(),
-                    encryption: "none".to_string(),
+                    encryption: "password:demo-hysteria2-password".to_string(),
                     udp: true,
                     tls: true,
                     skip_cert_verify: true,
                     transport: "udp".to_string(),
                     last_test: "1 min ago".to_string(),
+                    options: narya_core::ProtocolOptions::default(),
                 },
             },
             narya_core::Node {
@@ -1638,12 +2169,13 @@ impl AppState {
                 upload_speed: 3.2,
                 details: narya_core::NodeDetails {
                     address: "tyo01.narya.net:443".to_string(),
-                    encryption: "auto".to_string(),
+                    encryption: "uuid:00000000-0000-0000-0000-000000000003".to_string(),
                     udp: true,
                     tls: true,
                     skip_cert_verify: false,
                     transport: "tcp".to_string(),
                     last_test: "5 mins ago".to_string(),
+                    options: narya_core::ProtocolOptions::default(),
                 },
             },
             narya_core::Node {
@@ -1658,16 +2190,21 @@ impl AppState {
                 upload_speed: 2.9,
                 details: narya_core::NodeDetails {
                     address: "lax01.narya.net:443".to_string(),
-                    encryption: "none".to_string(),
+                    encryption: "uuid:00000000-0000-0000-0000-000000000004".to_string(),
                     udp: true,
                     tls: true,
                     skip_cert_verify: false,
                     transport: "grpc".to_string(),
                     last_test: "10 mins ago".to_string(),
+                    options: narya_core::ProtocolOptions::default(),
                 },
             },
         ];
 
+        #[cfg(not(feature = "demo-data"))]
+        let nodes: Vec<narya_core::Node> = Vec::new();
+
+        #[cfg(feature = "demo-data")]
         let subscriptions = vec![
             narya_core::Subscription {
                 id: "sub-0".to_string(),
@@ -1741,18 +2278,31 @@ impl AppState {
             },
         ];
 
+        #[cfg(not(feature = "demo-data"))]
+        let subscriptions: Vec<narya_core::Subscription> = Vec::new();
+        let active_node_id = nodes.first().map(|node: &narya_core::Node| node.id.clone());
+        let selected_subscription_id = subscriptions.first().map(|item| item.id.clone());
+        let subscription_count = subscriptions.len();
+
         let state = Self {
-            active_node_id: Some("hk-01".to_string()),
+            active_node_id,
             nodes,
             subscriptions,
             kernel_running: false,
             filter_text: String::new(),
             rule_filter_text: String::new(),
             rule_action_filter: "all".to_string(),
-            selected_subscription_id: Some("sub-1".to_string()),
+            selected_subscription_id,
             active_subscription_tab: SubscriptionTab::Overview,
             subscription_filter_text: String::new(),
-            subscription_list_state: ListState::new(5, ListAlignment::Top, px(100.0)),
+            subscription_draft_name: String::new(),
+            subscription_draft_url: String::new(),
+            subscription_error: None,
+            subscription_list_state: ListState::new(
+                subscription_count,
+                ListAlignment::Top,
+                px(100.0),
+            ),
             log_lines: Vec::new(),
             kernels: vec![
                 narya_ipc::KernelInfo {
@@ -1775,6 +2325,15 @@ impl AppState {
                 },
                 narya_ipc::KernelInfo {
                     name: "xray-core".to_string(),
+                    installed: false,
+                    version: None,
+                    running: false,
+                    healthy: false,
+                    state: "not_installed".to_string(),
+                    failure: None,
+                },
+                narya_ipc::KernelInfo {
+                    name: "v2ray-core".to_string(),
                     installed: false,
                     version: None,
                     running: false,
@@ -1815,6 +2374,13 @@ impl AppState {
             rule_editor_error: None,
             rule_io_path: String::new(),
             rule_io_status: None,
+            settings_category: 0,
+            setting_autostart: false,
+            setting_start_minimized: false,
+            setting_close_to_tray: true,
+            setting_restore_proxy: true,
+            setting_auto_update: true,
+            appearance_mode: 0,
         };
         state.save();
         state
@@ -1853,10 +2419,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_app_state_mock() {
-        let state = AppState::init_or_mock();
-        assert!(!state.nodes.is_empty());
-        assert!(!state.subscriptions.is_empty());
-        assert!(state.active_node_id.is_some());
+    fn default_state_contains_no_fabricated_runtime_data() {
+        let state = AppState::load_or_default();
+        assert!(state.nodes.is_empty());
+        assert!(state.subscriptions.is_empty());
+        assert!(state.active_node_id.is_none());
     }
 }
