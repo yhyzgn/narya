@@ -760,48 +760,30 @@ pub fn nodes_main(
     overview: impl IntoElement,
 ) -> impl IntoElement {
     Flex::new()
-        .row()
+        .column()
         .gap_md()
-        .height_px(360.0)
+        .w_full()
         .min_w_0()
-        .child(
-            Flex::new()
-                .width_px(280.0)
-                .flex_none()
-                .min_w_0()
-                .child(strategy),
-        )
-        .child(Flex::new().flex_1().min_h_0().child(list))
-        .child(
-            Flex::new()
-                .width_px(276.0)
-                .flex_none()
-                .min_w_0()
-                .child(overview),
-        )
+        .child(Flex::new().w_full().min_w_0().child(strategy))
+        .child(Flex::new().w_full().min_w_0().child(list))
+        .child(Flex::new().w_full().min_w_0().child(overview))
 }
 
 pub fn nodes_bottom(left: impl IntoElement, right: impl IntoElement) -> impl IntoElement {
     Flex::new()
-        .row()
+        .column()
         .gap_lg()
-        .height_px(156.0)
+        .w_full()
         .min_w_0()
-        .child(Flex::new().flex_1().min_w_0().child(left))
-        .child(
-            Flex::new()
-                .width_px(604.0)
-                .flex_none()
-                .min_w_0()
-                .child(right),
-        )
+        .child(Flex::new().w_full().min_w_0().child(left))
+        .child(Flex::new().w_full().min_w_0().child(right))
 }
 
 pub fn node_grid(items: Vec<AnyElement>) -> impl IntoElement {
     Flex::new().row().wrap().gap_md().children(
         items
             .into_iter()
-            .map(|item| Flex::new().width_px(296.0).child(item)),
+            .map(|item| Flex::new().flex_1().min_w_0().child(item)),
     )
 }
 
