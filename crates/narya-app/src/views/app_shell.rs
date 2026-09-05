@@ -1621,9 +1621,9 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                     NaryaCard::titled(
                         rule.id.clone(),
                         Flex::new()
-                            .row()
+                            .column()
                             .gap_lg()
-                            .align_center()
+                            .min_w_0()
                             .child(RulePriorityInput {
                                 model: model.clone(),
                                 rule_id: rule.id.clone(),
@@ -1644,17 +1644,26 @@ fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIn
                                     .map(|group| group.id.clone())
                                     .collect(),
                             })
-                            .child(narya_ui::narya_tag(rule_action_summary(&rule.action), tone))
                             .child(
-                                NaryaButton::ghost("删除")
-                                    .id(format!("narya-rule-delete-{rule_id}"))
-                                    .on_click(move |_, _, cx| {
-                                        AppState::remove_rule(
-                                            delete_model.clone(),
-                                            cx,
-                                            rule_id.clone(),
-                                        )
-                                    }),
+                                Flex::new()
+                                    .row()
+                                    .wrap()
+                                    .gap_md()
+                                    .child(narya_ui::narya_tag(
+                                        rule_action_summary(&rule.action),
+                                        tone,
+                                    ))
+                                    .child(
+                                        NaryaButton::ghost("删除")
+                                            .id(format!("narya-rule-delete-{rule_id}"))
+                                            .on_click(move |_, _, cx| {
+                                                AppState::remove_rule(
+                                                    delete_model.clone(),
+                                                    cx,
+                                                    rule_id.clone(),
+                                                )
+                                            }),
+                                    ),
                             ),
                     )
                     .into_any_element()

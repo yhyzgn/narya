@@ -808,9 +808,11 @@ pub fn page_columns(left: impl IntoElement, right: impl IntoElement) -> impl Int
 pub fn toolbar(children: Vec<AnyElement>) -> impl IntoElement {
     Flex::new()
         .row()
+        .wrap()
         .gap_md()
         .align_center()
         .w_full()
+        .min_w_0()
         .height_px(38.0)
         .children(children)
 }
