@@ -949,7 +949,7 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
         ]))
         .row(NaryaCard::titled(
             "添加订阅",
-            Flex::new().row().gap_md().child(SubscriptionDraftForm {
+            Flex::new().w_full().min_w_0().child(SubscriptionDraftForm {
                 model_for_name,
                 model_for_url,
                 model_for_add,
@@ -958,21 +958,24 @@ fn subscriptions_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl
                 error: snapshot.subscription_error.clone(),
             }),
         ))
-        .row(narya_ui::page_columns(
-            NaryaCard::titled(
-                "订阅源列表",
-                Flex::new().column().gap_md().children(subscription_rows),
-            ),
-            NaryaCard::titled(
-                "更新状态",
-                Flex::new()
-                    .column()
-                    .gap_lg()
-                    .child(narya_ui::detail_field("状态", selected_status))
-                    .child(narya_ui::detail_field("格式", selected_format))
-                    .child(narya_ui::detail_field("更新时间", selected_updated))
-                    .child(refresh_button),
-            ),
+        .row(NaryaCard::titled(
+            "订阅源列表",
+            Flex::new()
+                .column()
+                .gap_md()
+                .min_w_0()
+                .children(subscription_rows),
+        ))
+        .row(NaryaCard::titled(
+            "更新状态",
+            Flex::new()
+                .column()
+                .gap_lg()
+                .min_w_0()
+                .child(narya_ui::detail_field("状态", selected_status))
+                .child(narya_ui::detail_field("格式", selected_format))
+                .child(narya_ui::detail_field("更新时间", selected_updated))
+                .child(refresh_button),
         ))
 }
 
@@ -996,7 +999,9 @@ impl NaryaRenderOnce for SubscriptionDraftForm {
             .child(
                 Flex::new()
                     .row()
+                    .wrap()
                     .gap_md()
+                    .min_w_0()
                     .child(cx.new(|cx| {
                         Input::new(self.name, cx)
                             .id("narya-subscription-name")
