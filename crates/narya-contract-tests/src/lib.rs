@@ -312,21 +312,24 @@ mod tests {
     #[test]
     fn ui_specs_are_image_only_and_page_layer_has_no_raw_gpui_layout() {
         let root = workspace_root();
-        for entry in walkdir::WalkDir::new(root.join("ui")) {
-            let entry = entry.expect("walk ui");
-            if !entry.file_type().is_file() {
-                continue;
+        let ui_root = root.join("ui");
+        if ui_root.exists() {
+            for entry in walkdir::WalkDir::new(ui_root) {
+                let entry = entry.expect("walk ui");
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let path = entry.path();
+                let path_string = path.strip_prefix(root).unwrap().display().to_string();
+                let lower = path_string.to_ascii_lowercase();
+                let is_image = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]
+                    .iter()
+                    .any(|suffix| lower.ends_with(suffix));
+                assert!(
+                    !lower.contains("spec") || is_image,
+                    "spec-related UI artifacts must be removed unless they are images: {path_string}"
+                );
             }
-            let path = entry.path();
-            let path_string = path.strip_prefix(root).unwrap().display().to_string();
-            let lower = path_string.to_ascii_lowercase();
-            let is_image = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]
-                .iter()
-                .any(|suffix| lower.ends_with(suffix));
-            assert!(
-                !lower.contains("spec") || is_image,
-                "spec-related UI artifacts must be removed unless they are images: {path_string}"
-            );
         }
 
         for page in ["crates/narya-app/src/views/app_shell.rs"] {

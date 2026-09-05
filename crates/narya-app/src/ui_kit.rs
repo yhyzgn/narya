@@ -10,7 +10,7 @@ pub use gpui::{
     ViewElement as NaryaViewElement, Window,
 };
 use liora::components::{
-    Button, Card, Flex, Image, Input, LineChart, LocalizedText, PortalLayer, Progress, Segmented,
+    Button, Card, Flex, Input, LineChart, LocalizedText, PortalLayer, Progress, Segmented,
     SegmentedOption, Select, SignalMeter, Space, Sparkline, Statistic, Switch, Tag, Text,
 };
 use liora_icons::Icon;
@@ -291,11 +291,9 @@ fn brand_block() -> impl IntoElement {
             .align_center()
             .gap_lg()
             .child(
-                Image::local("ui/icons/narya-logo-v2.png")
-                    .width(px(62.0))
-                    .height(px(62.0))
-                    .shadow(false)
-                    .bordered(false),
+                Icon::new(IconName::Shield)
+                    .size(px(32.0))
+                    .color(color(BRAND).into()),
             )
             .child(
                 Flex::new()
