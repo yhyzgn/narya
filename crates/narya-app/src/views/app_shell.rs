@@ -2527,45 +2527,53 @@ fn logs_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
     };
     NaryaPage::new().row(NaryaCard::titled(
         "实时日志",
-        Flex::new().column().gap_md().children(rows),
+        Flex::new()
+            .column()
+            .gap_md()
+            .min_w_0()
+            .overflow_y_scroll()
+            .children(rows),
     ))
 }
 
 fn tools_page() -> impl NaryaIntoElement {
-    NaryaPage::new().row(narya_ui::grid_two(vec![
-        NaryaMetric::card(
-            "Ping 测试",
-            "未接入",
-            "请使用节点页真实测速",
-            IconName::Zap,
-            NaryaStatus::Info,
-        )
-        .into_any_element(),
-        NaryaMetric::card(
-            "DNS 查询",
-            "未接入",
-            "等待安全诊断实现",
-            IconName::CircleGauge,
-            NaryaStatus::Success,
-        )
-        .into_any_element(),
-        NaryaMetric::card(
-            "MTR Trace",
-            "未接入",
-            "等待安全诊断实现",
-            IconName::ArrowLeftRight,
-            NaryaStatus::Warning,
-        )
-        .into_any_element(),
-        NaryaMetric::card(
-            "端口检查",
-            "未接入",
-            "请使用节点页真实测速",
-            IconName::SquareStack,
-            NaryaStatus::Info,
-        )
-        .into_any_element(),
-    ]))
+    NaryaPage::new().row(NaryaCard::titled(
+        "诊断工具",
+        Flex::new().column().gap_md().min_w_0().children([
+            NaryaMetric::card(
+                "Ping 测试",
+                "未接入",
+                "请使用节点页真实测速",
+                IconName::Zap,
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "DNS 查询",
+                "未接入",
+                "等待安全诊断实现",
+                IconName::CircleGauge,
+                NaryaStatus::Success,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "MTR Trace",
+                "未接入",
+                "等待安全诊断实现",
+                IconName::ArrowLeftRight,
+                NaryaStatus::Warning,
+            )
+            .into_any_element(),
+            NaryaMetric::card(
+                "端口检查",
+                "未接入",
+                "请使用节点页真实测速",
+                IconName::SquareStack,
+                NaryaStatus::Info,
+            )
+            .into_any_element(),
+        ]),
+    ))
 }
 
 fn about_page() -> impl NaryaIntoElement {
