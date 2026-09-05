@@ -1240,7 +1240,7 @@ fn settings_page(
                 .child(
                     Flex::new()
                         .column()
-                        .width_px(420.0)
+                        .width_px(360.0)
                         .h_full()
                         .flex_none()
                         .min_h_0()
@@ -1249,7 +1249,7 @@ fn settings_page(
                         .child(
                             SettingsPage::new("内核管理")
                                 .description("内核仅安装在 Narya 私有目录，不修改系统 PATH")
-                                .max_width(px(420.0))
+                                .max_width(px(360.0))
                                 .group(
                                     SettingsGroup::new("内核列表")
                                         .description("版本、运行状态与操作集中在单行展示")
@@ -1495,16 +1495,21 @@ fn connections_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
     } else {
         vec![narya_ui::detail_field("连接状态", "当前没有活动连接").into_any_element()]
     };
-    NaryaPage::new().row(narya_ui::page_columns(
-        NaryaCard::titled(
+    NaryaPage::new()
+        .row(NaryaCard::titled(
             "活动连接",
-            Flex::new().column().gap_md().children(connection_rows),
-        ),
-        NaryaCard::titled(
+            Flex::new()
+                .column()
+                .gap_md()
+                .min_w_0()
+                .children(connection_rows),
+        ))
+        .row(NaryaCard::titled(
             "连接摘要",
             Flex::new()
                 .column()
                 .gap_lg()
+                .min_w_0()
                 .child(NaryaMetric::card(
                     "运行状态",
                     if snapshot.running {
@@ -1527,8 +1532,7 @@ fn connections_page(snapshot: ShellSnapshot) -> impl NaryaIntoElement {
                     IconName::ListFilter,
                     NaryaStatus::Success,
                 )),
-        ),
-    ))
+        ))
 }
 
 fn rules_page(model: &Entity<AppState>, snapshot: ShellSnapshot) -> impl NaryaIntoElement {
