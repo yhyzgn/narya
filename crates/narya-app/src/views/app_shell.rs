@@ -359,6 +359,7 @@ fn header(
                 .id("narya-config-import-menu")
                 .on_click(move |_, window, cx| {
                     let shell = shell.clone();
+                    let shell_for_content = shell.clone();
                     let import_model = import_model.clone();
                     Drawer::new()
                         .id("narya-config-import-drawer")
@@ -377,6 +378,34 @@ fn header(
                                     "本地配置文件",
                                     "JSON、YAML 或 Base64 文本",
                                 ))
+                                .child(
+                                    NaryaButton::ghost("前往订阅页添加远程 URL")
+                                        .id("narya-config-import-remote")
+                                        .on_click({
+                                            let shell = shell_for_content.clone();
+                                            move |_, _, app| {
+                                                Drawer::close(app);
+                                                let _ = shell.update(app, |shell, cx| {
+                                                    shell.active_view = ActiveView::Subscriptions;
+                                                    cx.notify();
+                                                });
+                                            }
+                                        }),
+                                )
+                                .child(
+                                    NaryaButton::ghost("前往规则页导入本地配置")
+                                        .id("narya-config-import-file")
+                                        .on_click({
+                                            let shell = shell_for_content.clone();
+                                            move |_, _, app| {
+                                                Drawer::close(app);
+                                                let _ = shell.update(app, |shell, cx| {
+                                                    shell.active_view = ActiveView::Rules;
+                                                    cx.notify();
+                                                });
+                                            }
+                                        }),
+                                )
                                 .child(
                                     NaryaButton::primary("读取剪贴板并导入")
                                         .id("narya-config-import-clipboard")
